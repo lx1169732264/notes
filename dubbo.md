@@ -58,7 +58,7 @@ RPC基本原理:进程之间通过socket套接字实现通信
 
 RPC两个核心模块：通讯，序列化。
 
-# ***\*简介\****
+# 简介
 
 Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现。
 
@@ -72,7 +72,7 @@ Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了
 
 ***\*监控中心（Monitor）：\****服务消费者和提供者，定时每分钟发送统计数据到监控中心,记录在内存中累计调用次数和调用时间， 
 
-# ***\*安装(windows)\****
+# 安装(windows)
 
 https://github.com/apache/dubbo-admin/tree/master
 
@@ -110,7 +110,7 @@ Simple Monitor 挂掉不会影响到 Consumer 和 Provider 之间的调用，所
 
 Simple Monitor 采用磁盘存储统计信息，请注意安装机器的磁盘限制，如果要集群，建议用mount共享磁盘。
 
-# ***\*整合springboot\****
+# 整合springboot
 
 dubbo整合springboot三种方式
 
@@ -788,39 +788,213 @@ public class BootEgoOrderServiceConsumerApplication {
 
  
 
- 
+# 超时处理
 
  
 
- 
+## 提供者超时
+
+可以精确到某个接口中的方法
+
+![image-20200812154628800](image.assets/image-20200812154628800.png)
+
+ 消费者超时
+
+![image-20200812155020064](image.assets/image-20200812155020064.png)
+
+## 配置优先级  
+
+有三个位置用于配置
+
+​	方法>接口>全局	同级别的配置下**消费者的配置优先**
+
+![image-20200813222238407](image.assets/image-20200813222238407.png)
+
+![image-20200813222509289](image.assets/image-20200813222509289.png)
+
+在@service/@Reference注解中指定超时时间 ,等价于接口配置
+
+ 若**超时 ,则会重新发两次请求** ,依然超时则终止
+
+一般***只在提供者进行配置*** ,提供者更清楚服务的状态
 
  
 
- 
+ # 启动检查&重试次数
+
+  
+
+* 消费者项目启动时 ,默认会检查提供者是否已注册 ,如果没有项目将启动失败
+
+可以在方法/全局上配置启动不检查	check默认为true
+
+@Reference(timeout = 3000, check = false)
+
+* 配置的次数为重试的次数 ,总次数=重试+1
+
+<dubbo:provider timeout="6000" ***retries="3"***></dubbo:provider>
+
+# 灰度发布
+
+当新接口发布，出现不兼容时，可以用版本号过渡，**版本号不同的服务相互间不引用**。
+
+之后进行**版本迁移**：
+
+在低压力时间段，先**升级一半provider**为新版本	再将**所有consumer**升级为新版本
+
+然后将剩下的一半提供者升级为新版本
+
+
+
+provider
+
+ <!--声明要暴露的实现类的对象-->
+    <bean id="userServiceImpl" class="service.impl.UserServiceImpl" ></bean>
+    <!-- 指定需要暴露的服务 -->
+    <dubbo:service timeout="2000" interface="service.UserService" ref="userServiceImpl" **version="1.0.0"**>
+        <dubbo:method name="queryAllAddress" timeout="1000"></dubbo:method>
+    </dubbo:service>
+
+<!--声明要暴露的实现类的对象-->
+    <bean id="userServiceImpl2" class="service.impl.UserServiceImpl2"></bean>
+    <!-- 指定需要暴露的服务 -->
+    <dubbo:service timeout="2000" interface="service.UserService" ref="userServiceImpl**2**" **version="1.0.1"**>
+        <dubbo:method name="queryAllAddress" timeout="1000"></dubbo:method>
+    </dubbo:service>
+
+
+
+在指定版本号之后 ,consumer必须指定版本号才能够正常调用
+
+ <!--生成远程调用对象-->
+    <dubbo:reference timeout="3000" id="userService" interface="service.UserService" **version="1.0.0"** >
+        <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
+    </dubbo:reference>
+
+
+
+版本号**支持正则匹配** ,可以实现负载均衡
+
+# 本地存根Stub
+
+客户端通常只剩下接口，而实现全在服务器端，但**提供方有些时候想在客户端也执行部分逻辑**，比如：做 ThreadLocal 缓存，提前验证参数，调用失败后伪造容错数据等等，此时就需要在 API 中带上Stub，客户端生成 Proxy 实例，会把 Proxy 通过构造函数传给 Stub，然后把 Stub 暴露给用户，Stub 可以决定要不要去调 Proxy。
+
+本地存根相当于在调用服务时 ,在调用之前或之后再执行一段逻辑 ,类似于切面
+
+
+
+<!--生成远程调用对象-->
+    <dubbo:reference check="false" timeout="3000" id="userService" interface="service.UserService" version="1.0.0" **stub="service.impl.StubUserServiceImpl"** >
+        <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
+    </dubbo:reference>
 
  
 
- 
+```
+//存根类必须实现接口
+public class StubUserServiceImpl implements UserService {
+
+    //远程的服务接口对象
+    private UserService userService;
+    
+	//对外提供生成接口对象的构造方法
+    public StubUserServiceImpl(UserService userService) {
+        this.userService = userService;
+    }
+
+    public List<UserAddress> queryAllAddress(String userId) throws InterruptedException {
+        try {
+            System.out.println("stub被执行");
+            return userService.queryAllAddress(userId);
+        } catch (Exception e) {
+        //通过catch可以实现提供方的接口出现错误时,也能返回默认数据
+            return Arrays.asList(new UserAddress(1, "error", "error"));
+        }
+    }
+}
+```
 
  
 
- 
+ 注解的配置方式
+
+![image-20200815120037132](image.assets/image-20200815120037132.png)
 
  
 
- 
+# zookeeper宕机
 
- 
+zookeeper注册中心宕机并不影响消费dubbo暴露的服务
 
- 
+![img](.\image.assets\wps4.jpg)
 
- 
+可以看出 ,监控中心只负责同步消费者和提供者的数据
 
- 
+并且在provider暴露完服务 ,consumer拉取服务列表之后 ,在本地就已经有缓存了 ,之后的服务调用都是consumer与provider的直接调用 ,不需要经过zookeeper
 
- 
 
- 
+
+* 数据中心宕掉后,通过仍能够通过**注册中心缓存**提供服务列表查询,但**不能注册新服务**
+
+* zookeeper注册中心集群，任意一台宕掉后，将自动切换到另一台
+
+* 注册中心全部宕掉后，服务提供者和服务消费者仍能通过**本地缓存**通讯
+
+* 提供者无状态，任意一台宕掉，不影响使用
+
+* 提供者全部宕掉后，服务消费者应用将无法使用，并无限次重连等待服务提供者恢复
+
+**减少系统不能提供服务的时间**
+
+​	即使zookeeper宕机,也不会造成严重的损失 ,实现高可用
+
+
+
+# dubbo直连(绕过注册直接消费服务)
+
+zookeeper宕机之后 ,由于消费者有本地缓存 ,依然可以正常消费服务 ,但是提供者无法注册新的服务
+
+![image-20200815124050556](image.assets/image-20200815124050556.png)
+
+在消费者指定服务提供者的ip与端口
+
+
+
+# 负载均衡LoadBalance
+
+![image-20200815145920560](image.assets/image-20200815145920560.png)
+
+Random LoadBalance	基于权重的随机调用	**默认**
+
+RoundRobin LoadBalance	基于权重的**轮循**调用	权重大的被轮循到的次数多
+
+LeastActive LoadBalance	基于活跃数的调用	根据调用前后计数差,得到"延迟数" ,慢的提供者收到更少请求
+
+ConsistentHash LoadBalance	基于一致hash的调用	相同参数的请求总是发到同一提供者(nginx)
+
+​	缺省只对第一个参数Hash <dubbo:parameter key="hash.arguments" **value="0,1**" />可以修改value的值
+
+```
+@Service(weight = 100, loadbalance = "roundrobin")	//provider设置权重与负载均衡
+```
+
+# 服务降级
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
  
 
