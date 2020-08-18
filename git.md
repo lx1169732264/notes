@@ -22,10 +22,6 @@ git rm -r --cached .
 
 git diff 文件名  查看区别 没有区别就不显示
 
-
-
-
-
 # 撤销及版本回退
 
 git checkout 文件名 撤销
@@ -67,8 +63,6 @@ git merge 分支名  合并(先回到要合并的分支)
 先合并			![img](image.assets/wps1-1597195136938.jpg)表示合并中
 
 再手动解决文件中的冲突		再add	commit
-
-
 
 # bug分支
 
@@ -173,6 +167,10 @@ git config --global --unset https.proxy
 $ git config --global user.name "Your Name"
 
 $ git config --global user.email "email@example.com"
+
+# 免密push
+
+git config  credential.helper store  
 
 
 
