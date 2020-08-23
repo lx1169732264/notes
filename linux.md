@@ -1,4 +1,4 @@
-# vim网络ip配置
+## vim网络ip配置
 
 vim /etc/sysconfig/network-script/ifcfg-ens32
 
@@ -6,36 +6,69 @@ vim /etc/sysconfig/network-script/ifcfg-ens32
 
 修改onboot yes
 
-# 刷新网络配置
+## 刷新网络配置
 
 systemctl restart sshd
 
-# 安装并开启ssh
+## 安装并开启ssh
 
 sudo yum install sshd
 
 service sshd start
 
-# 查看IP地址,连接winscp
+## 查看IP地址,连接winscp
 
 ipaddr
 
-# 安装gcc与vim
+## 安装gcc与vim
 
 yum -y install gcc gcc-c++ autoconf pcre pcre-devel automake
 
 gcc --version
 
+## 安装telnet
+
+yum install telnet
+
+## 前缀不显示主机号
+
+echo $PS1
+[\u@\H \W]\$
+
+其中\u代表用户，\H代表主机，\W代表目录
+
+ export PS1='[\u@ \W]\$'
+
+
+ 
+
+或者是修改用户主目录下的bashrc文件
+
+在 ~/.bashrc 文件最下面增加：
+
+export PS1='[\u@ \W]\$'
+
 # 安装mysql
 
-tar -xxf 
+tar -xvf 
 
 依次安装
 
 mysql-community-common-5.7.29-1.el7.x86_64.rpm
+
+
+
+报错error: Failed dependencies:
+	mysql-community-common(x86-64) >= 5.7.9 is needed by mysql-community-libs-5.7.29-1.el7.x86_64
+	mariadb-libs is obsoleted by mysql-community-libs-5.7.29-1.el7.x86_64
+
+yum remove mysql-libs清楚之前安装的依赖
+
+
+
  mysql-community-libs-5.7.29-1.el7.x86_64.rpm
  mysql-community-client-5.7.29-1.el7.x86_64.rpm
- 
+
 
 解决第四个server包的安装依赖
 
@@ -62,6 +95,8 @@ systemctl stop firewalld
 systemctl disable firewalld
 
 ## 获取mysql的root用户的初始密码
+
+systemctl start mysqld.service	启动mysql后自动生成mysqld.log
 
 grep 'password' /var/log/mysqld.log
 
@@ -115,7 +150,7 @@ default-character-set=utf8
 
 ## 重启mysql服务
 
-service mysqld restart
+systemctl start mysqld.service
 
 ## 执行sql脚本
 
@@ -134,8 +169,6 @@ vim /etc/docker/daemon.json
 "registry-mirrors":["http://f1361db2.m.daocloud.io"]
 
 }
-
- 
 
  
 

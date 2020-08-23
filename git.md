@@ -22,6 +22,43 @@ git rm -r --cached .
 
 git diff 文件名  查看区别 没有区别就不显示
 
+
+
+# git pull和git fetch
+
+- .git/refs/head/[本地分支]
+- .git/refs/remotes/[正在跟踪的分支]
+
+存储了git本地仓库master分支的commit ID 和 跟踪的远程分支orign/master的commit ID
+
+
+
+首先假设我们本地仓库的 master 分支上 commit ID =1 ，orign/master的commit ID =1 ;这时候远程仓库有人更新了master代码，commit ID =2 ,这边再提交本地仓库时
+
+## git fetch
+
+**本地master的commitID=1不变。远程仓库orign/master的commit ID=2**。本地相当于存储了两个代码的版本号，通过**merge**去合并，如果两个版本都修改了同一处代码，出现冲突，解决冲突后就生成了新的代码版本
+
+**这时候本地的代码版本可能就变成了commit ID=3，即生成了一个新的代码版本**
+
+fetch的时候本地的master没有变化，但是与远程仓关联的.git/refs/remotes/被更新了
+
+## git pull
+
+**使用git pull的会将.git/refs/head/和.git/refs/remotes/都更新**
+
+git pul类似于git fetch+git merge ,但将merge自动化了 ,最后**commit ID=2**
+
+
+
+#### **git pull把过程的细节都隐藏了起来 ,一旦代码有问题，很难找到出错的地方** ,本地仓库在未经确认的情况被更新。当然，除非你关闭所有的安全选项，否则git pull在你本地工作目录还不至于造成不可挽回的损失，但很多时候我们宁愿做的慢一些，也不愿意返工重来****
+
+#### **将下载（fetch）和合并（merge）放到一个命令里的另外一个弊端是，你的本地工作目录在未经确认的情况下就会被远程分支更新。当然，除非你关闭所有的安全选项，否则git pull在你本地工作目录还不至于造成不可挽回的损失，但很多时候我们宁愿做的慢一些，也不愿意返工重来**
+
+
+
+
+
 # 撤销及版本回退
 
 git checkout 文件名 撤销
