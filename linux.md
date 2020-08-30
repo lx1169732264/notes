@@ -124,7 +124,7 @@ set global validate_password_length=6;
 
 设置简易密码
 
-ALTER USER 'root'@'localhost' IDENTIFIED BY '159753';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '123456';
 
 使密码立即生效
 
@@ -132,7 +132,7 @@ flush privileges;
 
 ## 允许root远程登录mysql
 
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '159753' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
 
 修改mysql的字符集为utf8
 
@@ -190,17 +190,44 @@ vim /etc/docker/daemon.json
 
  
 
- 
+ # 后台运行jar包
+
+```
+java -jar xxx.jar &
+```
+
+&代表在后台运行	**当前ssh窗口关闭时，程序中止运行**
 
  
 
+```
+nohup java -jar xxx.jar &
+nohup java -jar xxx.jar >/dev/null  &  //输出重定向
+```
+
+nohup 意思是不挂断运行命令,当账户退出或终端关闭时,程序仍然运行
+
+缺省情况下该作业的所有输出被重定向到nohup.out的文件中
 
 
 
+jobs命令查看后台运行任务	每个作业前面都有个编号
 
+```
+jobs
+```
 
+如果想将某个作业调回前台控制，只需要 fg + 编号即可。
 
+```
+fg 23
+```
 
+查看某端口占用的线程的pid
+
+```
+netstat -nlp |grep :9181
+```
 
 
 
