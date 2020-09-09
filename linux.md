@@ -4,35 +4,37 @@
 
 ## vim网络ip配置
 
-vim /etc/sysconfig/network-script/ifcfg-ens32
-
- 
-
-修改onboot yes
-
-## 刷新网络配置
+vim /etc/sysconfig/network-script/ifcfg-ens32			修改onboot yes
 
 systemctl restart sshd
 
-## 安装并开启ssh
+## 安装ssh/gcc/vim/telnet
 
 sudo yum install sshd
 
 service sshd start
 
-## 查看IP地址,连接winscp
-
-ipaddr
-
-## 安装gcc与vim
-
 yum -y install gcc gcc-c++ autoconf pcre pcre-devel automake
 
-gcc --version
-
-## 安装telnet
-
 yum install telnet
+
+
+
+## 安装docker
+
+yum install docker
+
+配置镜像加速
+
+vim /etc/docker/daemon.json
+
+{
+
+"registry-mirrors":["http://f1361db2.m.daocloud.io"]
+
+}
+
+
 
 ## 前缀不显示主机号
 
@@ -51,6 +53,8 @@ echo $PS1
 在 ~/.bashrc 文件最下面增加：
 
 export PS1='[\u@ \W]\$'
+
+
 
 # 安装mysql
 
@@ -162,17 +166,7 @@ source /xxx.sql;
 
 
 
-# 安装docker
 
-配置镜像加速
-
-vim /etc/docker/daemon.json
-
-{
-
-"registry-mirrors":["http://f1361db2.m.daocloud.io"]
-
-}
 
  
 
