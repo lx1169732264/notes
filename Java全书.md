@@ -259,46 +259,23 @@ public class Demo02LoggerLambda {
 
 
 
-## 使用方法
+
+
+## 方法引用 ::
 
 ```
-public void testCook() {
-    methodCook(() ->  System.out.println("做饭了"));}
-
-private void methodCook(Cook cook) {cook.makeFood();}
+print(e -> System.out.println(e));
 ```
 
-
-
-# 方法引用 ::
-
-
-
-## 冗余的lambda
+这个lambda只是接收了参数 ,并将它打印 ,而打印的方法有现成的System.out.println
 
 ```
-public void print() {
-    print(e -> System.out.println(e));
-}
-
-private void print(Consumer<String> consumer) {
-    consumer.accept("Hello");
-}
-```
-
-这个lambda只是接收了accept方法的参数 ,并将它打印 ,而打印的方法有现成的System.out.println
-
-那么可以直接去引用这个方法
-
-```
-public void print() {
-    print(System.out::println);
-}
+print(System.out::println);
 ```
 
 
 
-如果Lambda要表达的函数方案已经存在于某个方法的实现中，那么则可以通过双冒号来引用该方法作为Lambda的替代者。 
+如果Lambda要表达的函数方案已存在于某个方法的实现中，可以通过::来引用该方法
 
 * Lambda写法	 s -> System.out.println(s); 	拿到参数之后经Lambda之手，继而传递给 System.out.println 方法去处理
 
@@ -608,29 +585,11 @@ private transient volatile Object[] array;
 
 
 
+## ThreadLocal 原理
 
-
-
-
-
-
-## ThreadLocal 的作用和原理。列举在哪些程序中见过 ThreadLocal 的使用？
-
-干脆不要共享资源，为每个线程创造一个资源的复本。将每一个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
+ThreadLocal 为每个线程创造一个资源的复本 ,而不是共享资源。将每一个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
 
 原理 : ThreadLocal 类中有一个Map，用于存储每一个线程的变量的副本。
-
-
-
-## 注意哪个对象正被用于锁定：
-
-1、调用同一个对象中非静态同步方法的线程是互斥的。如果是不同对象，则每个线程有自己的对象的锁，线程间彼此互不干预。
-
-2、调用同一个类中的静态同步方法的线程将是互斥的，它们都是锁定在相同的Class对象上。
-
-3、静态同步方法和非静态同步方法将永远不是互斥的，因为静态方法锁定在Class对象上，非静态方法锁定在该类的对象上。
-
-4、对于同步代码块，要看清楚什么对象已经用于锁定（synchronized后面括号的内容）。在同一个对象上进行同步的线程将是互斥的，在不同对象上锁定的线程将永远不会互斥。
 
 
 
@@ -668,10 +627,6 @@ public class TestThread2 implements Runnable {
 劣势：编程方式稍微复杂，如需访问当前线程，需调用Thread.currentThread()
 
 * 实现Callable接口
-
-
-
-
 
 
 
@@ -731,6 +686,7 @@ isAlive	是否存活
 
 * start()    此时线程处于就绪状态，并没有运行，得到 cpu 时间片**再执行 run()方法** .run()方法只是类的一个普通方法而已，**如果直接调用 run 方法，程序中依然只有主线程**，还是要顺序执行
 * Thread.state / thread.getState()	获取线程状态
+* **线程同时启动**    for 循环，调用 wait()方法，让所有线程等待 ,再调用 notifyAll(), 同时启动所有线程
 
 
 
@@ -755,8 +711,6 @@ final void notifyAll()唤醒同一个对象上所有调用 wait()方法的线程
 JDK 1.5 通过 Lock 接口提供了显式(explicit)的锁机制，增强了灵活性以及对线程的协调。Lock 接口中定义了加锁（lock()）和解锁(unlock())的方法，同时还提供了 newCondition()方法来产生用于线程之间通信的Condition 对象；
 
 JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对某个共享资源进行访问的线程的数量。在对资源进行访问之前，线程必须得到信号量的许可（调用 Semaphore 对象的 acquire()方法）；在完成对资源的访问后，线程必须向信号量归还许可（调用 Semaphore 对象的 release()方法）。
-
-
 
 
 
@@ -793,27 +747,11 @@ System.out.println(list.size());//不到10000	list.add()时,两个线程同时ad
 
 
 
-
-
-### 队列
-
-多个需要同时访问此对象的线程进入这个对象的等待池 ,等待正在运行的线程结束
-
-
-
-
-
 ### 同步代码块/方法
 
 synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该方法的对象的锁才能执行方法 ,否则会线程阻塞
 
 方法执行完毕 ,才会释放锁 ,让下一个线程拿到锁
-
-
-
-
-
-
 
 
 
@@ -833,13 +771,40 @@ synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该�
 
 ### 锁
 
+从jdk1.5开始 ,可以显式定义同步锁对象Lock ,实现同步
+
+Lock接口 ,提供了对共享资源的独占访问 ,线程开始访问共享资源之前需要先获得Lock对象
+
 锁保证了数据在方法中被访问时的正确性
 
 锁会消耗性能 ,低优先级线程拿到排它锁 ,将导致性能倒置
 
 
 
-对象锁分为三种：共享资源、this、当前类的字节码文件对象
+ReentrantLock可重入锁 实现了Lock ,与synchronized相同并发性和内存语义
+
+```
+private final ReentrantLock lock = new ReentrantLock();
+        lock.lock();					//在try外面加锁
+        try {
+            ...
+        } finally {
+            lock.unlock();}		//在finally解锁
+```
+
+
+
+#### Lock 与synchronized对比
+
+Lock是显式锁 ,synchronized是隐式 ,出了作用域就释放
+
+Lock只有代码块锁 ,没有方法锁
+
+Lock在调度线程方面性能更好
+
+
+
+**对象锁分为三种：共享资源、this、当前类的字节码文件对象**
 
 
 
@@ -862,10 +827,6 @@ synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该�
 静态方法，需要对Class对象加锁。
 
 非静态方法，需要对本对象(this)加锁。
-
-
-
-
 
 
 
@@ -905,21 +866,47 @@ synchronized (对象) {
 
 
 
+## 线程通信
+
+wait + notify 解决线程通信
+
+这两个都是Object的方法 ,只能在同步方法或同步代码块中使用 ,否则会抛出IIIegalMonitorStateException
+
+
+
+### 管程法
+
+生产者把产品放入缓冲区 ,消费者从缓冲区拿
+
+![image-20200909221411140](image.assets/image-20200909221411140.png)
+
+
+
+### 信号灯法
+
+判断标志位 ,如果为真 ,等待 ,如果为假 ,唤醒
 
 
 
 
-## volatile关键字是否能保证线程安全？
 
-不能。虽然 volatile 提供了同步的机制，但是知识一种弱的同步机制，如需要强线程安全，还需要使用 synchronized。
 
-Java 语言提供了一种稍弱的同步机制，即 volatile 变量，用来确保将变量的更新操作通知到其他线程。当把变量声明为 volatile 类型后，编译器与运行时都会注意到这个变量是共享的，因此不会将该变量上的操作与其他内存操作一起重排序。volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值。
+
+
+
+
+
+## volatile能否保证线程安全？
+
+不能。volatile是一种弱的同步机制，如需要强线程安全，还需要使用 synchronized。
+
+volatile 变量用来确保将变量的更新操作通知到其他线程。当把变量声明为 volatile 类型后，编译器与运行时都会注意到这个变量是共享的，因此不会将该变量上的操作与其他内存操作一起重排序。volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值。
 
 一、volatile 的内存语义是：
 
-当写一个 volatile 变量时，JMM 会把该线程对应的本地内存中的共享变量值立即刷新到主内存中。
+当写一个 volatile 变量时，JMM 会把该线程对应的本地内存中的共享**变量值立即刷新到主内存**中。
 
-当读一个 volatile 变量时，JMM 会把该线程对应的本地内存设置为无效，直接从主内存中读取共享变量。
+当读一个 volatile 变量时，JMM 会把该线程对应的本**地内存设置为无效，直接从主内存中读取**共享变量。
 
 二、volatile 底层的实现机制
 
@@ -933,9 +920,7 @@ Java 语言提供了一种稍弱的同步机制，即 volatile 变量，用来�
 
 新写入的值对别的线程可见。
 
-## 线程同时启动
 
-用一个 for 循环创建线程对象，同时调用 wait()方法，让所有线程等待；直到最后一个线程也准备就绪后，调用 notifyAll(), 同时启动所有线程
 
 
 
@@ -967,7 +952,7 @@ Lock是Java 5以后引入的新的API
 
 ## 线程池（thread pool）
 
-在面向对象编程中，创建和销毁对象是很费时间的，因为创建一个对象要获取内存资源或者其它更多资源。在 Java 中更是如此，虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收。所以提高服务程序效率的一个手段就是尽可能减少创建和销毁对象的次数，特别是一些很耗资源的对象创建和销毁，这就是"池化资源"技术产生的原因。线程池顾名思义就是事先创建若干个可执行的线程放入一个池（容器）中，需要的时候从池中获取线程不用自行创建，使用完毕不需要销毁线程而是放回池中，从而减少创建和销毁线程对象的开销。
+创建和销毁对象是很费时间的，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
 
 ### 线程池参数
 
