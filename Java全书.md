@@ -610,6 +610,8 @@ public class TestThread extends Thread {
 
 劣势：单继承 ,无法继承其它父类
 
+
+
 * 实现 Java.lang.Runnable 接口，并实现 run()方法。
 
 ```
@@ -626,11 +628,34 @@ public class TestThread2 implements Runnable {
 
 劣势：编程方式稍微复杂，如需访问当前线程，需调用Thread.currentThread()
 
-* 实现Callable接口
 
 
+* 实现Callable接口  (有返回值 ,可以抛出异常)
 
+1. 实现Callable接口 ,定义返回值类型
+2. 重写call()方法 ,需要抛出异常
+4. 创建执行服务  ExecutorService service = Executors.newFixedThreadPool(3);
+5. 提交执行   Future<String> result = service.submit(new TestCallable());
+6. 获取结果  result.get();
+7. 关闭服务   service.shutdown();
 
+```
+public class TestCallable implements Callable<String> {
+
+    @Override
+    public String call() {
+        return Thread.currentThread().getName(); }
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException  {
+        //创建执行服务
+        ExecutorService service = Executors.newFixedThreadPool(3);
+        //提交执行
+        Future<String> result = service.submit(new TestCallable());
+        //获取返回值
+        String str = result.get();
+        //关闭服务	需要抛出2个异常
+        service.shutdown();}}
+```
 
 
 
@@ -876,7 +901,9 @@ wait + notify 解决线程通信
 
 ### 管程法
 
-生产者把产品放入缓冲区 ,消费者从缓冲区拿
+生产者把产品放入**缓冲区** ,消费者从缓冲区拿
+
+每次操作时判断缓冲区的容量 ,满了则生产者不生产 ,空了消费者不消费
 
 ![image-20200909221411140](image.assets/image-20200909221411140.png)
 
@@ -884,9 +911,9 @@ wait + notify 解决线程通信
 
 ### 信号灯法
 
-判断标志位 ,如果为真 ,等待 ,如果为假 ,唤醒
+判断**标志位** ,如果为真 ,等待 ,如果为假 ,唤醒
 
-
+每次进行操作时判断标志位 ,决定wait或者是执行
 
 
 
@@ -952,7 +979,7 @@ Lock是Java 5以后引入的新的API
 
 ## 线程池（thread pool）
 
-创建和销毁对象是很费时间的，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
+创建和销毁对象是很费时间的，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**  线程池也**利于管理线程的个数与活跃数**
 
 ### 线程池参数
 
@@ -966,11 +993,106 @@ Lock是Java 5以后引入的新的API
 
 阻塞队列大小 
 
+
+
+Executor		总接口 ,只定义了execute()执行线程方法
+
+ExecutorService extends Executor 子接口 ,定义了shutdown()关闭 submit()等方法
+
+```
+abstract class AbstractExecutorService implements ExecutorService
+实现了ExecutorService的方法
+```
+
+
+
+class ThreadPoolExecutor extends AbstractExecutorService
+
+```
+void execute(Runnable command){}	//执行Runnable线程,无返回值
+```
+
+
+
+```
+<T>Future<T> submit(Callable<T> task)	//执行Callable线程 ,有返回值
+```
+
+
+
+```
+Executors工具类(工厂模式),返回不同类型的线程池
+定义了new线程池的方法
+Executors.newFixedThreadPool(10);
+```
+
+
+
+SingleThreadExecutor
+
+FixedThreadPool
+
+WorkStealingPool
+
+CachedThreadPool
+
+ScheduledThreadPool
+
+
+
+使用Executors去创建，而是通过ThreadPoolExecutor的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。 说明：
+
+Executors创建线程池对象的弊端
+        1）FixedThreadPool和SingleThreadPool:
+  允许的请求队列长度为Integer.MAX_VALUE，可能会**堆积大量的请求**，从而导致OOM。
+        2）CachedThreadPool:
+  允许的创建线程数量为Integer.MAX_VALUE，可能会**创建大量的线程**，从而导致OOM。
+
+
+
+
+
+
+
 ### 队列
 
 一个缓冲的工具，当没有足够的线程去处理任务时，可以将任务放进队列中，以队列先进先出的特性来执行工作任务
 
 核心线程满了，进队列，队列也满了，创建新线程，直到达到最大线程数，之后再超出，会进入拒绝rejectedExecution
+
+
+
+
+
+
+
+
+
+
+
+
+
+客户端存储数据3种方法
+
+
+
+* cookie
+
+  会失效 ,下次请求cookie会被携带一起发送 ,不适合存储大量数据
+
+* sessionStorage
+
+  页面关闭则失效
+
+
+
+* localStorage
+
+  浏览器缓存被清空则失效
+
+
+
+
 
 
 
