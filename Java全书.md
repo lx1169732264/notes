@@ -52,145 +52,131 @@
 
 
 
-## Supplier
+### Supplier
 
-java.util.function.Supplier<T> 接口仅包含一个无参的方法： T get() 。用来获取一个泛型参数指定类型的对象数据。由于这是一个函数式接口，这也就意味着对应的Lambda表达式需要“对外提供”一个符合泛型类型的对象数据。
+java.util.function.Supplier<T> 接口仅包含一个无参的方法： T get() 。
 
-```
-public class Demo08Supplier {   private static String getString(Supplier<String> function) {     return function.get();   }     public static void main(String[] args) {     String msgA = "Hello";     String msgB = "World";     System.*out*.println(*getString*(() -> msgA + msgB));   } }
-```
-
- 
-
-## 练习：求数组元素的最小值
+用来获取一个泛型参数指定类型的对象数据。由于这是一个函数式接口，这也就意味着对应的Lambda表达式需要“对外提供”一个符合泛型类型的对象数据。
 
 ```
-public class Demo02Test {   //定一个方法,方法的参数传递Supplier,泛型使用Integer    public static int getMax(Supplier<Integer> sup) {     return sup.get();   }     public static void main(String[] args) {     int arr[] = {2, 3, 4, 52, 333, 23};     //调用getMax方法,参数传递Lambda      int maxNum = *getMax*(() -> {       //计算数组的最大值        int max = arr[0];       for (int i : arr) {         if (i > max) {           max = i;         }       }       return max;     });     System.*out*.println(maxNum);   } }
+   public void testGetUser() {
+        User user = getUser(User::new);}
+
+    private User getUser(Supplier<User> supplier) {
+        return supplier.get();}
 ```
 
  
 
-## Consumer接口
-
-java.util.function.Consumer<T> 接口则正好与Supplier接口相反，它不是生产一个数据，而是消费一个数据， 
-
-其数据类型由泛型决定。
-
-**抽象方法：accept**，意为消费一个指定泛型的数据
+​	Supplier求数组元素的最小值
 
 ```
-public class Demo09Consumer {   private static void consumeString(Consumer<String> function) {     function.accept("Hello");   }     public static void main(String[] args) {     *consumeString*(s -> System.*out*.println(s));   } }
+public void testGetMin(){
+        int[] arr={5,3,100,10};
+        int min = getMin(()->{
+            int minNum=arr[0];
+            for (int i : arr) {
+                if (i<minNum) minNum=i;}
+            return minNum;
+        });}
+
+    private Integer getMin(Supplier<Integer> supplier) {
+        return supplier.get();
+    }
 ```
+
+ 
+
+### Consumer接口
+
+java.util.function.Consumer<T> 
+
+**与Supplier接口相反**，它不是生产一个数据，而是消费一个数据
+
+
+
+**抽象方法：accept**，消费一个指定泛型的数据
+
+```
+public void testConsumer() {
+        User user = new User();
+        setUserDefaultSex(u -> u.setSex("nan"), user);
+        //user的sex被改变}
+        
+    private void setUserDefaultSex(Consumer<User> consumer, User user) {
+        consumer.accept(user);}
+```
+
+
 
 **默认方法：andThen**
 
-如果一个方法的参数和返回值全都是 Consumer 类型，那么就可以实现效果：消费数据的时候，首先做一个操作，然后再做一个操作，实现组合。而这个方法就是 Consumer 接口中的default方法 andThen
+**方法的参数和返回值全都是 Consumer 类型**，那么就可以实现效果：消费数据的时候，首先做一个操作，然后再做一个操作，实现组合
 
-要想实现组合，需要两个或多个Lambda表达式即可，而 andThen 的语义正是“一步接一步”操作。例如两个步骤组合的情况
+要想实现组合，需要两个或多个Lambda表达式
 
 ```
-public class Demo10ConsumerAndThen {   private static void consumeString(Consumer<String> one, Consumer<String> two) {     one.andThen(two).accept("Hello");   }     public static void main(String[] args) {     *consumeString*(s -> System.*out*.println(s.toUpperCase()), s -> System.*out*.println(s.toLowerCase()));   } }
+public void testConsumer2() {
+        User user = new User();
+        setUserNameAndSex(u -> u.setSex("nan"), u -> u.setName("aa"), user);
+        System.out.println(user.getSex() + user.getName());}
+
+    private void setUserNameAndSex(Consumer<User> one, Consumer<User> two, User user) 			{one.andThen(two).accept(user);}
 ```
 
  
 
-## 练习：格式化打印信息
+### Predicate接口
 
-下面的字符串数组当中存有多条信息，请按照格式“ 姓名：XX。性别：XX。 ”的格式将信息打印出来。要求将打印姓名的动作作为第一个 Consumer 接口的Lambda实例，将打印性别的动作作为第二个 Consumer 接口的Lambda实例，将两个 Consumer 接口按照顺序“拼接”到一起。
+对某种类型的数据进行判断，**得到boolean**结果
 
-```
-public class DemoConsumer {   public static void main(String[] args) {     String[] array = {"迪丽热巴,女", "古力娜扎,女", "马尔扎哈,男"};     *printInfo*(s -> System.*out*.print("姓名：" + s.split(",")[0]), s ->         System.*out*.println("。性别：" + s.split(",")[1] + "。"), array);   }     private static void printInfo(Consumer<String> one, Consumer<String> two, String[] array) {     for (String info : array) {       one.andThen(two).accept(info); // 姓名：迪丽热巴。性别：女。      }   } }
-```
-
-## Predicate接口
-
-有时候我们需要对某种类型的数据进行判断，从而得到一个boolean值结果。这时可以使用java.util.function.Predicate<T> 接口。
-
-**抽象方法：test** 
-
-Predicate 接口中包含一个抽象方法： boolean test(T t) 。用于条件判断的场景：
+**抽象方法：test** 	用于条件判断
 
 ```
-public class Demo15PredicateTest {   private static void method(Predicate<String> predicate) {     boolean veryLong = predicate.test("HelloWorld");     System.*out*.println("字符串很长吗：" + veryLong);   }     public static void main(String[] args) {     *method*(s -> s.length() > 5);   } }
+public void testPredicate() {
+        longThan(s -> s.length() > 5, "hello!!");}
+
+    private void longThan(Predicate<String> predicate, String str) {
+        boolean flag = predicate.test(str);}
 ```
 
-条件判断的标准是传入lambda表达式逻辑
+
 
 **默认方法：and** 
 
-既然是条件判断，就会存在与、或、非三种常见的逻辑关系。其中将两个 Predicate 条件使用“与”逻辑连接起来实现“并且”的效果时，可以使用default方法 and
-
-如果要判断一个字符串既要包含大写“H”，又要包含大写“W”
-
-```
-public class Demo16PredicateAnd {   private static void method(Predicate<String> one, Predicate<String> two) {     boolean isValid = one.and(two).test("Helloworld");     System.*out*.println("字符串符合要求吗：" + isValid);   }     public static void main(String[] args) {     *method*(s -> s.contains("H"), s -> s.contains("W"));   } }
-```
-
 **默认方法：or** 
 
-如果希望实现逻辑“字符串包含大写H或者包含大写W”，那么代码只需要将“and”修改为“or”名称即可，其他都不变：
-
-**默认方法：negate** 
-
-表示取反
-
 ```
-public class Demo17PredicateNegate {   private static void method(Predicate<String> predicate) {     boolean veryLong = predicate.negate().test("HelloWorld");     System.*out*.println("字符串很长吗：" + veryLong);   }     public static void main(String[] args) {     *method*(s -> s.length() < 5);   } }
+public void testSuccess() {
+    successMan(s -> s.contains("富"), s -> s.contains("帅"), "高富帅");}
+
+private void successMan(Predicate<String> one, Predicate<String> two, String str) {
+    boolean flag = one.or(two).test(str);}
 ```
 
-## 练习：集合信息筛选
+**默认方法：negate** 	取反
 
-数组当中有多条“姓名+性别”的信息如下，请通过 Predicate 接口的拼装将符合要求的字符串筛选到集合ArrayList 中，需要同时满足两个条件：
 
-\1. 必须为女生；
 
-\2. 姓名为4个字。
 
-```
-public class DemoPredicate {   public static void main(String[] args) {     String[] array = {"迪丽热巴,女", "古力娜扎,女", "马尔扎哈,男", "赵丽颖,女"};     List<String> list = *filter*(array, s -> "女".equals(s.split(",")[1]), s -> s.split(",")[0].length() == 4);     System.*out*.println(list);   }     private static List<String> filter(String[] array, Predicate<String> one, Predicate<String> two) {     List<String> list = new ArrayList<>();     for (String info : array) {       if (one.and(two).test(info)) {         list.add(info);       }     }     return list;   } }
-```
 
-## Function接口
+### Function接口
 
-java.util.function.Function<T,R> 接口用来根据一个类型的数据得到另一个类型的数据，前者称为前置条件，后者称为后置条件。 
+
 
 **抽象方法：apply** 
 
-Function 接口中最主要的抽象方法为： R apply(T t) ，根据类型T的参数获取类型R的结果。使用的场景例如：将 String 类型转换为 Integer 类型
+java.util.function.Function<T,R>根据 T类型的参数得到 R类型的返回值
 
 ```
-public class Demo11FunctionApply {   private static void method(Function<String, Integer> function) {     int num = function.apply("10");     System.*out*.println(num + 20);   }     public static void main(String[] args) {     *method*(s -> Integer.*parseInt*(s));   } }
+public void testFunction() {
+        Integer value = parseInteger(Integer::parseInt, "10");}
+
+    private Integer parseInteger(Function<String, Integer> function, String str) {
+        return function.apply(str);}
 ```
 
 **默认方法：andThen**
-
-```
-public class Demo12FunctionAndThen {   private static void method(Function<String, Integer> one, Function<Integer, Integer> two) {     int num = one.andThen(two).apply("10");     System.*out*.println(num + 20);   }     public static void main(String[] args) {     *method*(str -> Integer.*parseInt*(str) + 10, i -> i *= 10);   } }
-```
-
-## 练习：自定义函数模型拼接
-
-请使用 Function 进行函数模型的拼接，按照顺序需要执行的多个函数操作为：
-
-String str = "赵丽颖,20";
-
-\1. 将字符串截取数字年龄部分，得到字符串；
-
-\2. 将上一步的字符串转换成为int类型的数字； 
-
-\3. 将上一步的int数字累加100，得到结果int数字。 
-
-```
-public class DemoFunction {   public static void main(String[] args) {     String str = "赵丽颖,20";     int age = *getAgeNum*(str, s -> s.split(",")[1], s -> Integer.*parseInt*(s), n -> n += 100);     System.*out*.println(age);   }     private static int getAgeNum(String str, Function<String, String> one, Function<String, Integer> two, Function<Integer, Integer> three) {     return one.andThen(two).andThen(three).apply(str);   } }
-```
-
-
-
-
-
-
-
-
 
 
 
@@ -427,6 +413,165 @@ Java8为ForkJoinPool添加了一个通用线程池，这个线程池用来处理
 多线程代码是并发而不是并行 ,并发是因为多进程/多线程都是需要去完成的任务 ,不并行是因为**并行与否由操作系统的调度器决定**
 
 * 串行    按先后顺序进行
+
+
+
+
+
+# HashMap
+
+
+
+继承了AbstractMap
+
+实现了Map ，克隆，序列化接口
+
+```
+HashMap<K,V> extends AbstractMap<K,V>
+    implements Map<K,V>, Cloneable, Serializable {
+```
+
+
+
+AbstractMap已经实现过了Map接口，而HashMap又继承了AbstractMap，这样使得HashMap已经实现了Map接口，然而HashMap又再次去实现了Map接口
+
+这是JDK中多此一举的失误
+
+```
+AbstractMap<K,V> implements Map<K,V> {
+```
+
+
+
+
+
+## 按位与2次幂容量
+
+取余:xxx%16  不断在做除法,效率低,并且负数取余仍是负数,还需要转为正数
+
+按位与: 	hash&(length-1)
+
+​			(length-1)  1111
+
+​			(hash)   1001
+
+​			     =1001
+
+当length-1不为全1,即length不为2的幂,将出现0,而0的部分按位与永远为0
+
+将导致0的桶永远放不进
+
+
+
+## 7 HashMap死锁隐患
+
+
+
+![img](image.assets/wps1-1600480677581.jpg) 
+
+原先:	3->5->7
+
+resize:	7à3
+
+多线程环境下,可能同时3->7	7->3,出现循环
+
+![img](image.assets/wps2-1600480677595.jpg) 
+
+当查询时就会出现死锁
+
+
+
+==可以通过精心设计的一组object实现dos(拒绝服务攻击)==
+
+大量的object的HashCode相同,使得它们被存放在同一个桶中,使得HashMap退化为链表,而链表的查询复杂度O(n)
+
+ 
+
+## 8 HashMap
+
+### hash方法
+
+  static final int hash(Object key) {
+
+​    int h;
+
+​    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); }
+
+jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
+
+​											1001………1111
+
+将高位与地位异或(不进位的加法),能够减少碰撞的概率
+
+ 
+
+### resize方法
+
+  Node<K,V> loHead = null, loTail = null;
+
+  Node<K,V> hiHead = null, hiTail = null;
+
+扩容时,将原链表拆为两个高低位的链表
+
+比如16个桶,哈希码11111…….11101
+
+​							 1111	=1101
+
+扩容32个桶,					11111	=11101
+
+扩容后第一位只能是0或1,并且桶中的元素被分配在了1xxx和0xxx两个新桶中,元素保持原先的顺序.而保持了顺序就降低了多线程中,顺序调换出现的死锁问题
+
+ 
+
+Map.getOrDefault((Object key, V defaultValue),取不到key时,将返回默认的value
+
+
+
+## 底层数组创建机制
+
+8之前，创建对象时就创建了数组
+
+8之后，**首次调用put**才创建
+
+
+
+## hash相等时
+
+会产生hash碰撞
+
+key值相同则替换，否则加到后面		**比较key用equals**
+
+
+
+
+
+## 成员变量
+
+
+
+* MAXIMUM_CAPACITY = 1 << 30    最大容量
+
+* UNTREEIFY_THRESHOLD = 6    链表的值小于6则会从红黑树转回链表
+
+* MIN_TREEIFY_CAPACITY** = 64	超过这个值，才能进行树形化
+
+* Node<K, V>[] table	table用来初始化(必须是二的n次幂)
+
+* Set<Entry<K, V>> entrySet	存放缓存
+
+* size	元素个数
+
+* int modCount	修改次数
+
+* int threshold		下次扩容的临界值，（容量\*负载因子)
+
+* float loadFactor	哈希表的负载因子
+
+
+
+
+
+
 
 
 
