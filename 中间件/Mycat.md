@@ -77,8 +77,6 @@ mysql主从是基于**binlog**，主需开启binlog才能进行主从
 
 
 
-
-
 ## docker搭建
 
 * docker提取配置文件
@@ -185,8 +183,6 @@ start slave ;		启动主从
 * 在从机里面可以执行查询语句
 
 * 主机只有一台，但是从机可以有多台
-
-
 
 
 
@@ -414,32 +410,6 @@ MYCAT服务区中的TESTDB库，只是逻辑上存在的数据库
 
 
 
-* 全局表
-
-一个真实的业务系统中，往往存在大量的类似数据字典表的表，数据字典表具有以下几个特性：
-
-• 数据变动不频繁；
-
-• 数据规模不大，数据量在十万以内；
-
-• **跟其他表（特别是分片表）关联查询**
-
-每张全局表都有所有数据的一份拷贝。crud时，所有的全局表都将受到影响
-
-![image-20200920165656143](image.assets/image-20200920165656143.png)
-
-
-
-* ER表
-
-子表与父表记录存放在同一个数据分片上，**子表依赖于父表**，通过**表分组**（Table Group）保证数据 Join 不会跨库操作。
-
-这样一种表分组的设计方式是解决跨分片数据 join 的一种很好的思路，也是数据切分规划的重要一条规则。ER表中在schema.xml中使用<childTable>标签进行描述和定义
-
-![image-20200920165844938](image.assets/image-20200920165844938.png)
-
-
-
 * 非分片表
 
 对于数据量小的表，不需要进行数据切分
@@ -543,17 +513,9 @@ name 节点名称	dataHost 主机名	database 数据库名
 
 
 
-## name
-
-唯一标识dataHost 标签，供上层标签使用
-
-
-
 ## maxCon/minCon
 
 连接数。标签内嵌套的 writeHost、readHost标签都会根据这个实例化连接数
-
-
 
 
 
@@ -590,13 +552,458 @@ mongodb、oracle、spark 等
 
 
 
-# dbDriver
+## dbDriver
 
 指定连接后端数据库使用的驱动Driver，目前可选的值有 native 和 JDBC。
 
 使用 native 的话，支持mysql 和 maridb。
 
 其他使用 JDBC 
+
+
+
+# 分片算法
+
+
+
+## 枚举 sharding-by-intfile
+
+
+
+* 适用场景
+
+  适用于固定分片的场合	如，需要按照省/区保存，而省/区是固定的 
+
+
+
+```
+<tableRule name="sharding-by-intfile">
+   <rule>
+      <columns>sharding_id</columns>
+      <algorithm>hash-int</algorithm>
+   </rule>
+</tableRule>
+
+<function name="hash-int"
+		class="io.mycat.route.function.PartitionByFileMap">
+		<property name="mapFile">partition-hash-int.txt</property>
+		<property name="type">0</property>
+    	<property name="defaultNode">1</property> 
+</function>
+```
+
+Columns	数据库字段名
+
+Algorithm	分片算法
+
+<property name="mapFile">partition-hash-int.txt</property>	指定算法文件名
+
+<property name="type">0</property>		type默认为0，0 表示Integer，非零表示String
+
+<property name="defaultNode">1</property> 	默认节点
+
+
+
+partition-hash-int.txt
+
+```
+10000=0
+10010=1
+10020=2
+```
+
+sharding_id=10000	传入0号节点
+
+
+
+## 取模分片
+
+
+
+类似于轮循
+
+* 优点：充分利用写入的负载均衡，写入快
+
+* 缺点：写入失败后事务的回滚难
+
+​		写入1，2，3	在3时失败，将导致12一起回滚	而12在不同的数据库
+
+
+
+```
+<tableRule name="leige-mo-rule">
+	<rule>
+		<columns>id</columns>
+		<algorithm>leige-mo-rule-hash</algorithm>
+	</rule>
+</tableRule>
+
+<function name="leige-mo-rule-hash" class="io.mycat.route.function.PartitionByMod"> 
+    <!-- 有几个节点就配置几个 -->
+    <property name="count">3</property> 
+</function>
+```
+
+
+
+## auto-sharding-long
+
+
+
+当数据达到指定额度时，才进行分库分表
+
+* 缺点：没有负载均衡效果
+
+* 优点：没有跨区回滚事务的风险
+
+
+
+```
+<tableRule name="auto-sharding-long">
+      <rule>
+          <columns>id</columns>
+          <algorithm>rang-long</algorithm>
+      </rule>
+</tableRule>
+<function name="rang-long"
+        class="io.mycat.route.function.AutoPartitionByLong">
+      <property name="mapFile">autopartition-long.txt</property>
+</function>
+```
+
+
+
+autopartition-long.txt
+
+```
+0-500M=0      #0-500W条数据在第一分区
+500M-1000M=1
+1000M-1500M=2
+```
+
+
+
+## 固定分片hash算法
+
+
+
+类似于十进制的求模运算，区别在于是**二进制的操作**,是取id的二进制低10位 。 
+
+* 优点	按照 10进制取模运算，1-10会被分到10个分片，事务控制难，而此算法根据二进制则可能会**分到连续的分片**
+
+
+
+```
+<tableRule name="sharding-hash">
+	<rule>
+		<columns>id</columns>
+		<algorithm>lx-sharding-hash</algorithm>
+	</rule>
+</tableRule>
+
+<function name="lx-sharding-hash" class="io.mycat.route.function.PartitionByLong">
+		<!-- 多少个dataNode就配置几个 -->
+		<property name="partitionCount">2,1</property>
+		<property name="partitionLength">256,512</property>
+</function>
+```
+
+<property name="partitionCount">2,1</property>			拆分为2+1=3个节点
+<property name="partitionLength">256,512</property>	节点的容量
+
+![](image.assets/image-20200921155149891.png)
+
+总节点3	2+1<=3
+
+总容量	256*2+512=1024=2^10	总容量必须是2的幂
+
+
+
+## 字符串ID分片
+
+
+
+jump Consistent hash	JUC一致性哈希算法	零内存消耗，均匀，快速，简洁
+
+
+
+```
+<tableRule name="jch">
+	<rule>
+		<columns>id</columns>
+		<algorithm>jump-consistent-hash</algorithm>
+	</rule>
+</tableRule>
+
+<function name="jump-consistent-hash" class="io.mycat.route.function.PartitionByJumpConsistentHash">
+   <property name="totalBuckets">3</property>
+</function>
+```
+
+将字符串key分配给n个buckets
+
+
+
+同样有**rehash**的概念	需要**预估最大容量**，并且使用负载因子来确定容器的size
+
+
+
+## 自然月分片
+
+
+
+```
+<tableRule name="sharding-by-month"> 
+    <rule> 
+        <columns>create_time</columns> 
+        <algorithm>sharding-by-month</algorithm> 
+    </rule> 
+</tableRule> 
+<function name="sharding-by-month" class="org.opencloudb.route.function.PartitionByMonth"> 
+    <property name="dateFormat">yyyy-MM-dd</property> 
+    <property name="sBeginDate">2014-01-01</property> 
+</function>
+```
+
+
+
+# 全局表
+
+
+
+一个真实的业务系统中，往往存在大量的类似数据字典表的表，数据字典表具有以下几个特性：
+
+• 数据变动不频繁；
+
+• 数据规模不大，数据量在十万以内；
+
+• **跟其他表（特别是分片表）关联查询**
+
+
+
+MyCAT定义的全局表具有以下特性： 
+
+* 全局表有所有数据的一份拷贝。crud时，所有的全局表都将受到影响
+
+* **查询只从一个节点获取** 
+
+* **全局表可以跟任意表进行 JOIN**操作 
+
+
+
+schema.xml		type="global"，不指定分片规则
+
+```
+<table name="sys_user" type="global" primaryKey="ID" dataNode="dn1,dn2,dn3" />
+```
+
+
+
+如果不设置type="global"，也不设置路由规则，那么默认所有节点都会存数据
+
+但是查询时会查询所有节点，将所有节点的数据汇总返回（重复数据）
+
+因为是分别查询所有节点，distinct并不会起效
+
+
+
+# ER表
+
+
+
+子表与父表记录存放在同一个数据分片上，**子表依赖于父表**，通过**表分组**（Table Group）保证数据 Join 不会跨库操作。
+
+这样一种表分组的设计方式是解决跨分片数据 join 的一种很好的思路，也是数据切分规划的重要一条规则。ER表中在schema.xml中使用<childTable>标签进行描述和定义
+
+![image-20200920165844938](image.assets/image-20200920165844938.png)
+
+
+
+# 分布式全局ID
+
+
+
+* 全局唯一
+
+不能出现重复的ID号，这个是最基础的要求
+
+* 趋势递增	InnoDb引擎中使用的是聚集索引，多数据的RDBMS使用的是**Btree**索引数据，在主键的选择上面我们应该尽量有序保证写入性能
+
+* 单调递增		保证下一个ID一定大于上一个ID。
+
+* 信息安全        如果ID连续，恶意扒取就很容易
+
+* 高可用    服务器不能宕机
+
+* 低延时    毫秒级的生成
+
+* 高QPS（Queries-per-second每秒查询率）：
+
+
+
+## replace into插入语局
+
+
+
+replace into跟insert类似	都是插入数据的sql语句
+
+replace into首先尝试插入数据列表中，如果ID重复(根据主键或唯一索引判断)则先删除，再插入
+
+
+
+## UUID  Universally Unique Identifier
+
+
+
+包含32个16进制的数字，为8-4-4-4-12个字符，总长36位
+
+
+
+* 优点	
+
+性能高：本地生成，**没有网络消耗**
+
+* 缺点
+  * 不易于存储：UUID太长，16字节128位，通常以36长度的字符串表示，很多场景不适用。
+
+  * 信息不安全：**基于MAC地址生成UUID的算法会造成MAC地址泄露**，这个漏洞曾被用于寻找梅丽莎病毒的制作者位置。
+  * UUID是无序的，无法进行排序
+  * MySQL官方建议主键要越短越好**
+  * 对MySQL索引不利：作为数据库主键，**在InnoDB引擎下，UUID的无序性可能会引起数据位置频繁变动，影响性能**
+
+
+
+## mycat默认支持的全局ID
+
+
+
+### 本地文件方式	不推荐
+
+
+
+server.xml		sequnceHandlerType设置为0
+
+```
+<property name="sequnceHandlerType">0</property>
+```
+
+
+
+schema.xml		autoIncrement="true"设置主键自增
+
+```
+<table name="sys_user" autoIncrement="true" primaryKey="ID" dataNode="dn1,dn2,dn3" />
+```
+
+
+
+sequence_conf.properties
+
+```
+<!--表名大写-->
+HOTNEWS.HISIDS=
+HOTNEWS.MINID=1001	//初始
+HOTNEWS.MAXID=2000	//最大
+HOTNEWS.CURID=1000	//当前
+```
+
+
+
+mycat启动后，会加载本地文件到内存	之后的操作都是在内存的
+
+这将导致运行后，内存中的CURID当前ID和配置文件的不匹配
+
+进而重启mycat时，读取到的是之前的CURID，造成ID重复
+
+因此不推荐这个方法
+
+
+
+### 本地时间戳方式
+
+
+
+server.xml		sequnceHandlerType设置为2
+
+```
+<property name="sequnceHandlerType">2</property>
+```
+
+
+
+schema.xml		autoIncrement="true"设置主键自增
+
+```
+<table name="sys_user" autoIncrement="true" primaryKey="ID" dataNode="dn1,dn2,dn3" />
+```
+
+
+
+自带的sequence_time_conf.properties
+
+```
+<!--工作区id -->
+WORKID=01
+<!--数据中心id-->
+DATAACENTERID=01
+```
+
+
+
+* 优点	不存在本地文件方式中，mycat重新发布需要修改sequence_conf的问题
+
+* 缺点	存在**服务器时间波动**问题
+
+
+
+### 分布式zookeeper
+
+
+
+server.xml		sequnceHandlerType设置为4
+
+```
+<property name="sequnceHandlerType">4</property>
+```
+
+
+
+schema.xml		autoIncrement="true"设置主键**自增**	type="global"设置为**全局**表
+
+```
+<table name="sys_user" autoIncrement="true" type="global" primaryKey="ID" dataNode="dn1,dn2,dn3" />
+```
+
+
+
+conf/myid.properties
+
+```
+loadZk=true
+zkURL=127.0.0.1:2181
+clusterId=mycat-cluster-1
+myid=mycat_fz_01
+#clusterSize=3
+clusterNodes=mycat_fz_01,mycat_fz_02,mycat_fz_04
+#type=server
+#boosterDataHosts=dataHost1
+```
+
+
+
+conf/sequence_distributed_conf.properties
+
+```
+INSTANCEID=ZK
+<!--与myid中配置的clusterId一致-->
+CLUSTERID=mycat-cluster-1
+```
+
+
+
+* 优点	不存在本地文件方式中，mycat重新发布需要修改sequence_conf的问题
+
+* 缺点	存在**服务器时间波动**问题
 
 
 
