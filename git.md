@@ -89,6 +89,8 @@ git checkout dev 切换分支
 
 git checkout -b dev创建并切换
 
+git checkout -- filename	检出上次提交的文件
+
  
 
 git merge 分支名  合并(先回到要合并的分支)
