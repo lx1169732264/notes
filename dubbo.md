@@ -208,449 +208,57 @@ public class UserServiceImpl implements UserService {
 
  
 
+```
 dubbo.application.name=boot-ego-user-service-provider
-
-2
 
 dubbo.registry.address=zookeeper://127.0.0.1:2181
 
-3
-
-4
-
 dubbo.protocol.name=dubbo
-
-5
 
 dubbo.protocol.port=20880
 
-6
-
-7
-
 \#dubbo.monitor.protocol=registry
+```
+
+
 
 ### **2.5，修改启动类**
 
- 
-
- 
-
-10
-
-9
-
- 
-
-1
-
+```
 @EnableDubbo//开户注解的dubbo功能
-
-2
-
 @SpringBootApplication
-
-3
-
 public class BootEgoUserServiceProviderApplication {
-
-4
-
-5
-
   public static void main(String[] args) {
+    SpringApplication.run(BootEgoUserServiceProviderApplication.class, args);}}
+```
 
-6
 
-​    SpringApplication.run(BootEgoUserServiceProviderApplication.class, args);
-
-7
-
-  }
-
-8
-
-}
-
-### **2.6，启动测试**
-
- 
-
-![img](.\image.assets\wps9.jpg) 
-
- 
-
- 
 
 **3，服务消费者**
 
 ### **3.1，创建boot-ego-order-service-consumer**
 
-![img](.\image.assets\wps10.jpg) 
 
- 
-
-### **3.2，加入依赖**
-
- 
-
- 
-
- 
-
-1
-
-<?xml version="1.0" encoding="UTF-8"?>
-
-2
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-
-3
-
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-
-4
-
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
-5
-
-  <modelVersion>4.0.0</modelVersion>
-
-6
-
-  <parent>
-
-7
-
-​    <groupId>org.springframework.boot</groupId>
-
-8
-
-​    <artifactId>spring-boot-starter-parent</artifactId>
-
-9
-
-​    <version>2.0.4.RELEASE</version>
-
-10
-
-​    <relativePath /> <!-- lookup parent from repository -->
-
-11
-
-  </parent>
-
-12
-
-  <groupId>com.sxt</groupId>
-
-13
-
-  <artifactId>boot-ego-user-service-provider</artifactId>
-
-14
-
-  <version>0.0.1-SNAPSHOT</version>
-
-15
-
-  <name>boot-ego-user-service-provider</name>
-
-16
-
-  <description>Demo project for Spring Boot</description>
-
-17
-
-18
-
-  <properties>
-
-19
-
-​    <java.version>1.8</java.version>
-
-20
-
-​    <dubbo.version>2.6.5</dubbo.version>
-
-21
-
-  </properties>
-
-22
-
-23
-
-  <dependencies>
-
-24
-
-25
-
-​    <dependency>
-
-26
-
-​      <groupId>com.sxt</groupId>
-
-27
-
-​      <artifactId>ego-interface</artifactId>
-
-28
-
-​      <version>0.0.1-SNAPSHOT</version>
-
-29
-
-​    </dependency>
-
-30
-
-​    <dependency>
-
-31
-
-​      <groupId>org.springframework.boot</groupId>
-
-32
-
-​      <artifactId>spring-boot-starter</artifactId>
-
-33
-
-​    </dependency>
-
-34
-
-​    <dependency>
-
-35
-
-​      <groupId>org.springframework.boot</groupId>
-
-36
-
-​      <artifactId>spring-boot-starter-web</artifactId>
-
-37
-
-​    </dependency>
-
-38
-
-​    <dependency>
-
-39
-
-​      <groupId>org.springframework.boot</groupId>
-
-40
-
-​      <artifactId>spring-boot-starter-test</artifactId>
-
-41
-
-​      <scope>test</scope>
-
-42
-
-​    </dependency>
-
-43
-
-​    <!-- Dubbo Spring Boot Starter -->
-
-44
-
-​    <dependency>
-
-45
-
-​      <groupId>com.alibaba.boot</groupId>
-
-46
-
-​      <artifactId>dubbo-spring-boot-starter</artifactId>
-
-47
-
-​      <version>0.2.1.RELEASE</version>
-
-48
-
-​    </dependency>
-
-49
-
-​    <dependency>
-
-50
-
-​      <groupId>com.alibaba</groupId>
-
-51
-
-​      <artifactId>dubbo</artifactId>
-
-52
-
-​      <version>${dubbo.version}</version>
-
-53
-
-​    </dependency>
-
-54
-
-​    <dependency>
-
-55
-
-​      <groupId>io.netty</groupId>
-
-56
-
-​      <artifactId>netty-all</artifactId>
-
-57
-
-​    </dependency>
-
-58
-
-​    <!-- curator-framework -->
-
-59
-
-​    <dependency>
-
-60
-
-​      <groupId>org.apache.curator</groupId>
-
-61
-
-​      <artifactId>curator-framework</artifactId>
-
-62
-
-​      <version>2.12.0</version>
-
-63
-
-​    </dependency>
-
-64
-
-  </dependencies>
-
-65
-
-66
-
-  <build>
-
-67
-
-​    <plugins>
-
-68
-
-​      <plugin>
-
-69
-
-​        <groupId>org.springframework.boot</groupId>
-
-70
-
-​        <artifactId>spring-boot-maven-plugin</artifactId>
-
-71
-
-​      </plugin>
-
-72
-
-​    </plugins>
-
-73
-
-  </build>
-
-74
-
-75
-
-</project>
-
-76
 
 ### **3.3，创建OrderServiceImpl**
 
  
 
- 
-
- 
-
-1
-
+```
 @Service
-
-2
-
 public class OrderServiceImpl implements OrderService {
 
-3
-
-4
-
   @Reference
-
-5
-
   UserService userService;
 
-6
-
-  
-
-7
-
   @Override
-
-8
-
   public List<UserAddress> initOrder(String userId) {
+    //1、查询用户的收货地址
+    List<UserAddress> addressList = userService.getUserAddressList(userId);
+    return addressList;}}
+```
 
-9
-
-​    System.out.println("用户id："+userId);
-
-10
-
-​    //1、查询用户的收货地址
-
-11
-
-​    List<UserAddress> addressList = userService.getUserAddressList(userId);
-
-12
-
-​    return addressList;
-
-13
-
-  }
-
-14
-
-}
+ 
 
 ### **3.4，创建OrderController**
 
@@ -658,135 +266,54 @@ public class OrderServiceImpl implements OrderService {
 
  
 
- 
-
-1
-
+```
 @Controller
-
-2
-
 public class OrderController {
 
-3
-
-  
-
-4
-
   @Autowired
-
-5
-
   OrderService orderService;
 
-6
-
-  
-
-7
-
   @ResponseBody
-
-8
-
   @RequestMapping("/initOrder")
-
-9
-
   public List<UserAddress> initOrder(@RequestParam("uid")String userId) {
+    return orderService.initOrder(userId);}}
+```
 
-10
 
-​    return orderService.initOrder(userId);
-
-11
-
-  }
-
-12
-
-13
-
-}
-
-14
 
 ### **3.5，修改properties**
 
  
 
- 
-
- 
-
-1
-
+```
 dubbo.application.name=boot-ego-order-service-consumer
-
-2
 
 dubbo.registry.address=zookeeper://127.0.0.1:2181
 
-3
-
-4
-
 dubbo.monitor.protocol=registry
 
-5
-
-6
-
 server.port=8888
+```
+
+ 
 
 ### **3.5，启动类配置**
 
  
 
- 
-
-10
-
-9
-
- 
-
-1
-
+```
 @SpringBootApplication
-
-2
-
 @EnableDubbo //启动dubbo
-
-3
 
 public class BootEgoOrderServiceConsumerApplication {
 
-4
-
   public static void main(String[] args) {
-
-5
-
-​    SpringApplication.run(BootEgoOrderServiceConsumerApplication.class, args);
-
-6
-
+    SpringApplication.run(BootEgoOrderServiceConsumerApplication.class, args);
   }
-
-7
-
 }
+```
 
-**3.6，启动测试**
 
- 
-
-![img](.\image.assets\wps11.jpg) 
-
- 
 
 # 超时处理
 
@@ -858,6 +385,7 @@ public class BootEgoOrderServiceConsumerApplication {
 
 provider
 
+```
  <!--声明要暴露的实现类的对象-->
     <bean id="userServiceImpl" class="service.impl.UserServiceImpl" ></bean>
     <!-- 指定需要暴露的服务 -->
@@ -872,18 +400,18 @@ provider
         <dubbo:method name="queryAllAddress" timeout="1000"></dubbo:method>
     </dubbo:service>
 
-
-
-在指定版本号之后 ,consumer必须指定版本号才能够正常调用
-
+//在指定版本号之后 ,consumer必须指定版本号才能够正常调用
  <!--生成远程调用对象-->
-    <dubbo:reference timeout="3000" id="userService" interface="service.UserService" **version="1.0.0"** >
+<dubbo:reference timeout="3000" id="userService" interface="service.UserService" version="1.0.0" >
         <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
-    </dubbo:reference>
+</dubbo:reference>
+```
 
 
 
 版本号**支持正则匹配** ,可以实现负载均衡
+
+
 
 # 本地存根Stub
 
