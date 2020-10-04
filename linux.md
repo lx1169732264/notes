@@ -180,11 +180,29 @@ source /xxx.sql;
 
 
 
- 
+
+
+# 进程/端口查询
 
  
 
- # 后台运行jar包
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+# 后台运行jar包
 
 ```
 java -jar xxx.jar &

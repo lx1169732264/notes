@@ -97,7 +97,7 @@ port=22122
 
  #存储日志和数据的根目录
 
-base_path=/data/fdfs/tracker_data 
+base_path=/data/fdfs/tracker_data
 
 * storage配置    vim /etc/fdfs/storage.conf
 
@@ -105,11 +105,11 @@ port=23000
 
  #数据和日志文件存储根目录 
 
-base_path=/data/fdfs/store_path 
+base_path=/data/fdfs/store_path
 
 #第一个存储目录 
 
-store_path0=/data/fdfs/store_path 
+store_path0=/data/fdfs/store_path
 
 tracker_server=192.168.199.120:22122
 
