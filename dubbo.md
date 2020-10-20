@@ -347,7 +347,7 @@ public class BootEgoOrderServiceConsumerApplication {
 
  
 
- # 启动检查&重试次数
+# 启动检查&重试次数
 
   
 
@@ -367,7 +367,7 @@ public class BootEgoOrderServiceConsumerApplication {
 
 
 
-* 幂等操作	多次请求对数据没有影响		**修改是幂等**,重复修改最终的结果是一致的	**删除也是幂等**
+* ==幂等操作==	多次请求对数据没有影响		**修改是幂等**,重复修改最终的结果是一致的	**删除也是幂等**
 
 * 非幂等操作	**只有添加是非幂等操作**
 
@@ -572,9 +572,24 @@ consumer	<dubbo:reference cluster="failsafe" />
 
 
 
-## 整合Hystrix
+# Hystrix服务熔断
 
-Hystrix 旨在通过控制那些访问远程系统、服务和第三方库的节点，从而对延迟和故障提供更强大的容错能力。Hystrix具备拥有**回退机制**和**断路器功能**的线程和信号隔离，请求缓存和请求打包，以及监控和配置等功能
+**回退机制**和**断路器功能**的线程和信号隔离，请求缓存和请求打包，以及监控和配置等功能
+
+
+
+当提供者挂掉时 ,Hystrix可以提供默认调用的方法 ,当一段时间内提供者一直宕机 ,将引发服务熔断 ,不再向提供者请求服务 ,而直接调用默认方法
+
+
+
+```
+双方的启动类加上	@EnableHystrix**    //启用hystrix
+消费者启动类加上	@EnableCircuitBreaker	//启用hystrix的熔断保护
+```
+
+
+
+* 消费者加入依赖
 
 ```
 		<dependency>
@@ -586,19 +601,36 @@ Hystrix 旨在通过控制那些访问远程系统、服务和第三方库的节
 
  
 
-provider上增加@HystrixCommand	调用方法将经过Hystrix代理
+* 定义具有服务熔断效果的Controller基类
 
-![image-20200815184525632](image.assets/image-20200815184525632.png)
+@DefaultProperties	声明服务熔断后调用fallback()方法
 
- consumer上加@HystrixCommand(fallbackMethod = "hello")	再定义fallbackMethod ,**参数要与被代理的方法一致**![image-20200815184750792](image.assets/image-20200815184750792.png)
+fallbackMethod方法如果有参数 ,需要保持参数一致
 
- 双方的**启动类都加上	@EnableHystrix**    //启用hystrix
+```
+@DefaultProperties(defaultFallback = "fallback")
+public class BaseController {
+    public AjaxResult fallback() {
+        return AjaxResult.fail("服务器内部异常，请联系管理员");  }}
+```
+
+
+
+* 消费者Controller上 
+
+  调用方法将经过Hystrix代理 ,当提供者出现问题/提供者不存在时 ,将调用fallback()方法
+
+```
+@HystrixCommand
+```
 
 
 
 **Hystrix类似本地存根** ,都是在提供者无法正常提供服务时 ,返回一组默认的数据
 
-# Rpc(远程调用Remote Procedure Call)通信原理
+
+
+# Rpc通信原理(远程调用Remote Procedure Call)
 
 首先客户端需要告诉服务器，需要调用的函数，这里**函数和进程号存在映射**，客户端远程调用时，需要查一下函数，找到对应的ID，然后执行函数的代码。
 
