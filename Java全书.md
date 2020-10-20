@@ -1,5 +1,277 @@
 
 
+# String
+
+ 
+
+如果经常对字符串进行各种各样的修改，那么使用 String 来代表字符串的话会引起很大的内存开销。因为 String 对象建立之后不能再改变，所以对于每一个不同的字符串，都需要一个 String 对象来表示。这时，应该考虑使用StringBuffer 类，它允许修改，而不是每个不同的字符串都要生成一个新的对象。并且，这两种类的对象转换十分容易。
+
+调用构造器创造string，性能低下且内存开销大，并且没有意义，因为String对象不可改变，所以对于内容相同的字符串，指向同一个String
+
+上面的结论还基于这样一个事实：对于字符串常量，如果内容相同，Java认为它们代表同一个 String 对象。关键字 new 调用构造器，总是会创建一个新的对象，无论内容是否相同。
+
+
+
+
+
+
+
+
+
+## String空构造器
+
+ 
+
+```
+//底层维护字符数组
+private final char value[];
+
+	/** Note that use of this constructor is unnecessary since Strings are immutable.
+JDK源码上的注解: 注意，由于字符串是不可变的，因此不需要使用此构造函数。
+用构造函数创建string是无意义的 ,并且性能低
+*/
+    public String() {
+    //对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
+        this.value = "".value; }
+```
+
+ 
+
+## indexof("")
+
+indexof对于不存在的字符返回-1	但对于空字符串返回0
+
+ 
+
+对于空字符串的下标获取,
+
+首先调用这个方法
+
+```
+public int indexOf(String str) {
+  return indexOf(str, 0);}
+```
+
+
+
+对于不指定下标的indexof()方法,默认分配0的初始下标
+
+```
+public int indexOf(String str, int fromIndex) {
+  return indexOf(value, 0, value.length,
+      str.value, 0, str.value.length, fromIndex);}
+```
+
+
+
+```
+public int indexOf(String str, int fromIndex) {
+  return indexOf(value, 0, value.length,
+      str.value, 0, str.value.length, fromIndex);}
+```
+
+
+
+对所有indexof方法的处理最终都是在调用这个方法
+
+```
+static int indexOf(char[] source, int sourceOffset, int sourceCount,
+    char[] target, int targetOffset, int targetCount,
+    int fromIndex) {
+
+	//在这里规定了,空字符串时,fromIndex =sourceCount=0,返回0
+  if (fromIndex >= sourceCount) {
+    return (targetCount == 0 ? sourceCount : -1);
+  }
+  if (fromIndex < 0) {
+    fromIndex = 0;
+  }
+  if (targetCount == 0) {
+    return fromIndex;
+  }
+}
+```
+
+
+
+
+
+## 反转(递归)
+
+public class A{
+
+ public static String reverse(String originStr) {
+
+if(originStr == null || originStr.length() <= 1)
+
+ return originStr;
+
+ return reverse(originStr.substring(1)) +
+
+originStr.charAt(0);
+
+ }
+
+
+
+## 编码转换
+
+答：代码如下所示:
+
+String s1 = "你好";
+
+String s2 = newString(s1.getBytes("GB2312"), "ISO-8859-1");
+
+
+
+## 替换
+
+s.replaceAll("原字符","替代字符");
+
+
+
+## String编译优化
+
+字符串对象创建有两种形式，
+
+1.字面量形式，如String str = "aaa"	"aaa" 存进字符串常量池
+
+2.new 							new 创建的存进了堆
+
+ 
+
+ 对于字符串，其对象的引用都是存储在栈中的，如果是编译期已经创建好的就存储在常量池中(双引号定义的或final修饰并且能在编译期就能确定的)，如果是运行期才能确定的就存储在堆中（如：new关键字创建出来的）。
+
+对于equals相等的字符串，在常量池中永远只有一份，在堆中有多份
+
+ 
+
+String a="hello2";
+
+String b="hello"+2;
+
+System.out.println((a==b));
+
+ 输出为：true。因为 ”hello” +2在编译期就已经被优化成 “hello2”，因此在运行期变量 a 和 b 指向的是同一个对象(在字符串常量池)
+
+String a="hello2";
+
+String b="hello";
+
+String c=b+2;
+
+System.out.println((a==c));
+
+输出为 false。由于有符号引用的存在，所以String c=b+2不会在编译期间被优化，不会把 b+2 当做字面量处理，因此生成的对象是保存在堆上的。所以a和c不是指向同一个对象。
+
+
+
+### String s=new String(“abc”);创建了几个对象
+
+两个或一个，”abc”对应一个对象，这个对象放在字符串常量缓冲区，常量”abc”不管出现多少遍，都是缓冲区中的那一个。New String 每写一遍，就创建一个新的对象，它一句那个常量”abc”对象的内容来创建出一个新String 对象。如果以前就用过’abc’，直接从缓冲区拿。
+
+## String/Builder/Buffer区别
+
+* 相同点：
+  * 都使用 final 修饰，不能派生子类，操作的相关方法也类似例如获取字符串长度等；
+
+* 不同点：
+  * String只读，内容不能改变，StringBuffer和StringBuilder类表示的字符串对象可以直接进行修改，在修改的同时地址值不会发生改变。
+  * StringBuilder是JDK1.5新特性，和StringBuffer的方法完全相同，线程不安全,性能高。
+  * String、StringBuffer、StringBuilder 三者类型不同，无法用 equals()方法比较内容
+
+
+
+## String为什么final 
+
+* 若允许被继承，则其高度的被使用率可能会降低程序的性能
+
+* 为了安全。JDK中的核心类比如 String，内部很多方法的实现都不是 java 编写的，只是==调用操作系统的 API，也就是本地方法调用==，如果这种类可以被继承并重写，将导致操作系统面临风险
+
+
+
+
+
+# 序列化
+
+序列化能够将实例对象的状态信息写入到字节流,使其可以通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
+
+## 两种用途
+
+很多应用需要对某些对象进行序列化，让它们离开内存空间，入住物理硬盘，以便长期保存。比如最常见的是 Web 服务器中的 Session 对象，当有 10 万用户并发访问，就有可能出现 10 万个 Session 对象，内存可能吃不消，于是 Web 容器就会把一些 seesion 先序列化到硬盘中，等要用了，再把保存在硬盘中的对象还原到内存中。当两个进程在进行远程通信时，彼此可以发送各种类型的数据。无论是何种类型的数据，都会以二进制序列的形式在网络上传送。发送方需要把这个 Java 对象转换为字节序列，才能在网络上传送；接收方则需要把字节序列再恢复为 Java 对象。
+
+ 
+
+## 两种实现方法
+
+实现Serializable接口，所有的序列化将会自动进行
+
+实现**Externalizable接口** ,在writeExternal方法中进行手工指定所要序列化的变量
+
+ 
+
+## Serializable原理
+
+有AB两个类，B含有一个指向A类对象的引用，进行实例化{ A a = new A(); B b = new B(); }，在内存中分配了两个空间，在写入文件时 ,b包含对a的引用，系统会将**a的数据复制一份到b中，从文件中恢复对象时(重新加载到内存)，**内存分配了三个空间，而对象**a同时存在两份**
+
+　　
+
+　　1.保存到磁盘的所有对象都获得一个序列号(1, 2, 3等等)
+
+　　2.当要保存一个对象时，先检查该对象是否被保存了。
+
+3.如果以前保存过，只需写入"与已经保存的具有序列号x的对象相同"的标记，否则，保存该对象通过以上的步骤序列化机制解决了对象引用的问题！
+
+ 
+
+　　实例化的过程中相关注意事项
+　　a）序列化时，**只对对象的状态进行保存，而不管对象的方法
+　　b）当一个父类实现序列化，**子类自动实现序列化，不需要显式实现Serializable接口；
+　　c）当一个对象的**实例变量引用其他对象，**引用对象自动序列化；
+　　d）并非所有的对象都可以序列化，至于为什么不可以，有很多原因了，比如：
+　　1.安全方面的原因，比如一个对象拥有private，public等field，对于一个要传输的对象，比如写到文件，或者进行RMI传输 等等，在序列化进行传输的过程中，这个对象的private等域是不受保护的。
+　　2. 资源分配方面的原因，比如socket，thread类，如果可以序列化，进行传输或者保存，也无法对他们进行重新的资源分配，而且，也是没有必要这样实现。
+
+ 
+
+## serialversionUID
+
+目的是序列化对象版本控制。如果在新版本中这个值修改了，新版本就不兼容旧版本，反序列化时会抛出InvalidClassException异常。如果修改较小，比如仅仅是增加了一个属性，我们希望向下兼容，那就不用修改；如果我们删除了一个属性，或者更改了类的继承关系，必然不兼容旧数据，这时就应该手动更新版本号
+
+ 
+
+serialVersionUID = 1L意义:
+
+有两种生成方式：一个是默认的1L， 一个是根据类名、接口名、成员方法及属性等来生成一个64位的哈希字段，如： -8940196742313994740L
+
+不指定 serialVersionUID将导致添加或修改类中的任何字段时, 已序列化类将无法恢复
+
+
+
+## 防止被序列化
+
+声明为**静态或瞬态**
+
+ 
+
+## 瞬态transient
+
+生命周期仅存于调用者的内存中 ,不会被持久化
+
+只能修饰**非本地变量，不能修饰方法和类 ,该类已Serializable接口
+
+ 
+
+一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
+
+**实现Externalizable接口  ,则无视transient**
+
+ 
+
+ 
+
+
+
 
 
 # 接口
@@ -925,17 +1197,16 @@ synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该�
 
 
 
-同步代码块	synchronized (对象) { }
+* 同步代码块	synchronized (对象) { }
+  * 同步代码块在方法内部的==对象上==加锁。
 
 
 
-同步方法：public synchronized void xxx(int i) { }
-
-同步方法默认锁定this ,即当前类,所以不需要指明对象
+* 同步方法：public synchronized void xxx(int i) { }
+  * 同步方法在==方法上==加synchronized ,锁的范围大，将导致性能差
+  * ==同步方法默认锁定this ,即当前类,所以不需要指明对象==
 
 **在静态方法中，都是默认锁定类对象**
-
-
 
 
 
@@ -1209,6 +1480,46 @@ Executors创建线程池对象的弊端
 
 
 
+
+
+# 垃圾回收机制
+
+
+
+传统的 C/C++语言，需要程序员负责回收已经分配内存。
+
+* 显式回收垃圾回收的缺点：
+
+1）程序忘记回收，从而导致内存泄露，降低系统性能。
+
+2）程序错误回收程序核心类库的内存，导致系统崩溃。
+
+ 
+
+* Java由JRE在后台自动回收不再使用的内存
+
+1）可以提高编程效率。
+
+2）保护程序的完整性。
+
+3）其开销影响性能。==Java 虚拟机必须跟踪程序中有用的对象==，确定哪些是无用的。
+
+ 
+
+* 回收机制
+
+1）==只回收堆内存里的对象==空间,不回收栈内存数据
+
+2）不回收物理连接，如数据库连接、IO、Socket
+
+3）无法控制回收执行时间 ,可以通过 System.gc()或者 Runtime.getRuntime().gc()来请求回收
+
+4）==将对象的引用变量设置为 null，暗示可以回收==
+
+5）回收任何对象之前，总会先调用它的 finalize 方法 ,但==不要主动调用finalize== ，应该交给垃圾回收机制调用
+
+
+
 # 类的加载机制
 
 
@@ -1218,6 +1529,136 @@ Executors创建线程池对象的弊端
 但实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量 ,实例方法可以调用静态方法和变量。
 
 
+
+
+
+类方法执行时 ,对象还未创建 ,所以==类方法不能被this调用==
+
+在类方法中调用实例方法 ,将优先执行完所有实例方法 ,所以==在类方法中可以调用实例方法==
+
+
+
+
+
+
+
+# Object 6个方法
+
+
+
+```
+public boolean equals(Object) 	比较地址
+public native int hashCode() 	获取哈希码 	是native Method,不是用java实现的方法
+public String toString()
+public final native Class getClass() 		获取类结构信息 
+protected void finalize() throws Throwable 	垃圾回收前执行的方法
+protected native Object clone() throws CloneNotSupportedException 	克隆
+public final void wait() throws InterruptedException 	多线程等待
+public final native void notify() 			唤醒
+public final native void notifyAll() 		唤醒所有等待线程
+```
+
+
+
+# 修饰符
+
+
+
+==重写的访问修饰符只能比父类大==
+
+![img](image.assets/wps3-1603184298721.jpg) 
+
+
+
+
+
+## native
+
+
+
+```
+/**
+ * Indicates that a field defining a constant value may be referenced
+ * from native code.
+ *
+ * The annotation may be used as a hint by tools that generate native
+ * header files to determine whether a header file is required, and
+ * if so, what declarations it should contain.
+ *
+ * @since 1.8
+ */
+@Documented
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.SOURCE)
+public @interface Native {}
+```
+
+native是**java调用非java代码的接口**
+
+定义Native Method时 ,**并不需要提供实现** ,其实现体将由**非java语言在外面实现****
+
+
+
+```
+ //Native Method的声明更像是描述非java代码在java中的大致模样
+ public class IHaveNatives
+   {  native public void Native1( int x ) ;
+      native static public long Native2() ;
+      native synchronized private float Native3( Object o ) ;
+      native void Native4( int[] ary ) throws Exception ; }
+```
+
+
+
+==native可以与所有修饰符连用，除abstract== ,与abstract的无实现相违背
+
+
+
+==native method可以返回任何java类型，包括非基本类型==，而且同样可以进行异常控制。这些方法的实现体可以制一个异常并且将其抛出。当native method接收到非基本类型 ,如Object时，可以访问非基本类型的内部，**但这将使native method依赖于所访问的java类的实现**。可以在一个native method的本地实现中访问所有的java特性，但会导致依赖于所访问的java特性的实现，这远不如使用java特性方便
+
+
+
+native method不会对其他类调用这些本地方法产生任何影响，调用者甚至不知道它所调用的是一个本地方法。JVM将控制调用本地方法的所有细节。
+如果含有本地方法的类被继承，**子类会继承这个本地方法并且可以用java重写**，本地方法被fianl标识，继承后不能被重写。
+本地方法扩充了jvm ,在sun的java的并发实现中，许多与操作系统的接触点都用到了本地方法，使java能够超越java运行时的界限。
+
+
+
+==JVM怎样使Native Method跑起来==
+当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口 ,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存于何处，有哪些参数，修饰符等等。
+native修饰符将有一个指向该方法的实现的指针。这些实现在一些DLL文件内，它们会被操作系统加载到java程序的地址空间。当带有本地方法的类被加载时，其相关的DLL并未被加载，因此指向方法实现的指针并不会被设置。**当本地方法被调用之前，这些DLL才会被加载**，这是通过调用java.system.loadLibrary()实现的。
+
+
+
+# 对象克隆
+
+
+
+## 实现方式
+
+* ==实现 Cloneable 接口==并重写 Object 类中的 clone()方法；
+
+* 实现 Serializable 接口，通过对象的==序列化和反序列化==，可以实现深度克隆,更重要的是支持==泛型限定==
+
+
+
+## 深度/浅度克隆
+
+浅度拷贝即直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存。而深度拷贝为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
+
+要将可变对象和不可变对象相互转换，或者需要==操作新对象的时候不影响原始对象，用深度拷贝== ==copy-on-write==原则就是利用深度拷贝来实现的
+
+ 
+
+## hutool克隆
+
+
+
+CopyOptions定义了克隆规则		setIgnoreNullValue忽略null
+
+```
+BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(true).setIgnoreError(true));
+```
 
 
 
@@ -1242,6 +1683,306 @@ Executors创建线程池对象的弊端
 * localStorage
 
   浏览器缓存被清空则失效
+
+
+
+
+
+# 内存泄漏和溢出
+
+内存溢出	程序在申请内存时没有足够的内存，比如申请了integer,但存了long才能存下的数
+
+内存泄露	程序在申请内存后，无法释放已申请的内存空间
+
+
+
+# &和&&
+
+* 共同点
+
+&和&&都可以用作逻辑与运算符
+
+* 不同点	&：两边的操作数或表达式都会参与计算。&&：左边 false 时，不再计算 ,具有==短路效果== ,效率高
+
+
+
+
+
+
+
+# WEB
+
+## .class 和.jar 类型的文件存放位置？
+
+.class 文件放在 WEB-INF/classes 文件下，.jar 文件放在 WEB-INF/lib文件夹下
+
+## char 型变量中能不能存储一个中文汉字？
+
+java采用unicode编码，2个字节（16位）来表示一个字符， 无论是汉字还是数字，字母，或其他语言都可以存储。
+
+## assert
+
+assertion(断言)在软件开发中是一种常用的调试方式，很多开发语言中都支持这种机制。一般来说，assertion 用于保证程序最基本、关键的正确性。assertion 检查通常在开发和测试时开启。为了提高性能，在软件发布后， assertion 检查通常是关闭的。在实现中，断言是一个包含布尔表达式的语句，在执行这个语句时假定该表达式为 true；如果表达式计算为 false，那么系统会报告一个 AssertionError。
+
+断言用于调试目的：
+
+assert(a > 0); // throws an AssertionError if a <= 0
+
+断言可以有两种形式：
+
+assert Expression1;
+
+assert Expression1 : Expression2 ;
+
+Expression1 应该总是产生一个布尔值。
+
+Expression2 可以是得出一个值的任意表达式；这个值用于生成显示更多调
+
+试信息的字符串消息。
+
+断言在默认情况下是禁用的，要在编译时启用断言，需使用 source 1.4 标
+
+记：
+
+javac -source 1.4 Test.java
+
+要在运行时启用断言，可使用-enableassertions 或者-ea 标记。
+
+要在运行时选择禁用断言，可使用-da 或者-disableassertions 标记。
+
+要在系统类中启用断言，可使用-esa 或者-dsa 标记。还可以在包的基础上
+
+启用或者禁用断言。可以在预计正常情况下不会到达的任何位置上放置断言。
+
+断言可以用于验证传递给私有方法的参数。不过，断言不应该用于验证传递
+
+给公有方法的参数，因为不管是否启用了断言，公有方法都必须检查其参数。
+
+不过，既可以在公有方法中，也可以在非公有方法中利用断言测试后置条件。
+
+另外，断言不应该以任何方式改变程序的状态。
+
+## Session
+
+### Session的两种实现方法
+
+#### 1、基于Cookie实现Session
+
+服务器为客户端创建并维护Session对象，用于存放数据。同时会产生SessionID，服务器以Cookie的方式将SessionID存放在客户端。当浏览器再次访问该服务器时，会将SessionID作为Cookie信息带到服务器，服务器可以通过该SessionID检索到以前的Session对象，并对其进行访问。需要注意的是，此时的Cookie中仅仅保存了一个SessionID，而相对较多的会话数据保存在服务器端对应的Session对象中，由服务器来统一维护，这样一定程度保证了会话数据安全性，但增加了服务器端的内存开销。
+
+存放在客户端的用于保存SessionID的Cookie会在浏览器关闭时清除。我们把用户打开一个浏览器访问某个应用开始，到关闭浏览器为止交互过程称为一个“会话”。在一个“会话”过程中，可能会向同一个应用发出了多次请求，这些请求将共享一个Session对象，因为这些请求携带了相同的SessionID信息。
+
+#### 2、基于URL重写
+
+Session对象的正常使用要依赖于Cookie。如果考虑到客户端浏览器出于安全的考虑禁用了Cookie，应该使用URL重写的方式使Session在客户端禁用Cookie的情况下继续生效。
+
+### session 与 cookie 的区别
+
+存储角度：
+
+Session是服务器端的数据存储技术，cookie是客户端的数据存储技术
+
+解决问题角度：
+
+ Session 解决的是同一用户不同请求的数据共享问题，cookie 解决的是不同用户不同请求的请求数据的共享问题
+
+ 生命周期角度：
+
+ Session的id是依赖于cookie来进行存储的，浏览器关闭 id 就会失效
+
+Cookie 可以单独设置其在浏览器的存储时间。
+
+## HTTP状态码
+
+### 2xx	成功处理了请求
+
+### 3xx (重定向)表示要完成请求，需要进一步操作。
+
+304 (未修改) 自从上次请求后，请求的网页未修改过。 服务器返回此响应时，不会返回网页内容。
+
+### 4xx(请求错误)请求可能出错，妨碍服务器的处理
+
+400 (错误请求) 服务器不理解请求的语法。
+
+403 (禁止) 服务器拒绝请求。
+
+### 5xx(服务器错误) 
+
+500 (服务器内部错误) 服务器遇到错误，无法完成请求。
+
+501 (尚未实施) 服务器不具备完成请求的功能。 例如，服务器无法识别请求方法
+
+502 (错误网关) 服务器作为网关或代理，从上游服务器收到无效响应。
+
+503 (服务不可用) 服务器目前无法使用(由于超载或停机维护)。 通常，这只是暂时状态。
+
+504 (网关超时) 服务器作为网关或代理，但是没有及时从上游服务器收到请求。
+
+505 (HTTP 版本不受支持) 服务器不支持请求中所用的 HTTP 协议版本。
+
+
+
+### Ajax 的工作原理
+
+异步的javascript和xml,通过XmlHttpRequest对象来向服务器发异步请求，从服务器获得数据，然后用javascript来操作DOM而更新页面。从而实现向服务器提出请求和处理响应，而不阻塞用户。达到无刷新的效果
+
+### JSON 及其作用
+
+JSON是一种轻量级的数据交换格式，采用完全独立于语言的文本格式，是理想的数据交换格式。同时，JSON 是 JavaScript 原生格式，这意味着在 JavaScript 中处理 JSON 数据不须要任何特殊的 API 或工具包。
+
+在 JSON 中，有两种结构：对象和数组。
+
+ {} 对象
+
+ [] 数组
+
+ , 分隔属性
+
+ : 左边为属性名，右边为属性值
+
+属性名可用可不用引号括起，属性值为字符串一定要用引号括起
+
+## Servlet
+
+### Servlet生命周期
+
+Web容器加载Servlet并将其实例化后，Servlet生命周期开始，容器运行init()方法进行Servlet的初始化；请求到达时调用service方法，service方法调用与请求对应的doGet或doPost等方法；当服务器关闭或项目被卸载时Servlet 实例被销毁，此时会调用Servlet的destroy方法
+
+### JSP 和 Servlet关系
+
+先有 Servlet，针对 Servlet 缺点推出 JSP。JSP 是 Servlet 的一种特殊形式
+
+Servlet是特殊的Java程序，运行于服务器的JVM中，能够依靠服务器的支持向浏览器提供显示内容。JSP本质上是Servlet的一种简易形式，JSP被处理成类似于Servlet的Java程序，可以简化页面内容的生成。
+
+不同点在于，Servlet 的应用逻辑在Java文件中，并完全从表示层中的HTML分离开来。而JSP是Java语言和HTML的组合。JSP侧重于视图，Servlet侧重于控制逻辑，在MVC架构模式中，JSP适合充当视图而Servlet 适合充当控制器（controller）
+
+ 
+
+每个 JSP 页面就是一个 Servlet 实例——JSP 页面由系统翻译成 Servlet，
+
+Servlet 再负责响应用户请求。
+
+
+
+
+
+# SpringBoot
+
+ 
+
+## 注解还是XML
+
+1、应用的基本配置用xml，比如：数据源、资源文件等；
+
+2、业务开发用注解，比如：Service中注入bean等；
+
+## SpringBoot的优点
+
+1，创建独立的spring应用程序。
+
+2，嵌入的tomcat jetty 或者undertow 不用部署WAR文件。
+
+3，允许通过Maven来根据需要获取starter
+
+4，尽可能的使用自动配置spring
+
+5，提供生产就绪功能，如指标，健康检查和外部配置
+
+6，绝对没有代码生成，对XML没有要求配置
+
+　
+
+## 传统开发模式
+
+所有的功能打包在一个 WAR包里，基本没有外部依赖（除了容器），部署在一个JEE容器（Tomcat，JBoss，WebLogic）里，包含了 DO/DAO，Service，UI等所有逻辑。
+
+ 
+
+* 优点：
+
+①开发简单，集中式管理
+
+②基本不会重复开发
+
+③功能都在本地，没有分布式的管理和调用消耗
+
+* 缺点：
+
+1、效率低：开发都在同一个项目改代码，相互等待，冲突不断
+
+2、维护难：代码功功能耦合在一起，新人不知道何从下手
+
+3、不灵活：构建时间长，任何小修改都要重构整个项目，耗时
+
+4、稳定性差：一个微小的问题，都可能导致整个应用挂掉
+
+5、扩展性不够：无法满足高并发下的业务需求
+
+6、对服务器的性能要求要统一，要高
+
+
+
+# 单点登录、域用户、常规登录、AD域
+
+1、单点登录  
+
+（1）啥是单点登录？
+
+用户只需要登录一次就可以访问所有相互信任的应用系统。（Single Sign On，简称为 SSO）
+
+（2）解决啥问题？
+
+各个server拿到同一个ID，都能有办法检验出ID的有效性、并且能得到ID对应的用户信息。
+
+（3）咋实现？
+
+实现步骤：
+
+登录应用1，服务器前验证 ——> Over（不通过，不通过验证失败）
+
+​                     ——> 返回ticket（验证通过） ——> 下次访问应用,2，发送ticket验证  ——> 以后登录应用2不需要再次登录（验证通过）
+
+实现SSO，具备条件所有应用系统共享一个身份认证系统。
+
+　　统一的认证系统是SSO的前提之一。认证系统的主要功能是将用户的登录信息和用户信息库相比较，对用户进行登录认证；认证成功后，认证系统应该生成统一的认证标志（ticket），返还给用户。另外，认证系统还应该对ticket进行效验，判断其有效性。所有应用系统均能够识别和提取ticket信息
+
+　　要实现SSO的功能，让用户只登录一次，就必须让应用系统能够识别已经登录过的用户。应用系统应该能对ticket进行识别和提取，通过与认证系统的通讯，能自动判断当前用户是否登录过，从而完成单点登录的功能。
+
+ 
+
+2、域用户
+
+（1）何为域？何为域用户？
+
+域，域就是一方诸侯，有自己的权限和领土范围。（自己的装逼解释）；而领地内所有管辖和被管辖的都是域用户。
+
+（2）域，还是域用户？
+
+看了所有能看到的解释，都不满意。自己定义下，域的主要是，域对内的规则，域内用户的权限，域和域之间的规则；同域内用户之间的关系，权限。域，例如计算机里的域用户是需要服务器，进行域的创建，
+
+ 
+
+（3）域账号
+
+域账号，修改域帐号有关数据，直接修改域帐号服务器中的帐号，其他计算机就可立即获取更新后的帐号数据；本地账号，域中有数十台计算机，而且每一台计算机都必须有相同的帐号
+
+3、AD域
+
+AD域是Active Directory的缩写，它是基于windows的一个组合，它可以集中控制加入域的所有计算机的权限，更高效的分配权限、提高资料的安全性、节省管理成本。
+
+域用户（我这里指的是创建域的这个用户），在任何一台加入域的计算机上都有管理员的权限。
+
+ 
+
+
+
+
+
+
+
+
+
+
 
 
 
