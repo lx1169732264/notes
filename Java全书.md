@@ -1520,7 +1520,68 @@ Executors创建线程池对象的弊端
 
 
 
-# 类的加载机制
+# 类加载机制
+
+
+
+```java
+public class Singleton {
+    //1.静态变量    调用了非静态的构造器  将优先加载非静态,跳过静态
+    //4.构造方法结束 ,赋值
+    private static Singleton instance = new Singleton();
+
+    //3.构造方法    此时x=y=1
+    public Singleton() {
+        x++;
+        y++;
+    }
+
+    private static int x;
+    //5.静态变量赋值  此时x=1,y=0
+    private static int y = 0;
+
+    //2.非静态变量
+    private int z = 1;
+
+    public static Singleton getInstance() {
+        return instance;
+    }
+
+    public static void main(String[] args) {
+        //6.main方法体     结果x=1,y=0
+        getInstance();
+    }
+}
+```
+
+
+
+```java
+public class Singleton2 {
+
+    //3.构造方法    此时x=y=1
+    public Singleton2() {
+        x++;
+        y++;
+    }
+
+    //1.静态变量赋值  此时x=y=0
+    private static int x = 0;
+    private static int y;
+    //2.静态变量调用构造方法
+    //4.构造器返回值赋值
+    private static Singleton2 instance = new Singleton2();
+
+    public static Singleton2 getInstance() {
+        return instance;
+    }
+
+    public static void main(String[] args) {
+        //5.main方法体       结果x=y=1
+        getInstance();
+    }
+}
+```
 
 
 

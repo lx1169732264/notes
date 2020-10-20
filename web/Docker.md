@@ -443,7 +443,7 @@ Dockerfile		build->	镜像		运行->		容器
 
 **WORKDIR** 创建容器后，终端登陆的初始目录
 
-**ENV** 用来在构建镜像过程中设置环境变量
+**ENV** 		声明变量
 
 **ADD** 将宿主机Dockerfile目录下的文件拷贝进镜像 ,会自动处理URL和解压tar包
 
@@ -473,11 +473,31 @@ Dockerfile		build->	镜像		运行->		容器
 
 
 
+## 模板
 
 
 
+```shell
+#基于镜像
+FROM centos
+#作者
+MAINTAINER lx
+#声明变量
+ENV ROOT_PATH /usr/local
+#设置工作目录
+WORKDIR $ROOT_PATH
+#安装vim
+RUN yum -y install
+#输出工作目录下的所有文件
+RUN ls -lh
+#提示对外暴露的端口
+EXPOSE 80
+CMD /bin/bash
+```
 
+Docker build -t mycentos:1.0 . 
 
+Docker run -it mycentos:1.0 /bin/bash
 
 
 
