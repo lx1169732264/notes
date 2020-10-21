@@ -486,6 +486,12 @@ MAINTAINER lx
 ENV ROOT_PATH /usr/local
 #设置工作目录
 WORKDIR $ROOT_PATH
+#添加软件包	指定软件包的路径	当前目录为工作目录,软件包将被自动解压
+ADD ***
+#将安装好的软件包改名
+RUN mv *** ***
+#配置环境变量
+ENV JAVA_HOME /usr/local/jdk8
 #安装vim
 RUN yum -y install
 #输出工作目录下的所有文件
@@ -498,6 +504,103 @@ CMD /bin/bash
 Docker build -t mycentos:1.0 . 
 
 Docker run -it mycentos:1.0 /bin/bash
+
+
+
+## jar包镜像
+
+
+
+```shell
+#基于jdk镜像
+FROM openjdk:8u181-jdk-alpine
+#作者
+MAINTAINER lx
+#声明变量	工作目录/jar包名称/内部端口
+ENV ROOT_PATH /mydocker/lx_storehouse/
+#设置工作目录
+WORKDIR $ROOT_PATH
+#添加到指定目录	当前为工作目录,软件包将被自动解压,jar包不会
+ADD lx.jar ./
+#设置容器卷	之后只要把jar包上传至容器卷目录就能重新build
+VOLUME $ROOT_PATH
+#运行jar包
+ENTRYPOINT ["java","-jar","lx.jar","-port","1234"]
+```
+
+
+
+
+
+## 镜像仓库
+
+
+
+https://cr.console.aliyun.com/repository/cn-hongkong/lx-persona/lx/details
+
+关于仓库使用的详细说明
+
+
+
+# 4种网络模式
+
+
+
+docker run创建Docker容器时，可以用–net指定网络模式
+
+
+
+## bridge模式	默认
+
+--net=bridge
+
+
+
+为每一个容器分配Network Namespace、设置IP等，并将Docker==连接到虚拟网桥==上。当Docker server启动时，在主机上创建docker0虚拟网桥。虚拟网桥的工作方式和物理交换机类似，**主机上的所有容器通过网桥连在二层网络中**。接下来就要为容器分配IP了，从RFC1918所定义的私有IP网段中，选择和宿主机不同的IP地址和子网分配给docker0，连接到docker0的容器就从这个子网中选择一个未占用的IP使用。如一般Docker会使用172.17.0.0/16这个网段，并将172.17.42.1/16分配给docker0网桥
+
+在主机上使用ifconfig命令是可以看到docker0的，可以认为它是网桥的管理端口，在宿主机上作为一块虚拟网卡使用
+
+
+
+## host模式
+
+--net=host
+
+
+
+和宿主机共用Network Namespace ,IP和端口。 
+
+
+
+
+
+
+
+host模式：使--net =host指定； 
+
+none模式：使--net =none指定； 
+
+container模式：使--net =container:NAMEorID指定。
+
+
+
+## none模式
+
+--net=none
+
+
+
+Docker容器拥有自己的Network Namespace，但==不进行任何网络配置== ,即没有网卡、IP、路由等信息。需要自己配置
+
+
+
+## container模式
+
+--net=container
+
+
+
+新容器和已经存在的一个容器共享Network Namespace。新容器不会创建网卡/配置IP，而是和指定容器共享IP。两个容器的进程可以通过lo网卡设备通信
 
 
 
