@@ -40,7 +40,9 @@
 | ---- | ------------------------------- |
 |      | ![img](.\image.assets\wps2.jpg) |
 
-**RPC**	**Remote Procedure Call**
+
+
+# **RPC**	**Remote Procedure Call**
 
 
 
@@ -54,11 +56,9 @@ RPC是指远程调用或进程间通信的方式，他是一种技术的思想�
 
 RPC基本原理:进程之间通过socket套接字实现通信
 
-
-
 RPC两个核心模块：通讯，序列化。
 
-# 简介
+
 
 Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现。
 
@@ -710,35 +710,9 @@ Selector 一般称 为选择器 ，也可以翻译为 多路复用器
 
 ·     serialize 数据序列化层：可复用的一些工具，扩展接口为 Serialization, ObjectInput, ObjectOutput, ThreadPool
 
-## xml加载方式
-
-BeanDefinitionParser接口	定义了怎么解析xml中bean的id
 
 
 
-## 启动provider
-
-DubboBeanDefinitionParser实现了BeanDefinitionParser接口
-
-
-
-
-
-## 启动consumer
-
-
-
-
-
- ## 远程调用
-
-
-
- 
-
- 
-
- 
 
 # 面试
 
