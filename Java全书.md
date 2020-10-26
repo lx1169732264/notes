@@ -1439,6 +1439,24 @@ Lock是Java 5以后引入的新的API
 
 
 
+## 线程/工作内存/主内存
+
+
+
+每个线程都有一个独立的工作内存，用于存储线程私有的数据
+
+**Java内存模型规定变量都存储在主内存**，主内存是共享内存区域，所有线程都可以访问
+
+线程**对变量的操作在工作内存中进行**（线程安全问题的根本原因）
+
+* 首先要将变量从主内存拷贝到工作内存
+
+* 然后对变量进行操作，再将变量写回主内存
+
+* **因此不同的线程间无法访问对方的工作内存**，==线程间的通信(传值)必须通过主内存来完成== ,多个线程对一个共享变量进行修改时，都是对自己工作内存的副本进行操作，相互不可见。主内存中共享变量的结果是不可预知的
+
+
+
 
 
 ## 线程池（thread pool）
@@ -1540,92 +1558,50 @@ Executors创建线程池对象的弊端
 
 
 
-## 反射方法
+
+
+## Class
 
 
 
-### 获得类相关方法
+Class 类是反射的入口，用于获取与类相关的各种信息和方法
 
-| asSubclass(Class<U>  clazz) | 把传递的类的对象转换成代表其子类的对象                 |
-| --------------------------- | ------------------------------------------------------ |
-| getClassLoader()            | 获得类的加载器                                         |
-| getClasses()                | 返回一个数组，数组中包含该类中所有公共类和接口类的对象 |
-| getDeclaredClasses()        | 返回一个数组，数组中包含该类中所有类和接口类的对象     |
-| forName(String  className)  | 根据类名返回类的对象                                   |
-| getName()                   | 获得类的完整路径名字                                   |
-| newInstance()               | 创建类的实例                                           |
-| getPackage()                | 获得类的包                                             |
-| getSimpleName()             | 获得类的名字                                           |
-| getSuperclass()             | 获得当前类继承的父类的名字                             |
-| getInterfaces()             | 获得当前类实现的类或是接口                             |
-| .class                      | 获取当前对象的类                                       |
+**每个类也可看做是一个对象**，有共同的Class来存放类的结构信息，能够通过相应方法取出相应信息：类名、属性、方法、构造方法、父类和接口
 
 
 
-### 获得类中字段
-
-
-
-| getField(String name)          | 获得某个公有的字段对象 |
-| ------------------------------ | ---------------------- |
-| getFields()                    | 获得所有公有的字段对象 |
-| getDeclaredField(String  name) | 获得某个字段对象       |
-| getDeclaredFields()            | 获得所有字段对象       |
-
-
-
-
-
-### 获得类中注解相关的方法
-
-
-
-| **方法**                                 | **用途**                               |
+| asSubclass(Class<U>  clazz)              | 把传递的类的对象转换成代表其子类的对象 |
 | ---------------------------------------- | -------------------------------------- |
-| getAnnotation(Class<A>  annotationClass) | 返回该类中与参数类型匹配的公有注解对象 |
+| getClassLoader()                         | 获得类的加载器                         |
+| getClasses()                             | 返回数组，包含公共类和接口类的对象     |
+| getDeclaredClasses()                     | 返回数组，包含类和接口类的对象         |
+| forName(String  className)               | 根据类名返回类的对象                   |
+| getName()                                | 获得类的完整路径名字                   |
+| newInstance()                            | 创建类的实例                           |
+| getPackage()                             | 获得类的包                             |
+| getSimpleName()                          | 获得类的名字                           |
+| getSuperclass()                          | 获得当前类继承的父类的名字             |
+| getInterfaces()                          | 获得当前类实现的类或是接口             |
+| .class                                   | 获取当前对象的类                       |
+|                                          |                                        |
+| isAnnotation()                           | 如果是注解类型则返回true               |
+| isArray()                                | 如果是一个数组类则返回true             |
+| isEnum()                                 | 是枚举类则返回true                     |
+| isInstance(Object obj)                   | 是该类的实例则返回true                 |
+| isInterface()                            | 是接口类则返回true                     |
+|                                          |                                        |
+| getAnnotation(Class<A>  annotationClass) | 获得与参数类型匹配的公有注解对象       |
+|                                          |                                        |
+|                                          |                                        |
+|                                          |                                        |
 
 
 
-### 获得类中构造器相关的方法
 
 
 
-| **方法**                                            | **用途**                               |
-| --------------------------------------------------- | -------------------------------------- |
-| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法 |
-| getConstructors()                                   | 获得该类的所有公有构造方法             |
-| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法     |
-| getDeclaredConstructors()                           | 获得该类所有构造方法                   |
 
 
-
-### 获得类中方法相关的方法
-
-
-
-| **方法**                                                    | **用途**               |
-| ----------------------------------------------------------- | ---------------------- |
-| getMethod(String name,  Class...<?> parameterTypes)         | 获得该类某个公有的方法 |
-| getMethods()                                                | 获得该类所有公有的方法 |
-| getDeclaredMethod(String name,  Class...<?> parameterTypes) | 获得该类某个方法       |
-| getDeclaredMethods()                                        | 获得该类所有方法       |
-
-
-
-### 类中其他重要的方法
-
-
-
-| **方法**                                                     | **用途**                         |
-| ------------------------------------------------------------ | -------------------------------- |
-| isAnnotation()                                               | 如果是注解类型则返回true         |
-| isAnnotationPresent(Class<?  extends Annotation> annotationClass) | 如果是指定类型注解类型则返回true |
-| isArray()                                                    | 如果是一个数组类则返回true       |
-| isEnum()                                                     | 如果是枚举类则返回true           |
-| isInstance(Object obj)                                       | 如果obj是该类的实例则返回true    |
-| isInterface()                                                | 如果是接口类则返回true           |
-
- 
 
 
 
@@ -1633,13 +1609,42 @@ Executors创建线程池对象的弊端
 
 代表类的成员变量。**成员变量（字段）和成员属性是两个概念**。User类中有name变量，则它有name字段。如果**没有get/setName，就没有name属性**。**如果有get/set,不管字段是否存在，都认为有这个属性**
 
-| **方法**                      | **用途**                     |
-| ----------------------------- | ---------------------------- |
-| get(Object obj)               | 获得obj中对应的属性值        |
-| set(Object obj, Object value) | 设置obj中对应属性值          |
-| SetAccessible                 | 暴力反射，忽略访问权限修饰符 |
 
- 
+
+| getField(String name)          | 获得1个public字段  |
+| ------------------------------ | ------------------ |
+| getFields()                    | 获得所有public字段 |
+| getDeclaredField(String  name) | 获得某个字段       |
+| getDeclaredFields()            | 获得所有字段       |
+| setAccessible(true)            | 忽略访问权限修饰符 |
+
+
+
+getDeclaredField()访问非public字段时,会报错
+
+```
+can not access a member of class *** with modifiers "private"
+```
+
+通过SetAccessible(true)忽略访问修饰符
+
+
+
+```java
+    @Test
+    public void testSet() throws Exception {
+        User user = new User("张三", 23, "220202202002022222");
+        Class<? extends User> userClass = user.getClass();
+      
+        Field idNumberField = userClass.getField("idNumber");
+        // set方法：给对象的字段设置值。需要传入当前被操作的user对象
+        idNumberField.set(user, "123456");
+    }
+```
+
+
+
+
 
 ## Method
 
@@ -1649,25 +1654,18 @@ Executors创建线程池对象的弊端
 | ---------------------------------- | ---------------------------------------- |
 | invoke(Object obj, Object... args) | 传递object对象及参数调用该对象对应的方法 |
 | getName                            | 获取方法名                               |
-| SetAccessible                      | 暴力反射，忽略访问权限修饰符             |
+| SetAccessible(true)                | 暴力反射，忽略访问权限修饰符             |
 
  
 
 Invoke方法的用处：SpringAOP在切面方法执行的前后进行某些操作，就是使用的invoke方法。
 
-
-
-## Constructor(用的比较少)
-
-
-
-| **方法**                        | **用途**                   |
-| ------------------------------- | -------------------------- |
-| newInstance(Object... initargs) | 根据传递的参数创建类的对象 |
-
- 
-
-Constructor类在实际开发中使用极少，几乎不会使用Constructor。因为：Constructor违背了Java的一些思想，比如：私有构造不让用户去new对象；单例模式保证全局只有一个该类的实例。而Constructor则可以破坏这个规则
+| **方法**                                                    | **用途**               |
+| ----------------------------------------------------------- | ---------------------- |
+| getMethod(String name,  Class...<?> parameterTypes)         | 获得该类某个公有的方法 |
+| getMethods()                                                | 获得该类所有公有的方法 |
+| getDeclaredMethod(String name,  Class...<?> parameterTypes) | 获得该类某个方法       |
+| getDeclaredMethods()                                        | 获得该类所有方法       |
 
  
 
@@ -1675,31 +1673,174 @@ Constructor类在实际开发中使用极少，几乎不会使用Constructor。�
 
 
 
+ 
+
+
+
+## Constructor
+
+ 
+
+| **方法**                                            | **用途**                               |
+| --------------------------------------------------- | -------------------------------------- |
+| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法 |
+| getConstructors()                                   | 获得该类的所有公有构造方法             |
+| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法     |
+| getDeclaredConstructors()                           | 获得该类所有构造方法                   |
+| newInstance(Object... initargs)                     | 根据传递的参数创建类的对象             |
+
+
+
+* Class类的newInstance()只能无参构造
+* Constructor的newInstance()能传递构造参数
+
+```java
+Class<Session> sessionClass = Session.class;
+Constructor<Session> declaredConstructor = sessionClass.getDeclaredConstructor();
+declaredConstructor.setAccessible(true);
+Session session2 = declaredConstructor.newInstance();
+```
+
+
+
+* Constructor类违背了Java的一些思想
+  * 可以无视private的构造方法,强行创建对象
+  * 破坏了单例模式的规则
+
+ 
+
+
+
+## 注解
+
+
+
+注解本身并不起任何作用,只作为标识	通过反射来获取注解,再根据注解的参数执行业务
+
+
+
+* 作用分类：
+  * 编写文档：通过代码中标识的注解生成文档（Swagger）
+  * 代码分析：通过代码里的注解对代码进行分析（逻辑判断）
+  * 编译检查：通过代码里对应的注解让编译器实现基本的编译检查（Override，Deprecated，FunctionalInterface）
+
+JDK中预定义的一些注解
+
+Override：检测该注解标识的方法是否继承自父类
+
+Deprecated：标识方法、类、字段等已经过时，后续的版本可能会将其移除
+
+SuppressWarnings：压制警告
+
+
+
+### 元注解
+
+==元注解用于描述注解的适用范围==
+
+
+
+* @Target	作用范围
+  * Type：作用于类
+  * METHOD：作用于方法
+  * FIELD：作用于字段
+  * ElementType取值
+
+* @Retention：描述注解被保留的阶段
+  * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到
+* @Documented：描述注解是否被抽取到api文档中
+
+* @Inherited：描述注解是否可以被继承
+
+ 
+
+
+
+### 自定义注解
+
+
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface MyAnnotation {
+    String name() default "lx";
+    int value();
+}
+```
+
+
+
+```
+@MyAnnotation(123)
+public class User{}
+```
+
+
+
+```java
+public void testAnnotation() {
+        Class<User> userClass = User.class;
+        // 获取注解
+        MyAnnotation myAnnotation = userClass.getAnnotation(MyAnnotation.class);
+        // 注解不为空的时候进行处理
+        if (myAnnotation != null) {
+            // 获取打在User类上的注解的两个属性
+            System.out.println(myAnnotation.name() + ":" + myAnnotation.value());
+        }
+    }
+```
+
+
+
+==注解本质上是一个接口，默认继承自Annotation接口==
+
+* 如果定义了属性，在使用属性的时候需要给属性赋值。
+
+* ==只有一个属性需要赋值，属性名称value，则可以省略value==
+
+* 数组赋值时用{}封装
+
+* ==属性中的返回值==类型有下列取值：
+  * 基本数据类型
+  * String
+  * 枚举
+  * 注解
+  * 以上类型的数组
+
+
+
+## 泛型擦除
+
+
+
+```java
+public void test() throws Exception {
+    List<User> list= new ArrayList<>();
+    Class<? extends List> listClass = list.getClass();
+    Method add = listClass.getDeclaredMethod("add", Object.class);
+  //通过invoke()在运行时向list插入Integer数据,避免了编译时的泛型检验
+    add.invoke(list, 5);
+    add.setAccessible(true);}
+```
 
 
 
 
-
-
-
-
-## Class 类的作用？生成 Class 对象的方法有哪些？
-
-Class 类是 Java 反射机制的起源和入口，用于获取与类相关的各种信息，提供了获取类信息的相关方法。Class继承Object。
-
-每个类有自己的对象，好比图纸和实物的关系；**每个类也可看做是一个对象**，有共同的图纸 Class，存放类的 结构信息，能够通过相应方法取出相应信息：类的名字、属性、方法、构造方法、父类和接口
 
 
 
 ## 反射的使用场合和作用、及其优缺点
 
-* 在编译时根本无法知道该对象或类可能属于哪些类，程序只依靠运行时信息来发现该对象和类的真实信息。通过反射可以使程序代码访问装载到 JVM 中的类的内部信息
 
-* 反射提高了 Java 程序的灵活性和扩展性，降低耦合性，提高自适应能力。它允许程序创建和控制任何类的对象，无需提前硬编码目标类
 
-* Java 反射技术应用领域很广，如**软件测试**；许多流行的开源框架例如Struts、Hibernate、Spring 在实现过程中都采用了该技术
+* 在编译时不知道该对象或类可能属于哪些类，程序只依靠运行时信息来发现该对象和类的真实信息。通过反射可以使程序代码访问装载到 JVM 中的类的内部信息
 
-* 反射基本上是一种解释操作，用于字段和方法接入时要远慢于直接代码。因此 Java 反射机制主要应用在对灵活性和扩展性要求很高的系统框架上。使用反射会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，因而会带来维护问题。反射代码比相应的直接代码更复杂。
+* 反射提高了 Java 程序的灵活性和扩展性，**低耦合**，提高自适应能力。它允许程序创建和控制任何类的对象，无需提前硬编码目标类
+
+* Struts、Hibernate、Spring 在实现过程中都采用了该技术
+
+* 反射基本上是**解释操作**，用于字段和方法接入时要远慢于直接代码。因此 Java 反射机制主要应用在对灵活性和扩展性要求很高的系统框架上。使用反射会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，因而会带来维护问题。反射代码比相应的直接代码更复杂。
 
 
 
@@ -2270,13 +2411,21 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 
 # WEB
 
+
+
 ## .class 和.jar 类型的文件存放位置？
 
 .class 文件放在 WEB-INF/classes 文件下，.jar 文件放在 WEB-INF/lib文件夹下
 
+
+
 ## char 型变量中能不能存储一个中文汉字？
 
 java采用unicode编码，2个字节（16位）来表示一个字符， 无论是汉字还是数字，字母，或其他语言都可以存储。
+
+
+
+
 
 ## assert
 
