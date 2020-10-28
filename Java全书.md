@@ -4,23 +4,19 @@
 
  
 
-如果经常对字符串进行各种各样的修改，那么使用 String 来代表字符串的话会引起很大的内存开销。因为 String 对象建立之后不能再改变，所以对于每一个不同的字符串，都需要一个 String 对象来表示。这时，应该考虑使用StringBuffer 类，它允许修改，而不是每个不同的字符串都要生成一个新的对象。并且，这两种类的对象转换十分容易。
+经常对字符串进行修改会引起很大的内存开销。
 
-调用构造器创造string，性能低下且内存开销大，并且没有意义，因为String对象不可改变，所以对于内容相同的字符串，指向同一个String
-
-上面的结论还基于这样一个事实：对于字符串常量，如果内容相同，Java认为它们代表同一个 String 对象。关键字 new 调用构造器，总是会创建一个新的对象，无论内容是否相同。
-
-
-
-
-
-
+String对象建立之后不能再改变，对于不同字符串，需要不同String对象来表示。
 
 
 
 ## String空构造器
 
  
+
+调用构造器创造string，性能低下且内存开销大
+
+==string内容相同，Java认为它们代表同一个String对象==
 
 ```
 //底层维护字符数组
@@ -39,15 +35,13 @@ JDK源码上的注解: 注意，由于字符串是不可变的，因此不需要
 
 ## indexof("")
 
-indexof对于不存在的字符返回-1	但对于空字符串返回0
+==不存在返回-1	空字符串返回0==
 
  
 
-对于空字符串的下标获取,
+对于空字符串的下标获取,首先调用这个方法
 
-首先调用这个方法
-
-```
+```java
 public int indexOf(String str) {
   return indexOf(str, 0);}
 ```
@@ -56,7 +50,7 @@ public int indexOf(String str) {
 
 对于不指定下标的indexof()方法,默认分配0的初始下标
 
-```
+```java
 public int indexOf(String str, int fromIndex) {
   return indexOf(value, 0, value.length,
       str.value, 0, str.value.length, fromIndex);}
@@ -64,7 +58,7 @@ public int indexOf(String str, int fromIndex) {
 
 
 
-```
+```java
 public int indexOf(String str, int fromIndex) {
   return indexOf(value, 0, value.length,
       str.value, 0, str.value.length, fromIndex);}
@@ -74,7 +68,7 @@ public int indexOf(String str, int fromIndex) {
 
 对所有indexof方法的处理最终都是在调用这个方法
 
-```
+```java
 static int indexOf(char[] source, int sourceOffset, int sourceCount,
     char[] target, int targetOffset, int targetCount,
     int fromIndex) {
@@ -87,46 +81,20 @@ static int indexOf(char[] source, int sourceOffset, int sourceCount,
     fromIndex = 0;
   }
   if (targetCount == 0) {
-    return fromIndex;
-  }
-}
+    return fromIndex; }}
 ```
 
 
 
 
 
-## 反转(递归)
-
-public class A{
-
- public static String reverse(String originStr) {
-
-if(originStr == null || originStr.length() <= 1)
-
- return originStr;
-
- return reverse(originStr.substring(1)) +
-
-originStr.charAt(0);
-
- }
-
-
-
 ## 编码转换
 
-答：代码如下所示:
-
-String s1 = "你好";
-
-String s2 = newString(s1.getBytes("GB2312"), "ISO-8859-1");
 
 
+newString("".getBytes("GB2312"), "ISO-8859-1");
 
-## 替换
 
-s.replaceAll("原字符","替代字符");
 
 
 
@@ -134,9 +102,9 @@ s.replaceAll("原字符","替代字符");
 
 字符串对象创建有两种形式，
 
-1.字面量形式，如String str = "aaa"	"aaa" 存进字符串常量池
+1.字面量形式，String str = "aa"	存进字符串常量池
 
-2.new 							new 创建的存进了堆
+2.new 							存进堆
 
  
 
@@ -170,6 +138,8 @@ System.out.println((a==c));
 
 两个或一个，”abc”对应一个对象，这个对象放在字符串常量缓冲区，常量”abc”不管出现多少遍，都是缓冲区中的那一个。New String 每写一遍，就创建一个新的对象，它一句那个常量”abc”对象的内容来创建出一个新String 对象。如果以前就用过’abc’，直接从缓冲区拿。
 
+
+
 ## String/Builder/Buffer区别
 
 * 相同点：
@@ -194,19 +164,21 @@ System.out.println((a==c));
 
 # 序列化
 
-序列化能够将实例对象的状态信息写入到字节流,使其可以通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
+序列化能够将实例对象的状态信息写入到字节流,从而通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
 
-## 两种用途
 
-很多应用需要对某些对象进行序列化，让它们离开内存空间，入住物理硬盘，以便长期保存。比如最常见的是 Web 服务器中的 Session 对象，当有 10 万用户并发访问，就有可能出现 10 万个 Session 对象，内存可能吃不消，于是 Web 容器就会把一些 seesion 先序列化到硬盘中，等要用了，再把保存在硬盘中的对象还原到内存中。当两个进程在进行远程通信时，彼此可以发送各种类型的数据。无论是何种类型的数据，都会以二进制序列的形式在网络上传送。发送方需要把这个 Java 对象转换为字节序列，才能在网络上传送；接收方则需要把字节序列再恢复为 Java 对象。
+
+比如Session 对象，当有 10 万用户并发访问出现 10 万个 Session 对象，内存吃不消，于是 Web 容器就会把一些 seesion 先序列化到硬盘中，等要用了，再把保存在硬盘中的对象还原到内存中。
+
+当两个进程在进行远程通信时，彼此可以发送各种类型的数据。无论是何种类型的数据，都会以二进制序列的形式在网络上传送。发送方需要把这个 Java 对象转换为字节序列，才能在网络上传送；接收方则需要把字节序列再恢复为 Java 对象。
 
  
 
 ## 两种实现方法
 
-实现Serializable接口，所有的序列化将会自动进行
+* 实现Serializable接口，所有的序列化将会自动进行
 
-实现**Externalizable接口** ,在writeExternal方法中进行手工指定所要序列化的变量
+* 实现**Externalizable接口** ,在writeExternal方法中进行手工指定所要序列化的变量
 
  
 
@@ -269,10 +241,6 @@ serialVersionUID = 1L意义:
  
 
  
-
-
-
-
 
 # 接口
 
@@ -606,6 +574,33 @@ public class Husband {
     public void beHappy() {
         marry(this::buyHouse);}}
 ```
+
+
+
+## Comparator
+
+
+
+```
+//res是二维数组,需求是根据res[]进行排序,不考虑第二个[]
+int[][] res = new int[n][2];
+Arrays.sort(res,new Comparator<int[]>(){
+            @Override
+            public int compare(int[] o1, int[] o2) {
+                return o1[0] - o2[0];         } });
+                
+//进一步简化	省略参数类型
+ Arrays.sort(res, (o1, o2) -> o1[0] - o2[0]);
+ 
+//Comparator类的内部实现，还有一个 comparing 方法
+Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
+```
+
+
+
+
+
+
 
 
 
