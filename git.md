@@ -1,6 +1,6 @@
-![image-20200812091801928](image.assets/image-20200812091801928.png)
+![](image.assets/image-20200812091801928.png)
 
-# 忽略已提交到远端仓库的文件
+# gitignore
 
 \# 第一步：为避免冲突需先同步远程仓库
 
@@ -33,27 +33,24 @@ git diff 文件名  查看区别 没有区别就不显示
 
 
 
-首先假设我们本地仓库的 master 分支上 commit ID =1 ，orign/master的commit ID =1 ;这时候远程仓库有人更新了master代码，commit ID =2 ,这边再提交本地仓库时
+首先假设我们本地仓库的master分支上commit ID =1 ，orign/master的commit ID =1 ;
 
-## git fetch
-
-**本地master的commitID=1不变。远程仓库orign/master的commit ID=2**。本地相当于存储了两个代码的版本号，通过**merge**去合并，如果两个版本都修改了同一处代码，出现冲突，解决冲突后就生成了新的代码版本
-
-**这时候本地的代码版本可能就变成了commit ID=3，即生成了一个新的代码版本**
-
-fetch的时候本地的master没有变化，但是与远程仓关联的.git/refs/remotes/被更新了
-
-## git pull
-
-**使用git pull的会将.git/refs/head/和.git/refs/remotes/都更新**
-
-git pul类似于git fetch+git merge ,但将merge自动化了 ,最后**commit ID=2**
+这时远程仓库有人更新了master代码，commit ID =2 ,这边再提交本地仓库时
 
 
 
- **git pull把过程的细节都隐藏了起来 ,一旦代码有问题，很难找到出错的地方** ,本地仓库在未经确认的情况被更新。当然，除非你关闭所有的安全选项，否则git pull在你本地工作目录还不至于造成不可挽回的损失，但很多时候我们宁愿做的慢一些，也不愿意返工重来
+* git fetch  下载,手动merge
+  * 本地master的commitID=1不变。远程仓库orign/master的commit ID=2**。本地相当于存储了两个代码的版本号**
+  * 通过merge去合并，如果两个版本都修改了同一处代码，出现冲突，解决冲突后就生成了新的代码版本
+  * **这时候本地的代码版本可能就变成了commit ID=3，即生成了一个新的代码版本**
+  * fetch的时候本地的master没有变化，**但与远程仓关联的.git/refs/remotes/被更新了**
 
- 将下载（fetch）和合并（merge）放到一个命令里的另外一个弊端是，你的本地工作目录在未经确认的情况下就会被远程分支更新。当然，除非你关闭所有的安全选项，否则git pull在你本地工作目录还不至于造成不可挽回的损失，但很多时候我们宁愿做的慢一些，也不愿意返工重来
+
+
+* git pull  更新,自动merge
+  * **将.git/refs/head/和.git/refs/remotes/都更新**
+  * 类似于git fetch+git merge ,但将merge自动化了 ,最后**commit ID=2**
+  * git pull一旦代码有问题，很难找到出错的地方,**本地仓库在未经确认的情况被更新**。当然在本地工作目录还不至于造成不可挽回的损失
 
 
 
@@ -74,6 +71,8 @@ git是分布式.版本号为**字符串**.代码提交到本地版本库.在需�
  Git reset hard 版本号	回退
 
 Git reset --hard HEAD^ 回退上一个版本
+
+
 
 # 分支管理
 
@@ -103,7 +102,9 @@ git merge 分支名  合并(先回到要合并的分支)
 
 再手动解决文件中的冲突		再add	commit
 
-# bug分支
+
+
+## bug分支
 
 当出现bug时,假设还在编辑一个文件.此时需要放下手头的工作去改bug
 
@@ -119,7 +120,11 @@ git stash list	存储的所有工作环境
 
 git stash pop		恢复工作环境
 
+
+
 # 远程仓库
+
+
 
 ## 创建SSH Key
 
@@ -155,63 +160,62 @@ git remote add origin 链接		关联远程仓库
 
 
 
-git clone 	clone会下载所有分支,不过本地**只会有master,其余分支需要手动关联**
+* git clone
+  * clone会下载所有分支,不过本地**只会有master,其余分支需要手动关联**
+  * **只在推送才需要ssh  克隆不用**
+  * clone别人仓库,得不到push权限
 
 git checkout -b origin/dev		创建分支并**关联远程仓库的分支**
-
-**只在推送才需要ssh  克隆不用**
 
 
 
 git remote –v		仓库详细信息
 
-![image-20200812092821852](image.assets/image-20200812092821852.png)
-
-Fetch	拉取文件的权限	Push	推送文件的权限		clone别人仓库 ,得不到push权限
 
 
 
-# 解决冲突
-
-git pull --rebase origin master	合并Git和本地的库 ,本地会多出没有同步的文件
-
-之后手动修改冲突,再add,commit
 
 
 
-# 设置代理
 
-git config --global http.proxy 'socks5://127.0.0.1:1080' 
 
-git config --global https.proxy 'socks5://127.0.0.1:1080'
+# 初始化设置
+
+
+
+## 代理
+
+* git config --global http.proxy 'socks5://127.0.0.1:1080' 
+
+* git config --global https.proxy 'socks5://127.0.0.1:1080'
 
 查看代理：
 
-git config --global --get http.proxy
+* git config --global --get http.proxy
 
-git config --global --get https.proxy
+* git config --global --get https.proxy
 
 取消代理：
 
-git config --global --unset http.proxy
+* git config --global --unset http.proxy
 
-git config --global --unset https.proxy
+* git config --global --unset https.proxy
 
 
 
-# 设置用户名
+## 用户名
 
-$ git config --global user.name "Your Name"
+git config --global user.name ""
 
-$ git config --global user.email "email@example.com"
+git config --global user.email ""
 
-# 免密push
-
-git config  credential.helper store  
+git config  credential.helper store  	免密push
 
 
 
 # 集中式VS分布式
+
+​	
 
 ​	集中式版本控制系统，版本库是集中存放在中央服务器的，**必须先更新最新的版本**，然后开始工作,做完后，再把自己的活推送给中央服务器。所以**必须联网才能工作**，在局域网内还好，如果在互联网上，网速慢就提交不上去
 
