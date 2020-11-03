@@ -1,3 +1,5 @@
+[TOC]
+
 
 
 # String
@@ -608,13 +610,11 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 得益于Lambda所带来的函数式编程，引入全新的Stream概念，用于解决集合类库的弊端。
 
-Stream是集合元素的函数模型，不是集合，也不是数据结构，其本身不存储任何元素（或地址）,只是在原数据集上定义了一组操作。也不会改变原有数据
+Stream是集合元素的函数模型，不是集合，也不是数据结构，**其本身不存储任何元素或地址**,只是在原数据集上定义了一组操作。也不会改变原有数据
 
 Stream流不保存数据，Stream操作是尽可能惰性的，即每当访问到流中的一个元素，才会在此元素上执行这一系列操作。
 
 
-
-不使用stream ,在进行list过滤时 ,可能需要写多个for循环
 
 ```
 list.stream().filter(s -> s.startsWith("张"))
@@ -622,7 +622,7 @@ list.stream().filter(s -> s.startsWith("张"))
                 .forEach(System.out::println);
 ```
 
- stream().forEach用的多线程方式，调用线程池的时候额外耗费时间。但在循环内处理的时间长，或要循环调用远程接口，多线程的性能高
+ stream().forEach
 
 
 
@@ -660,39 +660,90 @@ public static void main(String[] args) {
 
 ## 常用方法
 
-* forEach
-* forEachOrdered     按原顺序输出 ,foreach时无序的
-* filter        将一个流转换成另一个子集流
 
-```
-Stream<String> result = original.filter(s -> s.startsWith("张"));
-```
 
-* map      将流中的元素映射到另一个流	将list截取字符串 ,映射到stream
+* 筛选与分片
+  * forEach	调用的多线程，调用线程池要额外耗费时间,**无序**
+  * forEachOrdered     按**原顺序**输出
+  * limit    取前几个
+  * distinct   去重
+  * skip     跳过前几个
+  * filter        将一个流转换成另一个子集流
+* 映射
 
-```
+  * map      将流中的元素映射到另一个流
+
+```java
 Stream<String> stream = list.stream().map(e -> e.substring(2));
 ```
 
-* count   统计个数
+* flatMap
 
-* limit    取前几个
 
-* skip     跳过前几个                          **limit + skip实现分页**
 
-* concat   合并流 ,Stream的静态方法
+* 终止操作
 
+  * allMatch 检查是否匹配所有元素 方法参数为断言型接口
+  * anyMatch 检查是否匹配所有元素 方法参数为断言型接口
+  * noneMatch 检查是否没有匹配所有元素 方法参数为断言型接口
+  * findFirst 返回第一个元素 无方法参数
+  * findAny 返回当前流的任意元素 无方法参数
+  * count 返回流中的元素总个数 无方法参数
+  * max 返回流的最大值 无方法参数
+  * min 返回流中的最小值 无方法参数
+
+
+
+
+
+* 归约
+
+  * count   统计个数
+
+  * concat   合并流 ,Stream的静态方法
+
+    ```java
+     Stream<String> result = Stream.concat(streamA, streamB);
+    ```
+
+  * reduce  将流中的元素反复结合起来，得到一个值。
+
+```java
+List<Integer> list1 = Arrays.asList(1,2,3,4,5,6,7,8,9,10);
+Integer reduce = list1.stream().reduce(11, (x, y) -> x + y);
+reduce ： 66
 ```
- Stream<String> result = Stream.concat(streamA, streamB);
-```
 
-* collect   转化为Collection/Map/数组
+
+
+* 收集	方法参数为Collector。Collector由Collectors中的toList()，toSet(),toMap(Function(T,R) key,Function(T,R) value)等静态方法实现。
+  * toList()
+  * toMap()
+  * toSet()
 
 ```
 list.stream().collect(Collectors.toList());
 ```
 
-* distinct   去重
+
+
+* 分组
+  *  Collectors.groupingBy()
+
+```java
+ public static void main(String[] args) {
+        List<User> users = Arrays.asList(new User("张三", 19, 1000),
+                new User("张三", 58, 2000),
+                new User("李四", 38, 3000),
+                new User("赵五", 48, 4000)
+        );
+        Map<String, List<User>> collect3 = users.stream().collect(Collectors.groupingBy(x -> x.getName()));
+        System.out.println(collect3);
+
+输出：{李四=[User{name='李四', age=38, salary=3000}], 张三=[User{name='张三', age=19, salary=1000}, User{name='张三', age=58, salary=2000}], 赵五=[User{name='赵五', age=48, salary=4000}]}
+```
+
+
 
 
 
@@ -708,11 +759,7 @@ list.stream().collect(Collectors.toList());
 
 
 
-
-
- 
-
-## 使用Stream原则
+## 使用原则
 
 
 
@@ -728,7 +775,7 @@ list.stream().collect(Collectors.toList());
 
 
 
-## Iterator
+# Iterator
 
 
 
@@ -738,6 +785,49 @@ list.stream().collect(Collectors.toList());
             System.out.println(string);
         }
 ```
+
+
+
+* forEachRemaining(Consumer<? super E> action)：为每个剩余元素执行给定的操作,直到所有的元素都已经被处理或行动将抛出一个异常
+
+* hasNext()  如果迭代器中还有元素，则返回true。
+
+* next()：返回迭代器中的下一个元素
+
+* remove()：删除迭代器新返回的元素。
+
+
+
+==Iterator只能单向移动==
+
+==Iterator.remove()是唯一能安全地在迭代过程中修改集合==；如果在迭代过程中以任何其它的方式修改集合将会产生未知的行为。而且每调用一次next()方法，remove()方法只能被调用一次，如果违反这个规则将抛出一个异常。
+
+
+
+## ListIterator
+
+继承于Iterator接口,功能更强大,
+
+只能用于各种List类型的访问。可以通过调用listIterator()方法产生一个指向List开始处的ListIterator, 还可以调用listIterator(n)方法创建一个一开始就指向列表索引为n的元素处的ListIterator。
+
+==双向移动==
+
+==产生迭代器前一个和后一个元素的索引==
+
+用set()替换它访问过的最后一个元素.
+
+用add()在next()方法返回的元素之前或previous()方法返回的元素之后插入一个元素.
+
+
+
+## Iterator和ListIterator区别
+
+
+
+* 只有ListIterator有add()
+* ListIterator有hasPrevious()和previous()方法，可以**逆序遍历**
+* ListIterator用nextIndex()和previousIndex()指定索引位置
+* ListIterator在遍历同时set()修改
 
 
 
@@ -1097,9 +1187,49 @@ clear()	**并不会删除数据**,只是将三个属性初始化 ,里面的数�
 
 
 
-## 直接缓冲区与非直接缓冲区
+## 通道
 
-非直接	调用allocate()方法分配缓冲区 ,缓冲区在**jvm**
+最早,cpu需要建立若干io接口来进行io操作,这将导致cpu被占用
+
+后来引入了**DMA**直接存储器访问 ,cpu将io操作交给DMA进行 ,DMA先向cpu申请资源 ,然后形成**DMA总线** ,不过总线的过多也会导致总线冲突,最后影响性能
+
+而channel通道就类似于DMA总线 ,是一个完全独立的处理器 ,专门用于处理io ,不需要向cpu申请资源
+
+![image-20200809142947422](.\image.assets\image-20200809142947422.png)
+
+
+
+### 主要实现类
+
+* FileChannel	               本地传输
+* SocketChannel             TCP
+* ServerSocketChannel  TCP
+* DatagramChannel        UDP
+
+
+
+### 获取通道 getChannel()
+
+本地
+
+* FileInputStream/Output
+* RandomAccessFile
+
+Web
+
+* Socket
+* ServerSocket
+* DatagramSocket
+
+JDK1.7中NIO.2针对各个通道提供open()静态方法
+
+JDK1.7中NIO.2的File工具类提供newByteChannel()方法
+
+
+
+## 直接/非直接缓冲区
+
+非直接	allocate()分配缓冲区 ,缓冲区在**jvm**
 
 直接	allocateDirect(),在**物理内存**
 
@@ -1129,41 +1259,54 @@ jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读�
 
 
 
-## 通道
-
-最早,cpu需要建立若干io接口来进行io操作,这将导致cpu被占用
-
-后来引入了**DMA**直接存储器访问 ,cpu将io操作交给DMA进行 ,DMA先向cpu申请资源 ,然后形成**DMA总线** ,不过总线的过多也会导致总线冲突,最后影响性能
-
-而channel通道就类似于DMA总线 ,是一个完全独立的处理器 ,专门用于处理io ,不需要向cpu申请资源
-
-![image-20200809142947422](.\image.assets\image-20200809142947422.png)
+### 非直接文件传输
 
 
 
-### 主要实现类
+```java
+FileInputStream in = new FileInputStream("1.jpg");
+        FileOutputStream out = new FileOutputStream("2.jpg");
 
-* FileChannel	               本地传输
-* SocketChannel             TCP
-* ServerSocketChannel  TCP
-* DatagramChannel        UDP
+        FileChannel inChannel = in.getChannel();
+        FileChannel outChannel = out.getChannel();
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        while (inChannel.read(buffer) != -1) {
+            //切换至读模式
+            buffer.flip();
+          //将缓冲区数据写入通道
+            outChannel.write(buffer);
+            buffer.clear();
+        }
+        
+        out.close();
+        in.close();
+        inChannel.close();
+        outChannel.close();
+```
 
-### 获取通道 getChannel()
 
-本地
 
-* FileInputStream/Output
-* RandomAccessFile
 
-Web
 
-* Socket
-* ServerSocket
-* DatagramSocket
+### 直接文件传输
 
-JDK1.7中NIO.2针对各个通道提供open()静态方法
 
-JDK1.7中NIO.2的File工具类提供newByteChannel()方法
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1179,7 +1322,13 @@ JDK1.7中NIO.2的File工具类提供newByteChannel()方法
 
 
 
+
+
+
+
 # 多线程
+
+
 
 ## 并行/并发/串行
 
