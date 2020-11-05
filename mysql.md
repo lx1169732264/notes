@@ -472,6 +472,50 @@ Limit 1		获取第一个数值
 
  
 
+
+
+# 自定义函数
+
+
+
+sql自定义函数
+
+```mysql
+Create function 函数名（参数）
+Returns 返回值类型
+[with {Encryption | Schemabinding }]
+[as]
+begin
+SQL语句(必须有return 变量或值)
+End
+```
+
+
+
+* [with]为附加选项
+  * 需要对函数体进行加密，用WITH ENCRYPTION；
+  * 需要将创建的函数与引用的数据库绑定，用WITH SCHEMABINDING（**函数一旦绑定，则不能删除、修改，除非删除绑定**）
+
+
+
+* DECLARE  在复合语句 (BEGIN...END) 中声明 SQL 变量或异常
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 视图
 
 视图方便查询,不能插入修改删除		Vo适合插入修改删除

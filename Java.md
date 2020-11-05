@@ -1193,7 +1193,7 @@ clear()	**并不会删除数据**,只是将三个属性初始化 ,里面的数�
 
 后来引入了**DMA**直接存储器访问 ,cpu将io操作交给DMA进行 ,DMA先向cpu申请资源 ,然后形成**DMA总线** ,不过总线的过多也会导致总线冲突,最后影响性能
 
-而channel通道就类似于DMA总线 ,是一个完全独立的处理器 ,专门用于处理io ,不需要向cpu申请资源
+而**channel类似于DMA总线** ,是一个完全独立的处理器 ,专门用于处理io ,不需要向cpu申请资源
 
 ![image-20200809142947422](.\image.assets\image-20200809142947422.png)
 
@@ -1249,17 +1249,30 @@ jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读�
 
 ![image-20200809141028612](.\image.assets\image-20200809141028612.png)
 
-对于直接缓冲区 ,应用程序通过物理内存映射文件直接与物理磁盘交换数据 省略了copy的步骤
+对于直接缓冲区,应用程序通过物理内存映射文件直接与物理磁盘交换数据 省略了copy的步骤
 
-直到gc释放了应用程序与物理内存映射文件的引用 ,才会销毁链接
-
-直接缓冲区的建立与销毁是成本很高的 ,而gc无法及时回收会导致浪费
-
-所以直接缓冲区适合长时间的连接,大文件的传输
-
+* 缺点
+  * ==直到gc释放了应用程序与物理内存映射文件的引用,才会销毁链接==,映射文件的引用有可能延迟数十秒才会被回收
+  * 直接缓冲区的建立与销毁是成本高,只适合长时间的连接,大文件的传输
+  * ==直接缓冲区只能用ByteBuffer==
 
 
-### 非直接文件传输
+
+
+
+## 关闭
+
+使用IO流往往需要多次使用try/catch
+
+如果在一个try/catch中关闭多个流,将会导致关闭时其中一个流 ,抛出异常,程序中断,之后的流将不再被关闭!!!
+
+需要一条一条的try/catch
+
+
+
+
+
+## 非直接传输
 
 
 
@@ -1286,37 +1299,57 @@ FileInputStream in = new FileInputStream("1.jpg");
 
 
 
-
-
-### 直接文件传输
-
+## 直接传输
 
 
 
+* NonReadableChannelException
+  * MapMode只有READ_WRITE模式,而在outChannel并没有授予StandardOpenOption.READ权限,导致文件不可读
+
+* FileAlreadyExistsException
+  * StandardOpenOption.CREATE_NEW在文件存在时,会直接报错,CREATE模式则覆盖源文件
+
+```java
+FileChannel inChannel = FileChannel.open(Paths.get("1.png"), StandardOpenOption.READ);
+//CREATE_NEW,文件不存在则创建,存在则报错
+//CREATE,不存在则创建,存在则覆盖
+FileChannel outChannel = FileChannel.open(Paths.get("2.png"), StandardOpenOption.WRITE, StandardOpenOption.READ, StandardOpenOption.CREATE_NEW);
+
+//内存映射文件
+MappedByteBuffer inmap = inChannel.map(FileChannel.MapMode.READ_ONLY, 0, inChannel.size());
+MappedByteBuffer outMap = outChannel.map(FileChannel.MapMode.READ_WRITE, 0, inChannel.size());
+
+//直接对缓冲区进行数据的读写
+byte[] bytes = new byte[inmap.limit()];
+inmap.get(bytes);
+outMap.put(bytes);
+
+inChannel.close();
+outChannel.close();
+```
+
+
+
+## 通道传输
+
+底层也是用的直接传输
+
+
+
+```java
+FileChannel inChannel = FileChannel.open(Paths.get("1.png"), StandardOpenOption.READ);
+FileChannel outChannel = FileChannel.open(Paths.get("2.png"), StandardOpenOption.WRITE, StandardOpenOption.READ, StandardOpenOption.CREATE_NEW);
+
+inChannel.transferTo(0, inChannel.size(), outChannel);
+//        outChannel.transferFrom(inChannel, 0, inChannel.size());
+
+inChannel.close();
+outChannel.close();
+```
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-## 关闭
-
-使用IO流往往需要多次使用try/catch
-
-如果在一个try/catch中关闭多个流,将会导致关闭时其中一个流 ,抛出异常,程序中断,之后的流将不再被关闭!!!
-
-需要一条一条的try/catch
 
 
 
