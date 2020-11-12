@@ -56,29 +56,49 @@ git diff 文件名  查看区别 没有区别就不显示
 
 
 
-# 撤销及版本回退
+# 撤销/回退
 
-git checkout 文件名 撤销
 
-git log 文件名		查看版本号
+
+* 工作区
+  * git checkout —- 文件名 	撤销单个
+  * git checkout —-	丢弃全部
+
+* add区
+  * git reset HEAD 文件名
+  * git reset HEAD .
+
+* commit区
+  * ==reset 修改HEAD位置==
+  * git reset —-hard 版本号
+  * git reset --hard HEAD^	回退上一个版本
+  * git reset –-soft 版本号  提交回退到暂存区,修改记录保留
+  * git reset –-mixed 版本号 提交回退到工作区，修改记录保留
+  * git reset –-hard  修改记录不保留
+
+* push区
+  * ==revert复制历史版本，加在当前分支之前==
+  * git revert -n 版本号
+
+
 
 Svn集中式,版本号为**数字**.所有人提交到同一个中央服务器,版本号由这个中央服务器统一管理.所以版本号可以为简单的阿拉伯数字
 
 git是分布式.版本号为**字符串**.代码提交到本地版本库.在需要与其他人进行版本合并时,如果用数字版本号,就会造成冲突
 
- 
 
- Git reset hard 版本号	回退
 
-Git reset --hard HEAD^ 回退上一个版本
+
 
 
 
 # 分支管理
 
-git branch  查看分支
+git branch  查看本地分支
 
-git branch dev创建dev分支
+git branch -r  查看远程分支
+
+git branch dev	创建dev分支
 
 git branch -d dev 删除分支(先离开这个分支)
 
@@ -94,7 +114,15 @@ git checkout -- filename	检出上次提交的文件
 
 git merge 分支名  合并(先回到要合并的分支)
 
- 
+git merge --no-ff origin/dev  在当前分支上合并远程分支dev
+
+git merge --abort 终止本次merge，并回到merge前的状态
+
+
+
+
+
+
 
 冲突问题？(master和dev都推进了一个版本,导致版本冲突,只有一方推进不冲突)
 
