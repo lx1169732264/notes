@@ -26,7 +26,7 @@ private final char value[];
 
 	/** Note that use of this constructor is unnecessary since Strings are immutable.
 JDK源码上的注解: 注意，由于字符串是不可变的，因此不需要使用此构造函数。
-用构造函数创建string是无意义的 ,并且性能低
+用构造函数创建string是无意义的,并且性能低
 */
     public String() {
     //对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
@@ -180,13 +180,13 @@ System.out.println((a==c));
 
 * 实现Serializable接口，所有的序列化将会自动进行
 
-* 实现**Externalizable接口** ,在writeExternal方法中进行手工指定所要序列化的变量
+* 实现**Externalizable接口**,在writeExternal方法中进行手工指定所要序列化的变量
 
  
 
 ## Serializable原理
 
-有AB两个类，B含有一个指向A类对象的引用，进行实例化{ A a = new A(); B b = new B(); }，在内存中分配了两个空间，在写入文件时 ,b包含对a的引用，系统会将**a的数据复制一份到b中，从文件中恢复对象时(重新加载到内存)，**内存分配了三个空间，而对象**a同时存在两份**
+有AB两个类，B含有一个指向A类对象的引用，进行实例化{ A a = new A(); B b = new B(); }，在内存中分配了两个空间，在写入文件时,b包含对a的引用，系统会将**a的数据复制一份到b中，从文件中恢复对象时(重新加载到内存)，**内存分配了三个空间，而对象**a同时存在两份**
 
 　　
 
@@ -230,15 +230,15 @@ serialVersionUID = 1L意义:
 
 ## 瞬态transient
 
-生命周期仅存于调用者的内存中 ,不会被持久化
+生命周期仅存于调用者的内存中,不会被持久化
 
-只能修饰**非本地变量，不能修饰方法和类 ,该类已Serializable接口
+只能修饰**非本地变量，不能修饰方法和类,该类已Serializable接口
 
  
 
 一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
 
-**实现Externalizable接口  ,则无视transient**
+**实现Externalizable接口 ,则无视transient**
 
  
 
@@ -250,7 +250,7 @@ serialVersionUID = 1L意义:
 
 ## 默认方法
 
-实现接口需要实现其所有的抽象方法 ,当接口加入新方法时，我们就需要对项目重新编写
+实现接口需要实现其所有的抽象方法,当接口加入新方法时，我们就需要对项目重新编写
 
 使用**default**修饰， 定义**方法体**。default方法所有的子类会**默认实现** ，可以避免修改代码
 
@@ -258,7 +258,7 @@ serialVersionUID = 1L意义:
 
 这个default是jdk8新关键字，**和访问限定修饰符“default”不是一个概念**，与switch中的default功能完全不同.
 
-实际上是**public default** ,省略了public
+实际上是**public default**,省略了public
 
 
 
@@ -457,11 +457,11 @@ public void testFunction() {
 
 # Lambda
 
-函数式编程思想 ,只关注做什么 ,不关注怎么做
+函数式编程思想,只关注做什么,不关注怎么做
 
 **lambda不是语法糖**
 
-语法糖 :写法不同 ,实现原理相同 ,如增强for循环
+语法糖 :写法不同,实现原理相同,如增强for循环
 
 
 
@@ -494,11 +494,11 @@ lambda无法单独出现，需要函数式接口来盛放，lambda方法体是�
 
 ## 省略规则
 
-参数类型可以省略 ,但只能都省略或都不省略
+参数类型可以省略,但只能都省略或都不省略
 
-参数只有一个 ,小括号能省略
+参数只有一个,小括号能省略
 
-大括号内语句只有一条 ,大括号/分号/return关键词能省略
+大括号内语句只有一条,大括号/分号/return关键词能省略
 
 
 
@@ -517,7 +517,7 @@ public class Demo01Logger {
         log(1, msgA + msgB);}}
 ```
 
-先合并了字符串 ,再判断level==1 ,决定要不要执行方法 
+先合并了字符串,再判断level==1,决定要不要执行方法 
 
 ```
 @FunctionalInterface
@@ -535,7 +535,7 @@ public class Demo02LoggerLambda {
         log(1, () -> msgA + msgB  );}}
 ```
 
-优化后 ,先判断 ,后执行字符串合并
+优化后,先判断,后执行字符串合并
 
 
 
@@ -547,7 +547,7 @@ public class Demo02LoggerLambda {
 print(e -> System.out.println(e));
 ```
 
-这个lambda只是接收了参数 ,并将它打印 ,而打印的方法有现成的System.out.println
+这个lambda只是接收了参数,并将它打印,而打印的方法有现成的System.out.println
 
 ```
 print(System.out::println);
@@ -719,7 +719,7 @@ Stream<String> stream = list.stream().map(e -> e.substring(2));
 
   * count   统计个数
 
-  * concat   合并流 ,Stream的静态方法
+  * concat   合并流,Stream的静态方法
 
     ```java
      Stream<String> result = Stream.concat(streamA, streamB);
@@ -974,7 +974,11 @@ List接口有多个实现类，现在你用的是ArrayList，也许哪一天需�
 
 
 
-## HashMap
+## Map
+
+
+
+### HashMap
 
 
 
@@ -1001,7 +1005,7 @@ AbstractMap<K,V> implements Map<K,V> {
 
 
 
-### 按位与2次幂容量
+#### 按位与2次幂容量
 
 取余:xxx%16  不断在做除法,效率低,并且负数取余仍是负数,还需要转为正数
 
@@ -1019,7 +1023,7 @@ AbstractMap<K,V> implements Map<K,V> {
 
 
 
-### 7 HashMap死锁隐患
+#### 7 HashMap死锁隐患
 
 
 
@@ -1043,15 +1047,17 @@ resize:	7à3
 
  
 
-### 8 HashMap
+#### 8 HashMap
 
-#### hash方法
 
-  static final int hash(Object key) {
 
+* hash()
+
+```java
+static final int hash(Object key) {
 ​    int h;
-
 ​    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); }
+```
 
 jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
 
@@ -1061,11 +1067,13 @@ jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
 
  
 
-#### resize方法
+* resize方法
 
-  Node<K,V> loHead = null, loTail = null;
+```java
+Node<K,V> loHead = null, loTail = null;
 
-  Node<K,V> hiHead = null, hiTail = null;
+Node<K,V> hiHead = null, hiTail = null;
+```
 
 扩容时,将原链表拆为两个高低位的链表
 
@@ -1079,29 +1087,16 @@ jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
 
  
 
-Map.getOrDefault((Object key, V defaultValue),取不到key时,将返回默认的value
+* 底层数组创建机制
+  * 7，创建对象时就创建了数组
+  * 8，**首次调用put**才创建
+
+* hash相等时
+  * 产生hash碰撞,key值相同则替换，否则加到后面		**比较key用equals**
 
 
 
-### 底层数组创建机制
-
-8之前，创建对象时就创建了数组
-
-8之后，**首次调用put**才创建
-
-
-
-### hash相等时
-
-会产生hash碰撞
-
-key值相同则替换，否则加到后面		**比较key用equals**
-
-
-
-
-
-### 成员变量
+#### 成员变量
 
 
 
@@ -1125,7 +1120,7 @@ key值相同则替换，否则加到后面		**比较key用equals**
 
 
 
-### 基本类型不能做为键值
+#### 基本类型不能做为键值
 
 
 
@@ -1138,21 +1133,221 @@ key值相同则替换，否则加到后面		**比较key用equals**
 
 
 
-## LinkedHashMap
+### LinkedHashMap
+
+==有序==,用HashMap操作数据结构，用LinkedList维护顺序
+
+```java
+LinkedHashMap<K,V> extends HashMap<K,V>  implements Map<K,V>
+```
 
 
 
-==有序,LinkedHashMap记录了添加数据的顺序==,底层存储结构是哈希表+**链表**，链表记录了添加数据的顺序
+只定义了3个属性
+
+```java
+//最久访问的节点或最先插入的节点
+transient LinkedHashMap.Entry<K,V> head;
+//尾部为最近访问的或最近插入的节点
+transient LinkedHashMap.Entry<K,V> tail;
+//false插入顺序存储		true查询顺序存储
+final boolean accessOrder;
+```
 
 
 
-## TreeMap
+空构造器
+
+```java
+    public LinkedHashMap() {
+        super();
+    //默认值false
+        accessOrder = false; }
+```
+
+
+
+构造器	传入map参数
+
+```java
+public LinkedHashMap(Map<? extends K, ? extends V> m) {
+    super();
+    accessOrder = false;
+    putMapEntries(m, false);}
+```
+
+
+
+从构造方法中可以看出，**默认都采用插入顺序存储**。
+
+所有构造方法都是通过调用父类来创建对象的。
+
+
+
+* Entry的属性
+  * K key
+  * V value
+  * Entry<K, V> next
+  * int hash
+  * **Entry<K, V> before**		用于维护Entry的先后顺序	最后两个为LinkedHashMap自己的,前四个继承HashMap
+  * **Entry<K, V> after**
+
+```
+static class Entry<K,V> extends HashMap.Node<K,V> {
+    Entry<K,V> before, after;
+    Entry(int hash, K key, V value, Node<K,V> next) {
+        super(hash, key, value, next);    }}
+```
+
+![](image.assets/image-20201113235444857.png)
+
+LinkedHashMap 内部类 Entry 继承自 HashMap 内部类 Node，并新增了两个属性before 和 afte用于维护双向链表。
+
+HashMap 的内部类 TreeNode 不继承自己的内部类 Node，却继承自 LinkedHashMap 内部类 Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力。这是一种==多态,使用 HashMap 时TreeNode 不能组成链表能力。如果继承 LinkedHashMap 内部类 Entry将导致TreeNode 多了两个用不到的属性，浪费空间，但这与 通过继承获得的组成链表的能力相比，是值得的。
+
+> Because TreeNodes are about twice the size of regular nodes, we use them only when bins contain enough nodes to warrant use(see TREEIFY_THRESHOLD). 
+>
+> And when they become too small (due to removal or resizing) they are converted back to plain bins. In
+> usages with well-distributed user hashCodes, tree bins are rarely used.
+>
+> TreeNode 对象的大小约是普通 Node 对象的2倍，我们仅在桶（bin）中包含足够多的节点时再使用。当桶中的节点数量变少时（取决于删除和扩容），TreeNode 会被转成 Node。当用户实现的 hashCode 方法具有良好分布性时,不会转为红黑树，树类型的桶将会很少被使用。
+
+由于链表很少被树化,TreeNode较少被使用,
 
 
 
 
 
-### TreeMap按Value排序
+#### 链表初始化
+
+
+
+插入第一个节点时创建链表,此时head和tail同时指向第一个节点
+
+后续的节点将接在tail指向的节点后面,同时更新tail
+
+
+
+插入元素
+
+LinkedHashMap没有覆写父类的 put 方法，而是直接使用了父类的实现
+
+再put之后,调用linkNodeLast()更新链表的tail
+
+```
+    private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
+        LinkedHashMap.Entry<K,V> last = tail;
+        tail = p;
+        if (last == null)
+            head = p;
+        else {
+            p.before = last;
+            last.after = p;   }   }
+```
+
+
+
+删除元素
+
+没有重写hashMap的删除,
+
+
+
+```java
+HashMap:
+	//remove()调用了removeNode()
+    public V remove(Object key) {
+        Node<K,V> e;
+        return (e = removeNode(hash(key), key, null, false, true)) == null ?
+            null : e.value;
+    }
+//removeNode()执行完HashMap所需的删除逻辑时,回调了afterNodeRemoval(),HashMap中的afterNodeRemoval()为抽象方法
+final Node<K,V> removeNode() {
+        ...
+afterNodeRemoval(node);}
+
+// LinkedHashMap 中覆写
+void afterNodeRemoval(Node<K,V> e) { // unlink
+    LinkedHashMap.Entry<K,V> p =
+        (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+    // 将 p 节点的前驱后后继引用置空
+    p.before = p.after = null;
+    // b 为 null，表明 p 是头节点
+    if (b == null)
+        head = a;
+    else
+        b.after = a;
+    // a 为 null，表明 p 是尾节点
+    if (a == null)
+        tail = b;
+    else
+        a.before = b;
+//删除逻辑
+1.根据 hash 定位到桶位置
+2.遍历链表
+3.从链表中移除要删除的节点
+```
+
+
+
+#### 维护访问顺序
+
+```
+get/getOrDefault/replace	3种改变顺序的方法
+```
+
+
+
+
+```java
+// LinkedHashMap 中覆写
+public V get(Object key) {
+    Node<K,V> e;
+    if ((e = getNode(hash(key), key)) == null)
+        return null;
+//accessOrder==true，按访问顺序排序
+    if (accessOrder)
+        afterNodeAccess(e);
+    return e.value;
+}
+
+    void afterNodeAccess(Node<K,V> e) { // move node to last
+        LinkedHashMap.Entry<K,V> last;
+        if (accessOrder && (last = tail) != e) {
+            LinkedHashMap.Entry<K,V> p =
+                (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+            p.after = null;
+            if (b == null)
+                head = a;
+            else
+                b.after = a;
+            if (a != null)
+                a.before = b;
+            else
+                last = b;
+            if (last == null)
+                head = p;
+            else {
+                p.before = last;
+                last.after = p;
+            }
+            tail = p;
+            ++modCount;    }}
+```
+
+
+
+
+
+
+
+### TreeMap
+
+
+
+
+
+#### TreeMap按Value排序
 
 TreeMap底层是根据红黑树的数据结构构建的，默认是key的自然排序
 
@@ -1175,7 +1370,7 @@ return o1.getValue().compareTo(o2.getValue()); } });
 
 
 
-## TreeMap 和 TreeSet 在排序时如何比较元素？Collections工具类中的 sort（）方法如何比较元素？
+### TreeMap 和 TreeSet 在排序时如何比较元素？Collections工具类中的 sort（）方法如何比较元素？
 
 TreeSet	实现Comparable接口，该接口提供了比较元素的**compareTo()方法**，当插入元素时会**回调**该方法比较元素的大小。
 
@@ -1193,11 +1388,74 @@ Collections工具类的sort方法有两种重载的形式，
 
 
 
+## 队列
+
+offer，add区别：
+
+队列有大小限制时，在堆满进行插入时add抛出 unchecked 异常
+
+而offer()返回false
+
+ 
+
+poll，remove区别：
+
+remove() 和 poll() 方法都是从队列中删除第一个元素。remove() 的行为与 Collection 接口的版本相似
+
+poll() 被空集合调用时不抛出异常，只是返回 null
+
+ 
+
+peek，element区别：
+
+element() 和 peek() 用于在队列的头部查询元素。
+
+在队列为空时， element() 抛出一个异常，而 peek() 返回 null
 
 
 
 
-## PriorityQueue 优先队列
+
+### Deque
+
+双端队列接口，继承自Queue接口
+
+实现类	LinkedList、ArrayDeque、LinkedBlockingDeque
+
+
+
+Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得到 FIFO（先进先出）行为。将元素添加到双端队列的末尾，从双端队列的开头移除元素。从 Queue 接口继承的方法完全等效于 Deque 方法，如下表所示：
+
+| **Queue方法** | **等效Deque方法** |
+| ------------- | ----------------- |
+| add add(e)    | addLast(e)        |
+| offer(e)      | offerLast(e)      |
+| remove()      | removeFirst()     |
+| poll()        | pollFirst()       |
+| element()     | getFirst()        |
+| peek()        | peekFirst()       |
+
+
+
+也可用作 LIFO（后进先出）堆栈。在将双端队列用作堆栈时，元素被推入双端队列的开头并从双端队列开头弹出。堆栈方法完全等效于 Deque 方法，如下表所示：
+
+| **堆栈方法** | **等效Deque方法** |
+| ------------ | ----------------- |
+| push(e)      | addFirst(e)       |
+| pop()        | removeFirst()     |
+| peek()       | peekFirst()       |
+
+
+
+
+
+
+
+
+
+
+
+### PriorityQueue 优先队列
 
 1.5新特性,是**基于优先堆**的一个无界队列，元素通过默认自然排序或者通过提供的Comparator在队列实例化的时排序。
 
@@ -1257,7 +1515,7 @@ flip()读数据模式	开启之后,当调用get()时, 会将position调为0, lim
 
 rewind()重置读数据模式	再次将position调为0, limit调为当前最大存储位置
 
-clear()	**并不会删除数据**,只是将三个属性初始化 ,里面的数据处于"被遗忘"状态 ,position和limit都被初始化,难以读取数据
+clear()	**并不会删除数据**,只是将三个属性初始化,里面的数据处于"被遗忘"状态,position和limit都被初始化,难以读取数据
 
 **mark()	记录当前的position位置**
 
@@ -1269,9 +1527,9 @@ clear()	**并不会删除数据**,只是将三个属性初始化 ,里面的数�
 
 最早,cpu需要建立若干io接口来进行io操作,这将导致cpu被占用
 
-后来引入了**DMA**直接存储器访问 ,cpu将io操作交给DMA进行 ,DMA先向cpu申请资源 ,然后形成**DMA总线** ,不过总线的过多也会导致总线冲突,最后影响性能
+后来引入了**DMA**直接存储器访问,cpu将io操作交给DMA进行,DMA先向cpu申请资源,然后形成**DMA总线**,不过总线的过多也会导致总线冲突,最后影响性能
 
-而**channel类似于DMA总线** ,是一个完全独立的处理器 ,专门用于处理io ,不需要向cpu申请资源
+而**channel类似于DMA总线**,是一个完全独立的处理器,专门用于处理io,不需要向cpu申请资源
 
 ![image-20200809142947422](.\image.assets\image-20200809142947422.png)
 
@@ -1307,17 +1565,17 @@ JDK1.7中NIO.2的File工具类提供newByteChannel()方法
 
 ## 直接/非直接缓冲区
 
-非直接	allocate()分配缓冲区 ,缓冲区在**jvm**
+非直接	allocate()分配缓冲区,缓冲区在**jvm**
 
 直接	allocateDirect(),在**物理内存**
 
 jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读写,而是直接在缓冲区上进行io操作
 
-分配**直接**缓冲区需要**更大的成本** ,也**不会被gc回收** ,会影响应用程序的内存
+分配**直接**缓冲区需要**更大的成本**,也**不会被gc回收**,会影响应用程序的内存
 
 ![image-20200809134909724](.\image.assets\image-20200809134909724.png)
 
-对于非直接缓冲区 ,物理磁盘的数据先读取至内核地址空间,再被copy到jvm内存,最后到应用程序
+对于非直接缓冲区,物理磁盘的数据先读取至内核地址空间,再被copy到jvm内存,最后到应用程序
 
 点开allocate()方法也可以看到返回的是heap堆缓冲
 
@@ -1342,7 +1600,7 @@ jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读�
 
 使用IO流往往需要多次使用try/catch
 
-如果在一个try/catch中关闭多个流,将会导致关闭时其中一个流 ,抛出异常,程序中断,之后的流将不再被关闭!!!
+如果在一个try/catch中关闭多个流,将会导致关闭时其中一个流,抛出异常,程序中断,之后的流将不再被关闭!!!
 
 需要一条一条的try/catch
 
@@ -1443,13 +1701,13 @@ outChannel.close();
 
 ## 并行/并发/串行
 
-* 并行	有两个门,两个人从前后门进入 ,互不干扰
+* 并行	有两个门,两个人从前后门进入,互不干扰
 
 * 并发	两个人挤一个门进入
 
-并行时同一时刻多个进程运行 ,并发是经过上下文快速切换 ,造成同时运行的假象
+并行时同一时刻多个进程运行,并发是经过上下文快速切换,造成同时运行的假象
 
-多线程代码是并发而不是并行 ,并发是因为多进程/多线程都是需要去完成的任务 ,不并行是因为**并行与否由操作系统的调度器决定**
+多线程代码是并发而不是并行,并发是因为多进程/多线程都是需要去完成的任务,不并行是因为**并行与否由操作系统的调度器决定**
 
 * 串行    按先后顺序进行
 
@@ -1457,9 +1715,9 @@ outChannel.close();
 
 ## JUC包	java.util.concurrent	 
 
-jdk1.5新特性 ,存放并发工具类
+jdk1.5新特性,存放并发工具类
 
-如CopyOnWriteArrayList ,底层维护了一个transient(序列化) volatile(唯一)的数组
+如CopyOnWriteArrayList,底层维护了一个transient(序列化) volatile(唯一)的数组
 
 ```
 final transient ReentrantLock lock = new ReentrantLock();//可重用锁
@@ -1468,21 +1726,21 @@ private transient volatile Object[] array;
 
 
 
-即使没有主动创建线程 ,后台也会有多个线程 ,如主线程(用户线程) ,gc线程(守护线程)
+即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
 
-线程的运行由调度器安排调度 ,调度器由操作系统控制 ,先后顺序无法干预
+线程的运行由调度器安排调度,调度器由操作系统控制,先后顺序无法干预
 
-对同一份资源操作时 ,存在资源抢夺问题 ,需要加入并发控制
+对同一份资源操作时,存在资源抢夺问题,需要加入并发控制
 
-线程会带来额外开销 ,如cpu调度时间 ,并发控制开销
+线程会带来额外开销,如cpu调度时间,并发控制开销
 
-每个线程在自己的工作内存交互 ,内存控制不当会造成数据不一致
+每个线程在自己的工作内存交互,内存控制不当会造成数据不一致
 
 
 
 ## ThreadLocal 原理
 
-ThreadLocal 为每个线程创造一个资源的复本 ,而不是共享资源。将每一个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
+ThreadLocal 为每个线程创造一个资源的复本,而不是共享资源。将每一个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
 
 原理 : ThreadLocal 类中有一个Map，用于存储每一个线程的变量的副本。
 
@@ -1503,7 +1761,7 @@ public class TestThread extends Thread {
 
 优势：编写简单；
 
-劣势：单继承 ,无法继承其它父类
+劣势：单继承,无法继承其它父类
 
 
 
@@ -1525,10 +1783,10 @@ public class TestThread2 implements Runnable {
 
 
 
-* 实现Callable接口  (有返回值 ,可以抛出异常)
+* 实现Callable接口  (有返回值,可以抛出异常)
 
-1. 实现Callable接口 ,定义返回值类型
-2. 重写call()方法 ,需要抛出异常
+1. 实现Callable接口,定义返回值类型
+2. 重写call()方法,需要抛出异常
 4. 创建执行服务  ExecutorService service = Executors.newFixedThreadPool(3);
 5. 提交执行   Future<String> result = service.submit(new TestCallable());
 6. 获取结果  result.get();
@@ -1588,17 +1846,17 @@ public class TestCallable implements Callable<String> {
 
 * setPriority()	更改优先级	优先级范围1-10
 
-​	优先级低的也有可能被先调用 ,全看cpu心情 ,这将导致性能倒置 :优先级高的一直在等待
+​	优先级低的也有可能被先调用,全看cpu心情,这将导致性能倒置 :优先级高的一直在等待
 
-* yield()	**暂停但不阻塞**正在执行的线程对象 ,**转入就绪状态** ,cpu有可能再次调度到礼让线程 ,导致礼让失败
+* yield()	**暂停但不阻塞**正在执行的线程对象,**转入就绪状态**,cpu有可能再次调度到礼让线程,导致礼让失败
 
-* sleep()	**转入阻塞转态** ,存在异常抛出InterruptedException ,**监控状态依然保持,不会释放锁**   
+* sleep()	**转入阻塞转态**,存在异常抛出InterruptedException,**监控状态依然保持,不会释放锁**   
 
-**wait 是Object的方法 ,会导致放弃对象锁**，进入等待此对象的等待锁定池。只有唤醒此对象后才进入对象锁定池，准备获得对象锁进行运行状态
+**wait 是Object的方法,会导致放弃对象锁**，进入等待此对象的等待锁定池。只有唤醒此对象后才进入对象锁定池，准备获得对象锁进行运行状态
 
 
 
-* join()	合并线程 ,相当于插队 ,其他线程等待该线程终止	容易造成线程阻塞
+* join()	合并线程,相当于插队,其他线程等待该线程终止	容易造成线程阻塞
 
 `interrupt()	中断线程(不推荐)`
 
@@ -1606,7 +1864,7 @@ isAlive	是否存活
 
 * start()    此时线程处于就绪状态，并没有运行，得到 cpu 时间片**再执行 run()方法** .run()方法只是类的一个普通方法而已，**如果直接调用 run 方法，程序中依然只有主线程**，还是要顺序执行
 * Thread.state / thread.getState()	获取线程状态
-* **线程同时启动**    for 循环，调用 wait()方法，让所有线程等待 ,再调用 notifyAll(), 同时启动所有线程
+* **线程同时启动**    for 循环，调用 wait()方法，让所有线程等待,再调用 notifyAll(), 同时启动所有线程
 
 
 
@@ -1622,9 +1880,9 @@ final void notifyAll()唤醒同一个对象上所有调用 wait()方法的线程
 
 
 
-**不推荐调用jdk的stop ,destroy方法停止线程** ,可以在源码看到这些方法加上了@Deprecated注解 ,表示方法过时
+**不推荐调用jdk的stop,destroy方法停止线程**,可以在源码看到这些方法加上了@Deprecated注解,表示方法过时
 
-应该用boolean标志 ,boolean=false停止线程 **,让线程自己停下来 ,而不是被动停止**
+应该用boolean标志,boolean=false停止线程 **,让线程自己停下来,而不是被动停止**
 
 
 
@@ -1638,11 +1896,11 @@ JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对�
 
 ## 守护线程 daemon
 
-**JVM必须保证用户线程执行完毕 ,但无需等待守护线程执行完毕**
+**JVM必须保证用户线程执行完毕,但无需等待守护线程执行完毕**
 
 
 
-如日志记录,监控内存 ,垃圾回收
+如日志记录,监控内存,垃圾回收
 
 
 
@@ -1650,7 +1908,7 @@ JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对�
 
 ## 线程同步
 
-每个线程在自己的工作内存交互 ,内存没有同步会造成数据不一致
+每个线程在自己的工作内存交互,内存没有同步会造成数据不一致
 
 
 
@@ -1669,9 +1927,9 @@ System.out.println(list.size());//不到10000	list.add()时,两个线程同时ad
 
 ### 同步代码块/方法
 
-synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该方法的对象的锁才能执行方法 ,否则会线程阻塞
+synchronized控制对象的访问,每个对象对应一把锁,必须获得该方法的对象的锁才能执行方法,否则会线程阻塞
 
-方法执行完毕 ,才会释放锁 ,让下一个线程拿到锁
+方法执行完毕,才会释放锁,让下一个线程拿到锁
 
 
 
@@ -1681,8 +1939,8 @@ synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该�
 
 
 * 同步方法：public synchronized void xxx(int i) { }
-  * 同步方法在==方法上==加synchronized ,锁的范围大，将导致性能差
-  * ==同步方法默认锁定this ,即当前类,所以不需要指明对象==
+  * 同步方法在==方法上==加synchronized,锁的范围大，将导致性能差
+  * ==同步方法默认锁定this,即当前类,所以不需要指明对象==
 
 **在静态方法中，都是默认锁定类对象**
 
@@ -1690,17 +1948,17 @@ synchronized控制对象的访问 ,每个对象对应一把锁 ,必须获得该�
 
 ### 锁
 
-从jdk1.5开始 ,可以显式定义同步锁对象Lock ,实现同步
+从jdk1.5开始,可以显式定义同步锁对象Lock,实现同步
 
-Lock接口 ,提供了对共享资源的独占访问 ,线程开始访问共享资源之前需要先获得Lock对象
+Lock接口,提供了对共享资源的独占访问,线程开始访问共享资源之前需要先获得Lock对象
 
 锁保证了数据在方法中被访问时的正确性
 
-锁会消耗性能 ,低优先级线程拿到排它锁 ,将导致性能倒置
+锁会消耗性能,低优先级线程拿到排它锁,将导致性能倒置
 
 
 
-ReentrantLock可重入锁 实现了Lock ,与synchronized相同并发性和内存语义
+ReentrantLock可重入锁 实现了Lock,与synchronized相同并发性和内存语义
 
 ```
 private final ReentrantLock lock = new ReentrantLock();
@@ -1715,9 +1973,9 @@ private final ReentrantLock lock = new ReentrantLock();
 
 #### Lock 与synchronized对比
 
-Lock是显式锁 ,synchronized是隐式 ,出了作用域就释放
+Lock是显式锁,synchronized是隐式,出了作用域就释放
 
-Lock只有代码块锁 ,没有方法锁
+Lock只有代码块锁,没有方法锁
 
 Lock在调度线程方面性能更好
 
@@ -1753,7 +2011,7 @@ Lock在调度线程方面性能更好
 
 ### 死锁
 
-多个线程各自占有一部分共享资源 ,并发生互相等待
+多个线程各自占有一部分共享资源,并发生互相等待
 
 常发生于**一个同步块同时拥有2个以上对象的锁**
 
@@ -1763,9 +2021,9 @@ Lock在调度线程方面性能更好
 
 * 互斥	一个资源同时被多个进程使用
 
-* 请求与保持	一个进程请求资源而阻塞 ,对已有的资源保持不释放
+* 请求与保持	一个进程请求资源而阻塞,对已有的资源保持不释放
 
-* 不剥夺	进程已获得的资源在未使用完之前 ,不会被抢夺
+* 不剥夺	进程已获得的资源在未使用完之前,不会被抢夺
 
 * 循环等待	若干个进程之间形成循环等待资源
 
@@ -1789,15 +2047,15 @@ synchronized (对象) {
 
 wait + notify 解决线程通信
 
-这两个都是Object的方法 ,只能在同步方法或同步代码块中使用 ,否则会抛出IIIegalMonitorStateException
+这两个都是Object的方法,只能在同步方法或同步代码块中使用,否则会抛出IIIegalMonitorStateException
 
 
 
 ### 管程法
 
-生产者把产品放入**缓冲区** ,消费者从缓冲区拿
+生产者把产品放入**缓冲区**,消费者从缓冲区拿
 
-每次操作时判断缓冲区的容量 ,满了则生产者不生产 ,空了消费者不消费
+每次操作时判断缓冲区的容量,满了则生产者不生产,空了消费者不消费
 
 ![image-20200909221411140](image.assets/image-20200909221411140.png)
 
@@ -1805,9 +2063,9 @@ wait + notify 解决线程通信
 
 ### 信号灯法
 
-判断**标志位** ,如果为真 ,等待 ,如果为假 ,唤醒
+判断**标志位**,如果为真,等待,如果为假,唤醒
 
-每次进行操作时判断标志位 ,决定wait或者是执行
+每次进行操作时判断标志位,决定wait或者是执行
 
 
 
@@ -1883,7 +2141,7 @@ Lock是Java 5以后引入的新的API
 
 * 然后对变量进行操作，再将变量写回主内存
 
-* **因此不同的线程间无法访问对方的工作内存**，==线程间的通信(传值)必须通过主内存来完成== ,多个线程对一个共享变量进行修改时，都是对自己工作内存的副本进行操作，相互不可见。主内存中共享变量的结果是不可预知的
+* **因此不同的线程间无法访问对方的工作内存**，==线程间的通信(传值)必须通过主内存来完成==,多个线程对一个共享变量进行修改时，都是对自己工作内存的副本进行操作，相互不可见。主内存中共享变量的结果是不可预知的
 
 
 
@@ -1907,9 +2165,9 @@ Lock是Java 5以后引入的新的API
 
 
 
-Executor		总接口 ,只定义了execute()执行线程方法
+Executor		总接口,只定义了execute()执行线程方法
 
-ExecutorService extends Executor 子接口 ,定义了shutdown()关闭 submit()等方法
+ExecutorService extends Executor 子接口,定义了shutdown()关闭 submit()等方法
 
 ```
 abstract class AbstractExecutorService implements ExecutorService
@@ -1927,7 +2185,7 @@ void execute(Runnable command){}	//执行Runnable线程,无返回值
 
 
 ```
-<T>Future<T> submit(Callable<T> task)	//执行Callable线程 ,有返回值
+<T>Future<T> submit(Callable<T> task)	//执行Callable线程,有返回值
 ```
 
 
@@ -2381,11 +2639,11 @@ public void test() throws Exception {
 
 2）不回收物理连接，如数据库连接、IO、Socket
 
-3）无法控制回收执行时间 ,可以通过 System.gc()或者 Runtime.getRuntime().gc()来请求回收
+3）无法控制回收执行时间,可以通过 System.gc()或者 Runtime.getRuntime().gc()来请求回收
 
 4）==将对象的引用变量设置为 null，暗示可以回收==
 
-5）回收任何对象之前，总会先调用它的 finalize 方法 ,但==不要主动调用finalize== ，应该交给垃圾回收机制调用
+5）回收任何对象之前，总会先调用它的 finalize 方法,但==不要主动调用finalize== ，应该交给垃圾回收机制调用
 
 
 
@@ -2403,10 +2661,24 @@ public void test() throws Exception {
 
 
 
+类加载机制	验证， 准备， 解析
+
+准备	**为类的类变量（非对象变量）分配内存,初始值，准备类中每个字段、方法和实现接口所需的数据结构**
+
+
+
+
+
+![](image.assets/1541314-20191003104706537-1884792960.png)
+
+　　![](image.assets/1541314-20191003105127516-1214242200.png)
+
+
+
 ```java
 public class Singleton {
     //1.静态变量    调用了非静态的构造器  将优先加载非静态,跳过静态
-    //4.构造方法结束 ,赋值
+    //4.构造方法结束,赋值
     private static Singleton instance = new Singleton();
 
     //3.构造方法    此时x=y=1
@@ -2466,15 +2738,13 @@ public class Singleton2 {
 
 实例类型在实例化后，才开始占用内存
 静态变量在编译的时候,变量名会被编译到 pe文件里去，运行的时通过**文件偏移和内存偏移来相对映射**，编译时变量已经以**基址+内存偏移**的方式存储了，但里面的值无意义。当第一次被调用才被初始化
-但实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量 ,实例方法可以调用静态方法和变量。
+但实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量,实例方法可以调用静态方法和变量。
 
 
 
+类方法执行时,对象还未创建,所以==类方法不能被this调用==
 
-
-类方法执行时 ,对象还未创建 ,所以==类方法不能被this调用==
-
-在类方法中调用实例方法 ,将优先执行完所有实例方法 ,所以==在类方法中可以调用实例方法==
+在类方法中调用实例方法,将优先执行完所有实例方法,所以==在类方法中可以调用实例方法==
 
 
 
@@ -2532,47 +2802,19 @@ public class Singleton2 {
 
 
 
-## 各种类型变量的默认初始值
-
-　　JVM 类加载机制中提到，类连接 （验证， 准备， 解析）中准备工作：
-
-　　　　**为类的类变量（非对象变量）分配内存,初始值，准备类中每个字段、方法和实现接口所需的数据结构**
-
-![](image.assets/1541314-20191003104706537-1884792960.png)
 
 
+* 静态和动态分开处理
+  * 静态加载： 静态变量，静态代码块
+  * 动态加载： 
+  * **静态/实例方法在调用的才会执行**
+  * 当静态加载中遇到需要加载动态的情况：**先加载动态再加载静态**（因为非静态可以访问静态，而静态不能访问非静态）
+  * 静态变量声明必须放在使用前面
 
+* main是否第一句先执行
+  * main也是静态方法，首先加载main所在的类,不执行main，优先加载类中其他静态部分
 
-
-　　![img](image.assets/1541314-20191003105127516-1214242200.png)
-
-# 实例化顺序
-
-
-
-## 1、牢记：静态和非静态分开处理
-
-　（1）使用到静态加载时，静态又分为： 静态变量， 静态代码块，按照书写顺序加载
-　（2）非静态加载顺序： 按照非静态书写顺序加载 /执行
-　（3）**静态方法，实例方法只有在调用的时候才会去执行**
-　（4）当静态加载中遇到需要加载非静态的情况： **先加载非静态再加载静态**（因为非静态可以访问静态，而静态不能访问非静态）
-
-```
-public static Text t1 = new Text("t1");  
-// 当加载静态变量是需要先加载构造器， 那就转为先加载所有非静态属性
-```
-
-## 2、静态变量声明  一定 放在使用前面
-
-
-
-## 3、main是否第一句先执行
-
-　　　　因为main方法虽然是一个特殊的静态方法，但是**还是静态方法**，此时**JVM会加载main方法所在的类，试图找到类中其他静态部分**，即首先会找main方法所在的类。
-
-
-
-## 4、父类、子类加载顺序
+* 父类、子类加载顺序
 
 　　1、父类的静态变量和静态块赋值（按照声明顺序）
 　　2、自身的静态变量和静态块赋值（按照声明顺序）
@@ -2601,7 +2843,7 @@ public static Text t1 = new Text("t1");
 
 (3)是在内存上已有对象的影印，不会调用构造函数
 
-(4)是从文件中还原类的对象，也不会调用构造函数。
+(4)是从文件中还原类的对象，不会调用构造函数
 
 
 
@@ -2631,12 +2873,6 @@ public static Text t1 = new Text("t1");
   * 自定义类如果没有覆盖 equals()，将调用父类equals（**Object 的==和 equals 比较的都是地址**）
 
  
-
-
-
-
-
-
 
 
 
@@ -2795,7 +3031,7 @@ s1 += 1;				//正确,被优化为s1 = (short)(s1 + 1)
 
 Public继承方式    不改变父类的访问权限
 
-protected          private不变 ,其余都变为protected
+protected          private不变,其余都变为protected
 
 private            都改成private
 
@@ -2805,7 +3041,7 @@ private            都改成private
 
 **父类的private     只有父类能访问**
 
-private方式继承的非private成员    只有子类的成员函数能访问 ,子类的子类/外部不能访问
+private方式继承的非private成员    只有子类的成员函数能访问,子类的子类/外部不能访问
 
 protected方式继承的非private成员 	只有子类及子类的子类(非private继承) 能访问
 
@@ -2907,7 +3143,7 @@ public @interface Native {}
 
 native是**java调用非java代码的接口**
 
-定义Native Method时 ,**并不需要提供实现** ,其实现体将由**非java语言在外面实现****
+定义Native Method时,**并不需要提供实现**,其实现体将由**非java语言在外面实现****
 
 
 
@@ -2922,22 +3158,22 @@ native是**java调用非java代码的接口**
 
 
 
-==native可以与所有修饰符连用，除abstract== ,与abstract的无实现相违背
+==native可以与所有修饰符连用，除abstract==,与abstract的无实现相违背
 
 
 
-==native method可以返回任何java类型，包括非基本类型==，而且同样可以进行异常控制。这些方法的实现体可以制一个异常并且将其抛出。当native method接收到非基本类型 ,如Object时，可以访问非基本类型的内部，**但这将使native method依赖于所访问的java类的实现**。可以在一个native method的本地实现中访问所有的java特性，但会导致依赖于所访问的java特性的实现，这远不如使用java特性方便
+==native method可以返回任何java类型，包括非基本类型==，而且同样可以进行异常控制。这些方法的实现体可以制一个异常并且将其抛出。当native method接收到非基本类型,如Object时，可以访问非基本类型的内部，**但这将使native method依赖于所访问的java类的实现**。可以在一个native method的本地实现中访问所有的java特性，但会导致依赖于所访问的java特性的实现，这远不如使用java特性方便
 
 
 
 native method不会对其他类调用这些本地方法产生任何影响，调用者甚至不知道它所调用的是一个本地方法。JVM将控制调用本地方法的所有细节。
 如果含有本地方法的类被继承，**子类会继承这个本地方法并且可以用java重写**，本地方法被fianl标识，继承后不能被重写。
-本地方法扩充了jvm ,在sun的java的并发实现中，许多与操作系统的接触点都用到了本地方法，使java能够超越java运行时的界限。
+本地方法扩充了jvm,在sun的java的并发实现中，许多与操作系统的接触点都用到了本地方法，使java能够超越java运行时的界限。
 
 
 
 ==JVM怎样使Native Method跑起来==
-当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口 ,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存于何处，有哪些参数，修饰符等等。
+当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存于何处，有哪些参数，修饰符等等。
 native修饰符将有一个指向该方法的实现的指针。这些实现在一些DLL文件内，它们会被操作系统加载到java程序的地址空间。当带有本地方法的类被加载时，其相关的DLL并未被加载，因此指向方法实现的指针并不会被设置。**当本地方法被调用之前，这些DLL才会被加载**，这是通过调用java.system.loadLibrary()实现的。
 
 
@@ -2952,7 +3188,7 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 
 &和&&都可以用作逻辑与运算符
 
-* 不同点	&：两边的操作数或表达式都会参与计算。&&：左边 false 时，不再计算 ,具有==短路效果== ,效率高
+* 不同点	&：两边的操作数或表达式都会参与计算。&&：左边 false 时，不再计算,具有==短路效果==,效率高
 
 
 
@@ -2964,7 +3200,7 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 
 答:不正确。3.4 是双精度数，将双精度型（double）赋值给浮点型（float）
 
-属于下转型 ,会造成精度损失，因此需要强
+属于下转型,会造成精度损失，因此需要强
 
 制类型转换 float f =(float)3.4; 或者写成 float f =3.4F;。
 
