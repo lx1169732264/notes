@@ -34,35 +34,9 @@
 
 
 
-# **RPC**	**Remote Procedure Call**
 
 
 
-RPC是指远程调用或进程间通信的方式，他是一种技术的思想而不是规范。它允许程序调用另一个地址空间（通常是共享网络的另一台机器上）的过程或函数，而不用程序员显式编码这个远程调用的细节(之前要调用另一个进程需要手写套接字)。即程序员无论是调用本地的还是远程的函数，本质上编写的调用代码基本相同。
-
-
-
-|      |                                 |
-| ---- | ------------------------------- |
-|      | ![img](.\image.assets\wps3.jpg) |
-
-RPC基本原理:进程之间通过socket套接字实现通信
-
-RPC两个核心模块：通讯，序列化。
-
-
-
-Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现。
-
-![img](.\image.assets\wps4.jpg) 
-
-**服务提供者（Provider）：**暴露服务的服务提供方，启动时向注册中心注册自己提供的服务。
-
-**服务消费者（Consumer）:** 调用远程服务的服务消费方，启动时向注册中心订阅自己所需的服务，服务消费者从提供者地址列表中，基于软负载均衡算法，选一台提供者进行调用，如果调用失败，再选另一台调用。
-
-**注册中心（Registry）：**注册中心返回服务提供者地址列表给消费者，如果有变更，注册中心将基于长连接推送变更数据给消费者
-
-**监控中心（Monitor）：**服务消费者和提供者，定时每分钟发送统计数据到监控中心,记录在内存中累计调用次数和调用时间， 
 
 # 安装(windows)
 
@@ -102,9 +76,13 @@ Simple Monitor 挂掉不会影响到 Consumer 和 Provider 之间的调用，所
 
 Simple Monitor 采用磁盘存储统计信息，请注意安装机器的磁盘限制，如果要集群，建议用mount共享磁盘。
 
+
+
 # 整合springboot
 
-dubbo整合springboot三种方式
+
+
+三种方式
 
 方式1：引入dubbo-starter，在application.properties配置属性，使用@Service【暴露服务】使用@Reference【引用服务】
 
@@ -112,15 +90,19 @@ dubbo整合springboot三种方式
 
 方式3：使用注解API的方式， 将每一个组件手动创建到容器中,让dubbo来扫描组件
 
+
+
 ## 要点
 
-对于provider,需要暴露服务,所以使用apache.duubo的@service ,既能注册bean,又能暴露服务
-
-对于consumer,只需要注册bean ,使用spring的注解
 
 
+==provider需要暴露服务,用apache.duubo的@service,既能注册bean,又能暴露服务==
 
-provider不需要向浏览器提供服务 .无需web依赖
+==consumer只需要注册bean,使用spring的@service==
+
+
+
+**provider项目无需web依赖**,不需要向浏览器提供服务
 
 consumer	需要web依赖
 
@@ -134,15 +116,24 @@ provider和consumer**部署在不同机器,端口才允许重复**
 
 
 
-由于provider和consumer都依赖于interface ,部分公共依赖可以写在interface中
+由于provider和consumer都依赖于interface,部分公共依赖可以写在interface中
 
-## 服务提供者
 
-服务者只需要勾选devTools和spring Configuration就行,由于依赖interface项目所以不需要lombok .
+
+## provider
+
+* 启动类
 
 ```java
-<!-- https://mvnrepository.com/artifact/org.apache.dubbo/dubbo -->
-        <dependency>
+@EnableDubbo
+```
+
+* 依赖
+
+服务者只需要勾选devTools和spring Configuration就行,由于依赖interface项目所以不需要lombok
+
+```java
+       <dependency>
             <groupId>org.apache.dubbo</groupId>
             <artifactId>dubbo</artifactId>
             <version>2.7.3</version>
@@ -161,149 +152,83 @@ provider和consumer**部署在不同机器,端口才允许重复**
         </dependency>
 ```
 
-### UserServiceImpl	(provider)
+* ServiceImpl	(provider)
 
-
-
-```
-package com.lx.service.impl;
-
-import domain.UserAddress;
-
-import org.apache.dubbo.config.annotation.Service;
-import service.UserService;
-
-import java.util.ArrayList;
-import java.util.List;
-
-@Service
-public class UserServiceImpl implements UserService {
-
-    public static List<UserAddress> address = new ArrayList<UserAddress>();
-
-    static {
-        address.add(new UserAddress(1, "aa", "bb"));
-        address.add(new UserAddress(2, "cc", "dd"));
-    }
-
-    @Override
-    public List<UserAddress> queryAllAdress(String userId) {
-        System.out.println("20880");
-        return address;
-    }
-}
+```java
+apache.duubo	@service
 ```
 
+* properties
 
-
-### **2.4，配置properties文件**
-
- 
-
-```
+```shell
 dubbo.application.name=boot-ego-user-service-provider
-
 dubbo.registry.address=zookeeper://127.0.0.1:2181
-
 dubbo.protocol.name=dubbo
-
 dubbo.protocol.port=20880
-
-\#dubbo.monitor.protocol=registry
+#dubbo.monitor.protocol=registry
 ```
 
 
 
-### **2.5，修改启动类**
+## consumer
+
+
+
+* 启动类配置
 
 ```
-@EnableDubbo//开户注解的dubbo功能
-@SpringBootApplication
-public class BootEgoUserServiceProviderApplication {
-  public static void main(String[] args) {
-    SpringApplication.run(BootEgoUserServiceProviderApplication.class, args);}}
+@EnableDubbo //启动dubbo
 ```
 
+* ServiceImpl
 
+```java
+@Service	Sping注解
 
-**3，服务消费者**
-
-### **3.1，创建boot-ego-order-service-consumer**
-
-
-
-### **3.3，创建OrderServiceImpl**
-
- 
-
-```
-@Service
-public class OrderServiceImpl implements OrderService {
-
-  @Reference
-  UserService userService;
-
-  @Override
-  public List<UserAddress> initOrder(String userId) {
-    //1、查询用户的收货地址
-    List<UserAddress> addressList = userService.getUserAddressList(userId);
-    return addressList;}}
+      @Reference		远程调用服务注解
+      UserService userService;
 ```
 
  
 
-### **3.4，创建OrderController**
+* properties
 
- 
-
- 
-
-```
-@Controller
-public class OrderController {
-
-  @Autowired
-  OrderService orderService;
-
-  @ResponseBody
-  @RequestMapping("/initOrder")
-  public List<UserAddress> initOrder(@RequestParam("uid")String userId) {
-    return orderService.initOrder(userId);}}
-```
-
-
-
-### **3.5，修改properties**
-
- 
-
-```
+```shell
 dubbo.application.name=boot-ego-order-service-consumer
-
 dubbo.registry.address=zookeeper://127.0.0.1:2181
-
 dubbo.monitor.protocol=registry
-
 server.port=8888
 ```
 
  
 
-### **3.5，启动类配置**
+# 负载均衡LoadBalance
 
- 
+![image-20200815145920560](image.assets/image-20200815145920560.png)
+
+* Random LoadBalance	基于权重随机调用	**默认**
+
+* RoundRobin LoadBalance	基于权重**轮循**调用	权重大的被轮循到的次数多
+
+* LeastActive LoadBalance   基于活跃数的调用	根据调用前后计数差,得到"延迟数"
+
+* ConsistentHash LoadBalance	基于一致hash的调用
 
 ```
-@SpringBootApplication
-@EnableDubbo //启动dubbo
-
-public class BootEgoOrderServiceConsumerApplication {
-
-  public static void main(String[] args) {
-    SpringApplication.run(BootEgoOrderServiceConsumerApplication.class, args);
-  }
-}
+@Service(weight = 100, loadbalance = "roundrobin")	//provider设置权重与负载均衡
 ```
+
+
+
+
+
+## dubbo直连
+
+绕过zookeeper注册,直接消费服务
+
+![image-20200815124050556](image.assets/image-20200815124050556.png)
+
+在消费者指定服务提供者的ip与端口
 
 
 
@@ -321,51 +246,61 @@ public class BootEgoOrderServiceConsumerApplication {
 
 ![image-20200812155020064](image.assets/image-20200812155020064.png)
 
-## 配置优先级  
+
+
+## 重试
+
+* 配置的次数为重试的次数,==总次数=重试+1==
+
+```java
+<dubbo:provider timeout="6000" retries="3"></dubbo:provider>
+```
+
+
+
+* ==幂等操作==	多次请求对数据没有影响	**修改幂等**,重复修改最终结果一致	**删除也幂等**
+
+* 非幂等操作	==只有添加非幂等,重试为0==
+
+
+
+## 启动检查
+
+  
+
+* 消费者项目启动时,默认会检查提供者是否已注册,如果没有将启动失败
+
+可以在方法/全局上配置启动不检查	check默认为true
+
+```
+@Reference(timeout = 3000, check = false)
+```
+
+
+
+## 配置优先级
 
 有三个位置用于配置
 
-​	方法>接口>全局	同级别的配置下**消费者的配置优先**
+​	方法>接口>全局	同级别的配置下==消费者的配置优先==
 
 ![image-20200813222238407](image.assets/image-20200813222238407.png)
 
 ![image-20200813222509289](image.assets/image-20200813222509289.png)
 
-在@service/@Reference注解中指定超时时间 ,等价于接口配置
+在@service/@Reference注解中指定超时时间,等价于接口配置
 
- 若**超时 ,则会重新发两次请求** ,依然超时则终止
+**超时,则会重新发两次请求**,依然超时则终止
 
-一般***只在提供者进行配置*** ,提供者更清楚服务的状态
-
- 
-
-# 启动检查&重试次数
-
-  
-
-* 消费者项目启动时 ,默认会检查提供者是否已注册 ,如果没有项目将启动失败
-
-可以在方法/全局上配置启动不检查	check默认为true
-
-@Reference(timeout = 3000, check = false)
-
-* 配置的次数为重试的次数 ,总次数=重试+1
-
-<dubbo:provider timeout="6000" ***retries="3"***></dubbo:provider>
+一般***只在提供者进行配置***,提供者更清楚服务的状态
 
 
-
-**对于写入/修改操作	重试会引起重复提交的问题 ,应将重试调为0**
-
-
-
-* ==幂等操作==	多次请求对数据没有影响		**修改是幂等**,重复修改最终的结果是一致的	**删除也是幂等**
-
-* 非幂等操作	**只有添加是非幂等操作**
 
 # 灰度发布
 
-当新接口发布，出现不兼容时，可以用版本号过渡，**版本号不同的服务相互间不引用**。
+
+
+新接口发布出现不兼容时，可以用版本号过渡，**版本号不同的服务相互不引用**。
 
 之后进行**版本迁移**：
 
@@ -375,9 +310,13 @@ public class BootEgoOrderServiceConsumerApplication {
 
 
 
+版本号**支持正则匹配**,可以实现负载均衡
+
+
+
 provider
 
-```
+```shell
  <!--声明要暴露的实现类的对象-->
     <bean id="userServiceImpl" class="service.impl.UserServiceImpl" ></bean>
     <!-- 指定需要暴露的服务 -->
@@ -392,7 +331,7 @@ provider
         <dubbo:method name="queryAllAddress" timeout="1000"></dubbo:method>
     </dubbo:service>
 
-//在指定版本号之后 ,consumer必须指定版本号才能够正常调用
+//在指定版本号之后,consumer必须指定版本号才能够正常调用
  <!--生成远程调用对象-->
 <dubbo:reference timeout="3000" id="userService" interface="service.UserService" version="1.0.0" >
         <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
@@ -401,26 +340,32 @@ provider
 
 
 
-版本号**支持正则匹配** ,可以实现负载均衡
-
-
-
 # 本地存根Stub
 
-客户端通常只剩下接口，而实现全在服务器端，但**提供方有些时候想在客户端也执行部分逻辑**，比如：做 ThreadLocal 缓存，提前验证参数，调用失败后伪造容错数据等等，此时就需要在 API 中带上Stub，客户端生成 Proxy 实例，会把 Proxy 通过构造函数传给 Stub，然后把 Stub 暴露给用户，Stub 可以决定要不要去调 Proxy。
+客户端通常只剩下接口，而实现全在服务器端，但**有时想在客户端也执行部分逻辑**，比如：做 ThreadLocal缓存/提前验证参数/调用失败后伪造容错数据等，此时就需要在 API 中带上Stub，客户端生成 Proxy 实例，会把 Proxy 通过构造函数传给 Stub，然后把 Stub 暴露给用户，Stub 可以决定要不要去调 Proxy。
 
-本地存根相当于在调用服务时 ,在调用之前或之后再执行一段逻辑 ,类似于切面
+**在调用之前或之后再执行一段逻辑,类似于切面**
 
 
 
-<!--生成远程调用对象-->
-    <dubbo:reference check="false" timeout="3000" id="userService" interface="service.UserService" version="1.0.0" **stub="service.impl.StubUserServiceImpl"** >
-        <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
-    </dubbo:reference>
+* 注解方式
+
+![image-20200815120037132](image.assets/image-20200815120037132.png)
 
  
 
+* xml方式
+
+```java
+<!--生成远程调用对象-->
+<dubbo:reference check="false" timeout="3000" id="userService" interface="service.UserService" version="1.0.0" stub="service.impl.StubUserServiceImpl">
+        <dubbo:method name="queryAllAddress" timeout="2000"></dubbo:method>
+</dubbo:reference>
 ```
+
+
+
+```java
 //存根类必须实现接口
 public class StubUserServiceImpl implements UserService {
 
@@ -438,75 +383,42 @@ public class StubUserServiceImpl implements UserService {
             return userService.queryAllAddress(userId);
         } catch (Exception e) {
         //通过catch可以实现提供方的接口出现错误时,也能返回默认数据
-            return Arrays.asList(new UserAddress(1, "error", "error"));
-        }
-    }
-}
+            return Arrays.asList(new UserAddress(1, "error", "error"));        }  }}
 ```
 
  
 
- 注解的配置方式
 
-![image-20200815120037132](image.assets/image-20200815120037132.png)
-
- 
 
 # zookeeper宕机
 
-zookeeper注册中心宕机并不影响消费dubbo暴露的服务
+
+
+注册中心宕机并不影响消费dubbo暴露的服务
 
 ![img](.\image.assets\wps4.jpg)
 
-可以看出 ,监控中心只负责同步消费者和提供者的数据
+可以看出,监控中心只负责同步消费者和提供者的数据
 
-并且在provider暴露完服务 ,consumer拉取服务列表之后 ,在本地就已经有缓存了 ,之后的服务调用都是consumer与provider的直接调用 ,不需要经过zookeeper
-
-
-
-* 数据中心宕掉后,通过仍能够通过**注册中心缓存**提供服务列表查询,但**不能注册新服务**
-
-* zookeeper注册中心集群，任意一台宕掉后，将自动切换到另一台
-
-* 注册中心全部宕掉后，服务提供者和服务消费者仍能通过**本地缓存**通讯
-
-* 提供者无状态，任意一台宕掉，不影响使用
-
-* 提供者全部宕掉后，服务消费者应用将无法使用，并无限次重连等待服务提供者恢复
-
-**减少系统不能提供服务的时间**
-
-​	即使zookeeper宕机,也不会造成严重的损失 ,实现高可用
+==在provider暴露完服务,consumer拉取服务列表之后,在本地就已经有缓存了,之后的服务调用都是consumer与provider的直接调用,不需要经过zookeeper==
 
 
 
-# dubbo直连(绕过注册直接消费服务)
+* 数据中心宕掉后,仍能够通过**注册中心缓存**提供服务列表查询,但**不能注册新服务**
 
-zookeeper宕机之后 ,由于消费者有本地缓存 ,依然可以正常消费服务 ,但是提供者无法注册新的服务
+  * 注册中心集群，任意一台宕掉后，将自动切换到另一台
 
-![image-20200815124050556](image.assets/image-20200815124050556.png)
+* 注册中心全部宕掉后，提供者和消费者仍能通过**本地缓存**通讯
 
-在消费者指定服务提供者的ip与端口
+* 提供者任意一台宕掉，不影响使用
+
+* 提供者全部宕掉，消费者无法调用，无限重连
+
+==即使zookeeper宕机,也不会造成严重的损失,实现高可用,减少系统不能提供服务的时间==
 
 
 
-# 负载均衡LoadBalance
 
-![image-20200815145920560](image.assets/image-20200815145920560.png)
-
-Random LoadBalance	基于权重的随机调用	**默认**
-
-RoundRobin LoadBalance	基于权重的**轮循**调用	权重大的被轮循到的次数多
-
-LeastActive LoadBalance	基于活跃数的调用	根据调用前后计数差,得到"延迟数" ,慢的提供者收到更少请求
-
-ConsistentHash LoadBalance	基于一致hash的调用	相同参数的请求总是发到同一提供者(nginx)
-
-​	缺省只对第一个参数Hash <dubbo:parameter key="hash.arguments" **value="0,1**" />可以修改value的值
-
-```
-@Service(weight = 100, loadbalance = "roundrobin")	//provider设置权重与负载均衡
-```
 
 # 服务降级
 
@@ -516,11 +428,11 @@ ConsistentHash LoadBalance	基于一致hash的调用	相同参数的请求总是
 
 ## consumer禁用与容错
 
-把consumer禁用之后 ,consumer发起的请求会被直接返回null ,并不会报错	但这并**不影响本地存根的执行**
+把consumer禁用之后,consumer发起的请求会被直接返回null,并不会报错	但这并**不影响本地存根的执行**
 
 
 
-consumer允许容错	在provider的响应时间过长 ,将直接返回null ,并不会报错	能够减轻服务器的压力
+consumer允许容错	在provider的响应时间过长,将直接返回null,并不会报错	能够减轻服务器的压力
 
 
 
@@ -570,12 +482,12 @@ consumer	<dubbo:reference cluster="failsafe" />
 
 
 
-当提供者挂掉时 ,Hystrix可以提供默认调用的方法 ,当一段时间内提供者一直宕机 ,将引发服务熔断 ,不再向提供者请求服务 ,而直接调用默认方法
+当提供者挂掉时,Hystrix可以提供默认调用的方法,当一段时间内提供者一直宕机,将引发服务熔断,不再向提供者请求服务,而直接调用默认方法
 
 
 
 ```
-双方的启动类加上	@EnableHystrix**    //启用hystrix
+双方的启动类加上	@EnableHystrix    //启用hystrix
 消费者启动类加上	@EnableCircuitBreaker	//启用hystrix的熔断保护
 ```
 
@@ -597,7 +509,7 @@ consumer	<dubbo:reference cluster="failsafe" />
 
 @DefaultProperties	声明服务熔断后调用fallback()方法
 
-fallbackMethod方法如果有参数 ,需要保持参数一致
+fallbackMethod方法如果有参数,需要保持参数一致
 
 ```
 @DefaultProperties(defaultFallback = "fallback")
@@ -610,7 +522,7 @@ public class BaseController {
 
 * 消费者Controller上 
 
-  调用方法将经过Hystrix代理 ,当提供者出现问题/提供者不存在时 ,将调用fallback()方法
+  调用方法将经过Hystrix代理,当提供者出现问题/提供者不存在时,将调用fallback()方法
 
 ```
 @HystrixCommand
@@ -618,23 +530,33 @@ public class BaseController {
 
 
 
-**Hystrix类似本地存根** ,都是在提供者无法正常提供服务时 ,返回一组默认的数据
+**Hystrix类似本地存根**,都是在提供者无法正常提供服务时,返回一组默认的数据
 
 
 
-# Rpc通信原理(远程调用Remote Procedure Call)
+# Rpc Remote Procedure Call
+
+
+
+RPC是指远程调用或进程间通信的方式，是技术思想而不是规范。
+
+允许程序调用另一个地址空间的过程或函数，而不用程序员显式编码这个远程调用的细节(手写套接字)。
+
+即程序员无论是调用本地的还是远程的函数，编写的调用代码基本相同。
+
+
 
 首先客户端需要告诉服务器，需要调用的函数，这里**函数和进程号存在映射**，客户端远程调用时，需要查一下函数，找到对应的ID，然后执行函数的代码。
 
-客户端需要把本地参数传给远程函数，**参数不在同一个内存里**，需要客户端把参数**序列化** ,转换成字节流传给服务端，然后服务端反序列化 ,将字节流转换成自身能读取的格式
+客户端需要把本地参数传给远程函数，**参数不在同一个内存里**，需要客户端把参数**序列化**,转换成字节流传给服务端，然后服务端反序列化,将字节流转换成自身能读取的格式
 
-![1](image.assets/1.jpg)
+
 
 
 
 **RPC同步**调用流程： 
 
-**1）服务消费方（client）调用以本地调用方式调用服务；*
+1）服务消费方（client）调用以本地调用方式调用服务
 
 2）client stub接收到调用后负责将方法、参数等组装成能够进行网络传输的消息体； 
 
@@ -656,7 +578,43 @@ public class BaseController {
 
 
 
+
+
+
+
+![](.\image.assets\wps3.jpg)
+
+
+
+RPC基本原理:进程之间通过socket套接字实现通信
+
+RPC两个核心模块：通讯，序列化。
+
+
+
+Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现。
+
+![img](.\image.assets\wps4.jpg) 
+
+**服务提供者（Provider）：**暴露服务的服务提供方，启动时向注册中心注册自己提供的服务。
+
+**服务消费者（Consumer）:** 调用远程服务的服务消费方，启动时向注册中心订阅自己所需的服务，服务消费者从提供者地址列表中，基于软负载均衡算法，选一台提供者进行调用，如果调用失败，再选另一台调用。
+
+**注册中心（Registry）：**注册中心返回服务提供者地址列表给消费者，如果有变更，注册中心将基于长连接推送变更数据给消费者
+
+**监控中心（Monitor）：**服务消费者和提供者，定时每分钟发送统计数据到监控中心,记录在内存中累计调用次数和调用时间
+
+
+
+
+
+
+
+
+
 # netty通信原理
+
+
 
 ## BIO	阻塞Blocking IO
 

@@ -102,6 +102,12 @@ A.用户模式     B.外模式      C.模式       D.内模式
 
 ==不去重==
 
+![img](1074709-20171229165319538-1026266241.png)
+
+
+
+
+
 
 
 ## 自然连接
@@ -113,6 +119,34 @@ A.用户模式     B.外模式      C.模式       D.内模式
 对相同名称的列形成匹配	保留公共值
 
 ![](image.assets/image-20200831173846192.png)
+
+
+
+左连接
+
+![img](1074709-20171229170434726-2010021622.png)
+
+
+
+全连接	FULL OUTER JOIN
+
+![img](1074709-20171229172802179-389908324.png)
+
+
+
+交叉连接/笛卡尔积	cross 
+
+返回左表中的所有行，与右表中的所有行组合
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -708,6 +742,78 @@ InnoDB是默认的数据库存储引擎，他的主要特点有：
 （5）默认使用hash索引。
 
 （6）如果一个内部表很大，会转化为磁盘表。
+
+
+
+
+
+
+
+# 优化
+
+
+
+避免在 where 中
+
+* null值判断 
+*  !=或<>操作符
+* or 连接符
+* 表达式
+* 函数
+* 算数运算
+* ==复合索引作为条件,索引中的第一个字段必须作为条件，并且字段顺序与索引顺序一致==   
+
+```sql
+select id from t where num is null    
+-> 
+select id from t where num=0  
+```
+
+
+
+慎用in 和 not in，否则会导致全表扫描
+
+```sql
+select id from t where num in(1,2,3)    
+//对于连续的数值，能用 between 就不要用 in 了：    
+select id from t where num between 1 and 3    
+```
+
+用 exists 代替 in 
+
+```sql
+select num from a where num in(select num from b)
+->
+select num from a where exists(select 1 from b where num=a.num)
+
+# select 1 新建一列,有结果的行都置为1
+
+**select 1 from kc   增加临时列，每行的列值是写在select后的数，这条sql语句中是1**
+
+**2：select count(1) from kc  不管count(a)的a值如何变化，得出的值总是kc表的行数**
+
+**3：select sum(1) from kc  计算临时列的和**
+```
+
+
+
+
+
+
+
+下面的查询也将导致全表扫描：   
+
+```sql
+select id from t where name like '%abc%'  
+```
+
+
+
+
+
+
+
+
 
 
 
