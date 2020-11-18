@@ -418,7 +418,7 @@ public class StubUserServiceImpl implements UserService {
 
 
 
-## consumer禁用与容错
+## consumer禁用/容错
 
 
 
@@ -534,79 +534,135 @@ public class BaseController {
 
 RPC是指远程调用或进程间通信的方式，是技术思想而不是规范。
 
-允许程序调用另一个地址空间的过程或函数，而不用程序员显式编码这个远程调用的细节(手写套接字)。
+
+
+* 基本原理:进程之间通过socket套接字实现通信
+
+* 两个核心模块：通讯，序列化
+
+
+
+允许程序调用另一个地址空间的过程或函数，而不用程序员手写套接字
 
 即程序员无论是调用本地的还是远程的函数，编写的调用代码基本相同。
 
 
 
-首先客户端需要告诉服务器，需要调用的函数，这里**函数和进程号存在映射**，客户端远程调用时，需要查一下函数，找到对应的ID，然后执行函数的代码。
+首先客户端需要告诉服务器，需要调用的函数，这里**函数和进程号存在映射**，客户端远程调用时，需要查一下函数，找到对应的ID，然后执行函数
 
 客户端需要把本地参数传给远程函数，**参数不在同一个内存里**，需要客户端把参数**序列化**,转换成字节流传给服务端，然后服务端反序列化,将字节流转换成自身能读取的格式
 
 
 
-
-
 **RPC同步**调用流程： 
 
-1）服务消费方（client）调用以本地调用方式调用服务
+1）服务消费方（client）以本地调用方式调用服务
 
-2）client stub接收到调用后负责将方法、参数等组装成能够进行网络传输的消息体； 
+2）client stub接收到调用后负责将方法、参数等组装成能够进行网络传输的消息体
 
-3）client stub找到服务地址，并将消息发送到服务端； 
+3）client stub找到服务地址，并将消息发送到服务端 
 
-4）server stub收到消息后进行解码； 
+4）server stub收到消息后进行解码
 
-5）server stub根据解码结果调用本地的服务； 
+5）server stub根据解码结果调用本地的服务
 
-6）本地服务执行并将结果返回给server stub； 
+6）本地服务执行并将结果返回给server stub
 
-7）server stub将返回结果打包成消息并发送至消费方； 
+7）server stub将返回结果打包成消息并发送至消费方
 
-8）client stub接收到消息，并进行解码； 
+8）client stub接收到消息，并进行解码
 
-**9）服务消费方得到最终结果。**
+9）服务消费方得到最终结果
 
 **dubbo将2~8封装**，这些细节对用户来说是透明的，不可见的。
 
 
 
+## 消息的数据结构
+
+
+
+* 请求的数据结构
+  * 接口名称
+  * 方法名
+  * 参数类型&参数值
+  * 超时时间
+  * **requestID，唯一标识请求id**
+
+* 返回的消息的数据结构
+  * 返回值
+  * 状态code
+  * **requestID**
+
+
+
+### requestID作用
+
+
+
+netty的话一般用channel.writeAndFlush()方法来发送消息二进制串，是异步的
+
+对于当前线程来说，将请求发送出来后，线程就可以往后执行了，在服务端处理完成后，再以消息的形式返回结果。于是这里出现以下两个问题：
+
+1）怎么让当前线程“暂停”，等结果回来后，再向后执行？
+
+2）消息的前后顺序随机，怎么知道哪个消息结果是原先哪个线程调用的？
+
+如下图所示，线程A和线程B同时向client socket发送请求requestA和requestB，socket先后将requestB和requestA发送至server，而server可能将responseA先返回，尽管requestA请求到达时间更晚。我们需要一种机制保证responseA丢给ThreadA，responseB丢给ThreadB。
+
+
+
+![](image.assets/522490-20151003171953574-1892668698.png)
+
+1.client线程每次调用远程接口前，生成唯一的requestID（必需保证在一个Socket连接内唯一），一般用AtomicLong累计数字生成唯一ID
+
+2.将处理结果的回调对象callback，存放到全局ConcurrentHashMap里面put(requestID, callback)；
+
+3.当线程调用channel.writeAndFlush()发送消息后，紧接着执行callback的get()方法试图获取远程返回的结果。
+
+4.在get()时,使用synchronized获取回调对象callback的锁，再先检测是否已经获取到结果，没有则调用callback的wait()方法，释放callback上的锁，让当前线程处于等待状态。
+
+5.服务端接收到请求并处理后，将response结果（包含requestID）发送给客户端，客户端socket连接上专门监听消息的线程收到消息，分析结果，取到requestID，再从前面的ConcurrentHashMap里面get(requestID)，从而找到callback对象，再用synchronized获取callback上的锁，将方法调用结果设置到callback对象里，再调用callback.notifyAll()唤醒前面处于等待状态的线程。
+
+
+
+```java
+public Object get() {
+        synchronized (this) {
+            while (!isDone) {  // 是否有结果了
+                wait(); //没结果是释放锁，让当前线程处于等待状态        }       } }
+private void setDone(Response res) {
+        this.res = res;
+        isDone = true;
+        synchronized (this) { //获取锁，因为前面wait()已经释放了callback的锁了
+            notifyAll(); // 唤醒处于等待的线程       }   }
+```
 
 
 
 
-![](.\image.assets\wps3.jpg)
 
 
 
-RPC基本原理:进程之间通过socket套接字实现通信
-
-RPC两个核心模块：通讯，序列化。
+## 消息序列化
 
 
 
-Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了三大核心能力：面向接口的远程方法调用，智能容错和负载均衡，以及服务自动注册和发现。
+从RPC的角度上看，主要看重三点：
 
-![img](.\image.assets\wps4.jpg) 
+* 通用性，能否支持Map等复杂的数据结构
 
-**服务提供者（Provider）：**暴露服务的服务提供方，启动时向注册中心注册自己提供的服务。
+* 性能/时间/空间复杂度，由于RPC框架将会被公司几乎所有服务使用，如果序列化上能节约资源，对整个公司的收益都将非常可观
 
-**服务消费者（Consumer）:** 调用远程服务的服务消费方，启动时向注册中心订阅自己所需的服务，服务消费者从提供者地址列表中，基于软负载均衡算法，选一台提供者进行调用，如果调用失败，再选另一台调用。
-
-**注册中心（Registry）：**注册中心返回服务提供者地址列表给消费者，如果有变更，注册中心将基于长连接推送变更数据给消费者
-
-**监控中心（Monitor）：**服务消费者和提供者，定时每分钟发送统计数据到监控中心,记录在内存中累计调用次数和调用时间
+* 可扩展性，能够支持自动增加新字段，删除老字段，而不影响老服务，这将大大提供系统的健壮性
 
 
 
+## 通信
 
 
 
-
-
-
-# netty通信原理
+2种IO通信模型
 
 
 
@@ -618,23 +674,57 @@ Apache Dubbo是一款高性能、轻量级的开源Java RPC框架，它提供了
 
 
 
-
-
-
-
 ## NIO	非阻塞(多路复用)
 
-![image-20200816165157221](image.assets/image-20200816165157221.png)
+实现起来复杂
 
-Selector 一般称 为选择器 ，也可以翻译为 多路复用器
+![](image.assets/image-20200816165157221.png)
+
+Selector选择器/多路复用器
 
 四种状态:	Connect（连接就绪）、Accept（接受就绪）、Read（读就绪）、Write（写就绪）
 
 
 
+### netty通信原理
+
+
+
+如阿里巴巴的HSF、dubbo，Twitter的finagle等
+
+
+
+
+
+## 2 如何发布自己的服务？
+
+如何让别人使用我们的服务呢？有同学说很简单嘛，告诉使用者服务的IP以及端口就可以了啊。确实是这样，这里问题的关键在于是自动告知还是人肉告知。
+
+人肉告知的方式：如果你发现你的服务一台机器不够，要再添加一台，这个时候就要告诉调用者我现在有两个ip了，你们要轮询调用来实现负载均衡；调用者咬咬牙改了，结果某天一台机器挂了，调用者发现服务有一半不可用，他又只能手动修改代码来删除挂掉那台机器的ip。现实生产环境当然不会使用人肉方式。
+
+有没有一种方法能实现自动告知，即机器的增添、剔除对调用方透明，调用者不再需要写死服务提供方地址？当然可以，现如今zookeeper被广泛用于实现服务自动注册与发现功能！
+
+简单来讲，zookeeper可以充当一个`服务注册表`（Service Registry），让多个`服务提供者`形成一个集群，让`服务消费者`通过服务注册表获取具体的服务访问地址（ip+端口）去访问具体的服务提供者。如下图所示：
+
+![](image.assets/522490-20151003183747543-2138843838 (1).png)
+
+具体来说，zookeeper就是个分布式文件系统，每当一个服务提供者部署后都要将自己的服务注册到zookeeper的某一路径上: /{service}/{version}/{ip:port}, 比如我们的HelloWorldService部署到两台机器，那么zookeeper上就会创建两条目录：分别为/HelloWorldService/1.0.0/100.19.20.01:16888  /HelloWorldService/1.0.0/100.19.20.02:16888。
+
+zookeeper提供了“心跳检测”功能，它会定时向各个服务提供者发送一个请求（实际上建立的是一个 socket 长连接），如果长期没有响应，服务中心就认为该服务提供者已经“挂了”，并将其剔除，比如100.19.20.02这台机器如果宕机了，那么zookeeper上的路径就会只剩/HelloWorldService/1.0.0/100.19.20.01:16888。
+
+服务消费者会去监听相应路径（/HelloWorldService/1.0.0），一旦路径上的数据有任务变化（增加或减少），zookeeper都会通知服务消费方服务提供者地址列表已经发生改变，从而进行更新。
+
+更为重要的是zookeeper 与生俱来的容错容灾能力（比如leader选举），可以确保服务注册表的高可用性。
+
+
+
+
+
+
+
 # 设计原理
 
-![dubbo](image.assets/dubbo.jpg)
+![](image.assets/dubbo.jpg)
 
 ·     config 配置层：对外配置接口，以 ServiceConfig, ReferenceConfig 为中心，可以直接初始化配置类，也可以通过 spring 解析配置生成配置类
 
