@@ -126,7 +126,7 @@ git merge --abort 终止本次merge，并回到merge前的状态
 
 冲突问题？(master和dev都推进了一个版本,导致版本冲突,只有一方推进不冲突)
 
-先合并			![img](image.assets/wps1-1597195136938.jpg)表示合并中
+先合并			![](image.assets/wps1-1597195136938.jpg)表示合并中
 
 再手动解决文件中的冲突		再add	commit
 
@@ -160,19 +160,19 @@ git stash pop		恢复工作环境
 
 ssh-keygen -t rsa -C “1169732264@qq.com”
 
-![image-20200812092157403](image.assets/image-20200812092157403.png)
+![](image.assets/image-20200812092157403.png)
 
 可以在用户主目录里找到.ssh目录，里面有id_rsa和id_rsa.pub两个文件
 
-id_rsa是私钥，不能泄露
+id_rsa	私钥
 
-id_rsa.pub是公钥，可以放心地告诉任何人
+id_rsa.pub	公钥
 
-![img](image.assets/wps2-1597195325102.jpg) 
+![](image.assets/wps2-1597195325102.jpg) 
 
 创建shh key	**如果想要别人修改你的代码,需要配置上别人的ssh key公钥**
 
-![image-20200812092301624](image.assets/image-20200812092301624.png)
+![](image.assets/image-20200812092301624.png)
 
 ## 为什么配置用户ssh key而非项目ssh key？
 
@@ -198,10 +198,6 @@ git checkout -b origin/dev		创建分支并**关联远程仓库的分支**
 
 
 git remote –v		仓库详细信息
-
-
-
-
 
 
 

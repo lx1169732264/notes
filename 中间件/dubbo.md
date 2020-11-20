@@ -35,11 +35,11 @@ https://github.com/apache/dubbo-admin/tree/master
 
 
 
-进入dubbo-admin-master
+修改dubbo-admin-master	application.properties
 
-修改 src\main\resources\application.properties 指定zookeeper地址
 
- ![img](.\image.assets\wps6.jpg)
+
+ ![](.\image.assets\wps6.jpg)
 
 打包mvn package
 
@@ -49,19 +49,19 @@ https://github.com/apache/dubbo-admin/tree/master
 
 ## 监控中心 monitor
 
-但是为了让用户更好的管理监控众多的dubbo服务，dubbo提供了一个可视化的监控程序，不过这个监控即使不装也不影响使用。
 
 
-
-1.进入 dubbo-monitor-simple\src\main\resources\conf	修改 dubbo.properties文件的ip地址
-
-2、打包dubbo-monitor-simple
+```
+进入dubbo-monitor-simple\src\main\resources\conf	修改 dubbo.properties文件的ip地址
 
 mvn clean package -Dmaven.test.skip=true
 
-3、解压 tar.gz 文件，并运行start.bat
+解压 tar.gz 文件，并运行start.bat
+```
 
-Simple Monitor 挂掉不会影响到 Consumer 和 Provider 之间的调用，所以用于生产环境不会有风险。
+
+
+Simple Monitor 挂掉不会影响到 Consumer 和 Provider 的调用，所以用于生产环境不会有风险
 
 Simple Monitor 采用磁盘存储统计信息，请注意安装机器的磁盘限制，如果要集群，建议用mount共享磁盘。
 
@@ -211,9 +211,7 @@ server.port=8888
 
 绕过zookeeper注册,直接消费服务	指定服务提供者的ip与端口
 
-![image-20200815124050556](image.assets/image-20200815124050556.png)
-
-
+![](image.assets/image-20200815124050556.png)
 
 
 
@@ -225,11 +223,11 @@ server.port=8888
 
 可以精确到某个接口中的方法
 
-![image-20200812154628800](image.assets/image-20200812154628800.png)
+![](image.assets/image-20200812154628800.png)
 
  消费者超时
 
-![image-20200812155020064](image.assets/image-20200812155020064.png)
+![](image.assets/image-20200812155020064.png)
 
 
 
@@ -271,9 +269,9 @@ server.port=8888
 
 ​	方法>接口>全局	同级别的配置下==消费者的配置优先==
 
-![image-20200813222238407](image.assets/image-20200813222238407.png)
+![](image.assets/image-20200813222238407.png)
 
-![image-20200813222509289](image.assets/image-20200813222509289.png)
+![](image.assets/image-20200813222509289.png)
 
 在@service/@Reference注解中指定超时时间,等价于接口配置
 
@@ -337,7 +335,7 @@ provider
 
 * 注解方式
 
-![image-20200815120037132](image.assets/image-20200815120037132.png)
+![](image.assets/image-20200815120037132.png)
 
  
 
@@ -383,7 +381,7 @@ public class StubUserServiceImpl implements UserService {
 
 注册中心宕机并不影响消费dubbo暴露的服务
 
-![img](.\image.assets\wps4.jpg)
+![](.\image.assets\wps4.jpg)
 
 可以看出,监控中心只负责同步消费者和提供者的数据
 
@@ -529,7 +527,7 @@ public class BaseController {
 
 
 
-RPC是指远程调用或进程间通信的方式，是技术思想而不是规范。
+指远程调用或进程间通信的方式，是技术思想而不是规范。
 
 允许程序调用另一个地址空间的过程或函数，而不用程序员手写套接字
 
@@ -541,16 +539,16 @@ RPC是指远程调用或进程间通信的方式，是技术思想而不是规�
 
 * 两个核心模块：通讯，序列化
 
-* 3个要求
+* 3个透明
   * 网络协议/ IO模型透明
 
   * 消息格式透明
 
-  * 跨语言能力：调用方无需知道远程使用的语言
+  * 语言透明：调用方无需知道远程使用的语言
 
 
 
-首先客户端需要告诉服务器，需要调用的函数，这里**函数和进程号存在映射**，客户端远程调用时，需要查一下函数，找到对应的ID，然后执行函数
+首先客户端需要告诉服务器，需要调用的函数，**函数和进程号存在映射**，客户端远程调用时，需要查函数，找到对应的ID，然后执行
 
 客户端需要把本地参数传给远程函数，**参数不在同一个内存里**，需要客户端把参数**序列化**,转换成字节流传给服务端，然后服务端反序列化,将字节流转换成自身能读取的格式
 
@@ -766,7 +764,7 @@ Dubbo是阿里巴巴开源的基于 Java 的高性能 **RPC 分布式服务框�
 
 分布式架构可以承受更大规模的并发流量。
 
-![img](image.assets/wps2-1597570300593.jpg) 
+![](image.assets/wps2-1597570300593.jpg) 
 
  
 
@@ -778,7 +776,7 @@ Dubbo 使用的是 **RPC 通信**，而 Spring Cloud 使用的是**HTTP** RESTFu
 
 2）组成部分不同
 
-![img](image.assets/wps3-1597570300594.jpg) 
+![](image.assets/wps3-1597570300594.jpg) 
 
 
 
@@ -822,7 +820,7 @@ Dubbo 的服务容器只是一个简单的 Main 方法，并加载一个简单�
 
 **Dubbo 核心的配置**
 
-![img](image.assets/wps6-1597570300594.jpg) 
+![](image.assets/wps6-1597570300594.jpg) 
 
 
 
@@ -853,7 +851,7 @@ Dubbo 默认使用 Netty 框架，也是推荐的选择，另外内容还集成�
 
 **集群容错方案**
 
-![img](image.assets/wps8-1597570300594.jpg) 
+![](image.assets/wps8-1597570300594.jpg) 
 
 
 
@@ -896,7 +894,7 @@ Dubbo 允许配置多协议，在不同服务上支持不同协议或者同一�
 
 异步调用流程图如下。
 
-![img](image.assets/wps10-1597570300594.jpg) 
+![](image.assets/wps10-1597570300594.jpg) 
 
  
 
