@@ -154,7 +154,7 @@ System.out.println((a==c));
 
 
 
-## String为什么final 
+## String为什么final
 
 * 若允许被继承，则其高度的被使用率可能会降低程序的性能
 
@@ -910,9 +910,41 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
+## List、Map、Set区别
 
 
-## HashSet
+
+List与Set实现公共父接口Collection,所以都是单列元素的集合。
+
+Set不允许重复，不能有两个相等（注意，不是仅仅是相同）的对象 ，所以，Set的add()返回boolean
+
+Set取元素时，没法说取第几个，只能以Iterator接口取得所有的元素，再逐一遍历各个元素。
+
+
+
+List表示有先后顺序的集合
+
+一个对象可以被反复存储进List中，相当于集合中有多个索引指向了这个对象
+
+List除了可以以Iterator接口取得所有的元素，再逐一遍历各个元素之外，还可以调用get(index i)来明确说明取第几个
+
+
+
+Map与List和Set不同，它是双列的集合
+
+可以获得所有的key的集合，可以获得所有value的集合，还可以获得key和value组合成的Map.Entry对象的集合
+
+
+
+
+
+
+
+## Set
+
+
+
+### HashSet
 
 
 
@@ -938,15 +970,17 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-## TreeSet
+### TreeSet
+
+
+
+二叉树实现,
 
 
 
 元素不允许重复且==有序(自然顺序)==,底层存储结构是二叉树,**中序遍历保证有序**，存入元素时需要**和树中元素进行对比**,保证不重复
 
-3）可以通过 Comparable(外部比较器)和 Comparator(内部比较器)来指定比较策略，实现了 Comparable 的系统类可以顺利存入 TreeSet。自定
-
-义类可以实现 Comparable 接口来指定比较策略。
+3）可以通过 Comparable(外部比较器)和 Comparator(内部比较器)来指定比较策略，实现了 Comparable 的系统类可以顺利存入 TreeSet。实现 Comparable接口指定比较策略
 
 4）可创建 Comparator 接口实现类来指定比较策略，并通过 TreeSet 构造方法参数传入。这种方式尤其对系统类非常适用。
 
@@ -954,11 +988,71 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
+## List
+
+
+
+### ArrayList
+
+
+
+少量数据时效率高
+
+扩容为1.5倍
 
 
 
 
-## List的多态
+
+
+
+### LinkedList
+
+
+
+大量数据时效率高
+
+
+
+
+
+
+
+
+
+### Vector
+
+
+
+内部实现与ArrayList一致
+
+**在方法中进行了同步,线程安全**
+
+**扩容为2倍**,适合数据量大的存储
+
+
+
+
+
+### 检索、插入、删除效率
+
+
+
+* ArrayList和Vector中，从指定的位置检索，或在末尾插入、删除都是O(1)
+
+其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
+
+* LinkedList
+  * 插入、删除集合中任何位置都O(1)
+  * 索引时O(i),i下标
+
+
+
+
+
+
+
+### List的多态
 
 List list = new ArrayList() 与 ArrayList alist = new ArrayList()
 
@@ -982,24 +1076,23 @@ List接口有多个实现类，现在你用的是ArrayList，也许哪一天需�
 
 
 
-继承了AbstractMap
+* 是Hashtable的轻量级实现（非线程安全的实现）
 
-实现了Map ，克隆，序列化接口
+* 允许空键/值
 
-```
+* 继承了AbstractMap,实现了Map，克隆，序列化接口
+
+```java
 HashMap<K,V> extends AbstractMap<K,V>
     implements Map<K,V>, Cloneable, Serializable {
-```
-
-
-
-AbstractMap已经实现过了Map接口，而HashMap又继承了AbstractMap，这样使得HashMap已经实现了Map接口，然而HashMap又再次去实现了Map接口
-
-这是JDK中多此一举的失误
-
-```
+//AbstractMap已经实现过了Map接口，而HashMap又继承了AbstractMap，这样使得HashMap已经实现了Map接口，然而HashMap又再次去实现了Map接口,这是JDK中多此一举的失误
+  
 AbstractMap<K,V> implements Map<K,V> {
 ```
+
+
+
+* HashMap把Hashtable的contains方法去掉了，改成containsvalue和containsKey。因为contains方法容易让人引起误解
 
 
 
@@ -1128,6 +1221,44 @@ Node<K,V> hiHead = null, hiTail = null;
   * map.put(1, “Java”)，实际上是将1进行了自动装箱操作,变为了 Integer类型
 
 * 引用数据类型重写了HashCode()和 equals()两个方法，能==保证key的唯一性==
+
+
+
+
+
+
+
+### ConcurrentHashMap
+
+
+
+对桶进行了分段，每个分段都用锁进行保护，从而让锁的粒度小，并发性能高
+
+
+
+
+
+
+
+
+
+### HashTable
+
+
+
+双数组
+
+线程安全,效率低
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1344,6 +1475,10 @@ public V get(Object key) {
 ### TreeMap
 
 
+
+红黑树实现
+
+线程不安全
 
 
 
@@ -2071,13 +2206,11 @@ wait + notify 解决线程通信
 
 
 
+## volatile
 
 
 
-
-## volatile能否保证线程安全？
-
-不能。volatile是一种弱的同步机制，如需要强线程安全，还需要使用 synchronized。
+弱的同步机制，不能保证线程安全,如需要强线程安全，还需要使用 synchronized。
 
 volatile 变量用来确保将变量的更新操作通知到其他线程。当把变量声明为 volatile 类型后，编译器与运行时都会注意到这个变量是共享的，因此不会将该变量上的操作与其他内存操作一起重排序。volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值。
 
@@ -2117,13 +2250,45 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 
 
 
-### synchronized和Lock的异同？
+### Lock
 
-Lock是Java 5以后引入的新的API
 
-相同点：Lock 能完成synchronized所实现的所有功能；
 
-不同点：Lock 有比 synchronized 更精确的线程语义和更好的性能。synchronized会自动释放锁，而 Lock 一定要求程序员手工释放，并且必须在 finally 块中释放（这是释放外部资源的最好的地方）
+1.5新特性
+
+能完成synchronized的所有功能,有更精确的线程语义和更好的性能。
+
+==synchronized会自动释放锁，Lock必须手动在finally块释放==
+
+
+
+1) lock()。以阻塞方式来获取锁，如果获取到了锁，立即返回；如果别的线程持有锁，则当前线程等待，直到获取锁后返回。
+
+2) tryLock()。以非阻塞的方式获取锁。只是尝试性的去获取一下锁，如果获取到锁，立即返回true，立即否则返回false。
+
+3) tryLock(longtimeout,TimeUnit unit)。如果获取到了锁，立即返回true，否则会等待参数给定的时间单元，在等待的过程中，如果获取到了锁，就立即返回true。如果等待超时，返回false。
+
+4) lockInterruptibly（）。如果获取到了锁，立即返回；如果没有获取到锁，当前线程处于休眠状态，或者当前线程会被别的线程中断（会受到InterruptedException异常）。他与lock()方法的区别在于lock优先考虑获取锁，如果没有获取到锁，会一直处于阻塞状态，忽略interrupt（）方法，待获取锁成功后，才响应中断。lockInterruptibly 优先考虑响应中断，而不是响应锁的普通获取或重入获取。
+
+5) ReentrantLock()。创建一个ReentrantLock实例。
+
+6) Unlock()。释放锁
+
+
+
+### ReentrantLock
+
+
+
+重入锁,当前持有该锁的线程能够多次获取该锁，无需等待
+
+
+
+
+
+
+
+
 
 
 
@@ -2687,22 +2852,17 @@ public class Singleton {
         y++;
     }
 
-    private static int x;
-    //5.静态变量赋值  此时x=1,y=0
-    private static int y = 0;
+  //5.静态变量赋值  此时x=1,y=0
+    private static int x,y = 0;
 
     //2.非静态变量
     private int z = 1;
 
-    public static Singleton getInstance() {
-        return instance;
-    }
+    public static Singleton getInstance() {   return instance; }
 
     public static void main(String[] args) {
         //6.main方法体     结果x=1,y=0
-        getInstance();
-    }
-}
+        getInstance();   }}
 ```
 
 
@@ -2711,38 +2871,75 @@ public class Singleton {
 public class Singleton2 {
 
     //3.构造方法    此时x=y=1
-    public Singleton2() {
-        x++;
-        y++;
-    }
+    public Singleton2() {     x++; y++;    }
 
     //1.静态变量赋值  此时x=y=0
-    private static int x = 0;
-    private static int y;
+    private static int x = 0, y;
     //2.静态变量调用构造方法
     //4.构造器返回值赋值
     private static Singleton2 instance = new Singleton2();
 
-    public static Singleton2 getInstance() {
-        return instance;
-    }
+    public static Singleton2 getInstance() {   return instance;    }
 
     public static void main(String[] args) {
         //5.main方法体       结果x=y=1
-        getInstance();
-    }
-}
+        getInstance();   }}
 ```
 
 
 
-实例类型在实例化后，才开始占用内存
-静态变量在编译的时候,变量名会被编译到 pe文件里去，运行的时通过**文件偏移和内存偏移来相对映射**，编译时变量已经以**基址+内存偏移**的方式存储了，但里面的值无意义。当第一次被调用才被初始化
-但实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量,实例方法可以调用静态方法和变量。
+![img](image.assets/20160812142709857)
+
+* 类引用调用的大致过程
+  * 编译器将源代码编译成class文件，在编译过程中，根据静态类型将调用的符号引用写到class文件
+  * 在执行时，JVM根据class文件找到调用方法的符号引用，在静态类型的方法表中找到偏移量
+  * 然后根据this指针确定对象的实际类型，==使用实际类型的方法表(多态的实现)==，偏移量跟静态类型中方法表的偏移量一样，如果在实际类型的方法表中找到该方法，则直接调用，否则，按照继承关系从下往上搜索
 
 
 
-类方法执行时,对象还未创建,所以==类方法不能被this调用==
+从上图可以看出，当程序运行时，需要某个类时，类载入子系统会将相应的class文件载入到JVM中，并在内部建立该类的类型信息（这个类型信息其实就是class文件在JVM中存储的一种数据结构），包含java类定义的所有信息，包括方法代码，类变量、成员变量、以及本博文要重点讨论的方法表。这个类型信息就存储在方法区。 
+
+
+
+方法区
+
+各个线程共享，存储已被虚拟机加载的类信息、常量、静态变量、即时编译器编译后的代码等数据
+
+
+
+常量池
+
+存放编译器生成的各种符号引用，这部分信息在类加载时进入方法区的运行时常量池中。 
+方法区的内存回收目标是针对常量池的回收及对类型的卸载。
+
+
+
+==方法区中的类型信息跟在堆中的class对象不同==
+
+* 在方法区中，class类型信息只有唯一的实例（各个线程共享)
+
+* 而在堆中可以有多个该class对象。
+
+* 通过堆中的class对象访问到方法区中类型信息。就像反射机制那样，通过class对象访问到类信息
+
+
+
+方法表
+
+实现动态调用的核心,存放在方法区中的类型信息中。
+
+为了优化对象调用方法的速度，方法区的类型信息会增加指针，指向记录该类方法的方法表，方法表中的每一个项都是对应方法的指针。
+这些方法中包括从父类继承的所有方法以及自身重写（override）的方法。
+
+
+
+
+
+实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量,实例方法可以调用静态方法和变量。
+
+
+
+类方法执行时,对象还未创建,==类方法不能被this调用==
 
 在类方法中调用实例方法,将优先执行完所有实例方法,所以==在类方法中可以调用实例方法==
 
@@ -2835,9 +3032,9 @@ public class Singleton2 {
 
 2、反射,调用 java.lang.Class 或者 java.lang.reflect.Constructor类的 newInstance()实例方法。
 
-3、调用对象的clone()方法。
+3、clone()
 
-4、运用反序列化手段，调用 java.io.ObjectInputStream 对象的readObject()方法。
+4、反序列化，调用 java.io.ObjectInputStream 对象的readObject()方法。
 
 (1)和(2)都会显式地调用构造函数
 
@@ -2857,10 +3054,6 @@ public class Singleton2 {
 
 
 
-
-
-
-
 **==是关系运算符，equals()是方法**
 
 * ==    
@@ -2869,10 +3062,23 @@ public class Singleton2 {
   * ==不能比较没有父子关系的两个对象==
 
 * equals() 
-  * 系统类一般已经覆盖了 equals()，比较的是内容
-  * 自定义类如果没有覆盖 equals()，将调用父类equals（**Object 的==和 equals 比较的都是地址**）
+  * 重写equals()，比较内容
+  * Object == equals 都比较地址
 
- 
+* hashCode()
+  * 如果equals()相等，hashCode相等
+  * 从某一应用程序的一次执行到同一应用程序的另一次执行，hashCode()无需保持一致。
+  * 以下情况不是必需的
+    * equals()不相等，hashCode()必定不相等,但hashCode()必定不相等可以提高哈希表的性能
+    * equals()被重写时，有必要重写 hashCode 方法，以维护 hashCode 方法的常规协定
+
+
+
+
+
+
+
+
 
 
 
@@ -2884,7 +3090,7 @@ public class Singleton2 {
 public boolean equals(Object) 	比较地址
 public native int hashCode() 	获取哈希码 	是native Method,不是用java实现的方法
 public String toString()
-public final native Class getClass() 		获取类结构信息 
+public final native Class getClass() 		获取类结构信息
 protected void finalize() throws Throwable 	垃圾回收前执行的方法
 protected native Object clone() throws CloneNotSupportedException 	克隆
 public final void wait() throws InterruptedException 	多线程等待
@@ -2894,9 +3100,7 @@ public final native void notifyAll() 		唤醒所有等待线程
 
 
 
-
-
-# 6种数据存储方式
+# 6种存储方式
 
 
 
@@ -2913,6 +3117,29 @@ public final native void notifyAll() 		唤醒所有等待线程
 6．非RAM存储（non-RAM storage）。**数据存活于程序之外**，不受程序控制，在程序没有运行时也可以存在。例如**“字节流对象”和“持久化对象”**。即使程序终止，它们仍可以保持自己的状态。这种存储方式的技巧在于：把对象转化成可以存放在其它媒介上的事物，在需要时，可恢复成常规的、基于 RAM 的对象。
 
 
+
+# 4种引用
+
+
+
+* 强引用
+  * ==不会被GC回收==，并且在java.lang.ref里也没有对应类型
+  * Object obj = new Object()这里的obj便是强引用。内存不足，jvm宁愿抛OutOfMemoryError
+
+* 软引用(SoftReference)
+  * ==内存不足才回收==
+  * 可用来实现内存敏感的高速缓存。和引用队列（ReferenceQueue）联合使用，如果软引用所引用的对象被垃圾回收，Java虚拟机就会把这个软引用加入到与之关联的引用队列中
+
+* 弱引用（WeakReference）
+  * ==垃圾回收器线程扫描它所管辖的内存区域的过程中，一旦发现了弱引用的对象，就回收它的内存==。不过，由于垃圾回收器是一个优先级很低的线程， 因此不一定会很快发现那些只具有弱引用的对象。
+  * 可以和引用队列联合使用，如果弱引用所引用的对象被垃圾回收，Java虚拟机就会把这个弱引用加入到与之关联的引用队列中
+  * **常用于Map数据结构中，引用占用内存空间较大的对象****
+
+* 虚引用（PhantomReference）
+  * 主要用来跟踪对象被垃圾回收器回收的活动
+  * **虚引用必须和引用队列联合使用**。**回收时，发现它还有虚引用，就会在回收对象的内存之前，把这个虚引用加入到与之关联的引用队列**中
+  * 程序可以通过判断引用队列中是否已经加入了虚引用，来了解被引用的对象是否将要被垃圾回收。如果已被加入，就可以在所引用的对象的内存被回收之前采取必要的行动。
+  * 由于Object.finalize()方法的不安全/低效，常用虚引用完成对象回收前的资源释放工作
 
 
 
@@ -2952,7 +3179,7 @@ BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(t
 
 
 
-## 拆箱装箱JDK1.5
+# 拆箱装箱JDK1.5
 
 
 
@@ -2966,6 +3193,34 @@ BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(t
 
 
 
+## 8种基本类型
+
+
+
+* **Java基本类型的大小不随机器结构的变化而变化**。大小的不可更改使得Java移植能力强
+
+* ==基本数据类型只能值传递，封装类按照引用传递==
+
+* 基本类型在栈；对象在堆，对象的引用在栈
+  * 基本类型在栈，效率高，但可能内存泄漏
+
+* 基本类型在声明时自动分配空间/赋值，==引用数据类型声明时只在分配了引用空间==，必须通过实例化在堆内存中开辟空间后才赋值
+
+* ==数组也是引用对象==，**将一个数组赋值给另一个数组只是在栈中添加了一个引用变量**，而堆内存中数据并没有增加只是多了一个引用指向改数据空间。所以某个数组所做的修改在另一个数组中也可以看到
+
+| 基本类型 | 大小(字节)            | 默认值         | 封装类    |                           |
+| -------- | --------------------- | -------------- | --------- | ------------------------- |
+| byte     | 1                     | (byte)0        | Byte      | -128~127                  |
+| short    | 2                     | (short)0       | Short     | -32768~32767              |
+| int      | 4                     | 0              | Integer   | -2^31^~2^31^-1            |
+| long     | 8                     | 0L             | Long      |                           |
+| float    | 1符号+8指数+23尾数=4  | 0.0f           | Float     | -3.4e^45^~3.4e^38^        |
+| double   | 1符号+11指数+52尾数=8 | 0.0d           | Double    | -1.79e^308^ ~ +1.79e^308^ |
+| boolean  | -                     | false          | Boolean   |                           |
+| char     | 2                     | \u0000  (null) | Character |                           |
+
+
+
 ```java
 short s1 = 1; 
 s1 = s1 + 1;		//错误,s1 + 1为int,需要强转
@@ -2974,11 +3229,31 @@ s1 += 1;				//正确,被优化为s1 = (short)(s1 + 1)
 
 
 
+# Switch
 
 
 
+1.5前，只能是byte，short，char，int类型(或其包装类)的常量表达式
+
+1.5后，引入枚举enum
+
+1.7后，exper还可以是String类型。
+
+**long在所有版本都不行**
 
 
+
+1.7通过hashCode(),将string转换为int,switch(String)只是语法糖,在相应位置插入了强制转换代码，底层并没有修改
+
+```java
+//在编译后的class中
+String string = "Hello";
+            String s;
+            switch ((s = string).hashCode()){
+            case 2301506: 
+                //用equals进行安全检查（避免hash相同值不同）
+                if (!s.equals("Java"))
+```
 
 
 
@@ -3005,9 +3280,77 @@ s1 += 1;				//正确,被优化为s1 = (short)(s1 + 1)
 
 
 
+## try/catch
 
 
 
+* 不管有没有异常，finally都会执行
+* catch中return，finally依然执行
+* return的是表达式,finally无法改变返回值;return的是引用类型，finally能改变返回值
+* finally代码中最好不要包含return，程序会提前退出，也就是说返回的值不是try或catch中的值
+
+
+
+
+
+## 内存溢出/泄漏
+
+
+
+* 内存泄露(OOM)：对象不被GC回收，始终占用内存。==分配的对象可达但已无用==
+  * 内存泄露是内存溢出的一种诱因，不是唯一因素
+
+* 内存溢出：无法申请到足够的内存。通常发生于OLD段或Perm段垃圾回收后，仍然无内存空间容纳对象的情况
+  * 栈溢出(SOF)：递归太深而发生堆栈溢出
+  * **静态的集合类过多**
+  * 数据库、网络、输入输出流，没有显式关闭
+    * GC只负责回收，无法判断对象是否正在使用资源
+  * ==单例对象中拥有另一个对象的引用的话，这个被引用的对象就不能被及时回收==
+    * 解决办法是单例对象中持有的其他对象使用弱引用，其占用的内存会被回收
+
+
+
+除了程序计数器外，虚拟机内存的其他几个运行时区域都有发生OutOfMemoryError(OOM)异常的可能
+
+
+
+* Heap堆溢出：
+  * 通过内存映像分析工具对dump出来的堆转存快照进行分析，重点是确认内存中的对象是否是必要的，**先分清是因为内存泄漏(Memory Leak)还是内存溢出(Memory Overflow)**
+    * **内存泄漏,对象不需要了，内存和引用没被回收**，通过工具查看泄漏对象到GCRoots的引用链。找到泄漏对象是通过怎样的路径与GC Roots关联并导致垃圾收集器无法自动回收
+    * 内存溢出，检查虚拟机的参数(-Xmx与-Xms)的设置是否适当
+
+* 栈溢出
+  * 线程请求的栈深度大于虚拟机所允许的最大深度，将抛出StackOverflowError异常。
+  * 虚拟机在扩展栈时无法申请到足够的内存空间，则抛出OutOfMemoryError异常
+  * 当栈的大小越大可分配的线程数就越少
+  * 递归调用，大量循环或死循环，全局变量过多，数组、List、map数据过大
+  * 栈一般默认为1-2m
+
+* 常量池溢出
+  * 异常信息：OutOfMemoryError:PermGenspace
+  * 如果要向运行时常量池中添加内容，最简单的做法就是使用String.intern()这个Native方法。该方法的作用是：如果池中已经包含一个等于此String的字符串，则返回代表池中这个字符串的String对象；否则，将此String对象包含的字符串添加到常量池中，并且返回此String对象的引用
+  * 常量池分配在方法区内，可以通过-XX:PermSize和-XX:MaxPermSize限制方法区的大小，从而间接限制其中常量池的容量
+
+* 方法区溢出
+  * 异常信息：OutOfMemoryError:PermGenspace
+  * 存放Class的相关信息，如类名、访问修饰符、常量池、字段描述、方法描述等。
+  * 类如果要被垃圾收集器回收，条件很苛刻。在经常动态生成大量Class的应用中，要特别注意这点
+
+
+
+## 避免泄露/溢出
+
+
+
+1、尽早释放无用对象的引用
+
+2、避免用String
+
+3、尽量少用静态变量，因为静态变量存放在方法区，基本不参与垃圾回收
+
+4、避免循环创建对象
+
+5、大概计算一下数据量的最大值，设定所需内存空间值。
 
 
 
@@ -3175,20 +3518,6 @@ native method不会对其他类调用这些本地方法产生任何影响，调�
 ==JVM怎样使Native Method跑起来==
 当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存于何处，有哪些参数，修饰符等等。
 native修饰符将有一个指向该方法的实现的指针。这些实现在一些DLL文件内，它们会被操作系统加载到java程序的地址空间。当带有本地方法的类被加载时，其相关的DLL并未被加载，因此指向方法实现的指针并不会被设置。**当本地方法被调用之前，这些DLL才会被加载**，这是通过调用java.system.loadLibrary()实现的。
-
-
-
-
-
-
-
-# &和&&
-
-* 共同点
-
-&和&&都可以用作逻辑与运算符
-
-* 不同点	&：两边的操作数或表达式都会参与计算。&&：左边 false 时，不再计算,具有==短路效果==,效率高
 
 
 
