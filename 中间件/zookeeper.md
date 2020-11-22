@@ -47,6 +47,40 @@ Zookeeper采用两种方式结合：发布者将数据发布到Zookeeper集群�
 
 
 
+## Observer
+
+
+
+之前只有leader和follower。后来引入种新角色Observer，除了没有投票功能外，其它和follower一样
+
+
+
+* 优点
+  * 不参与投票,减轻了投票性能消耗
+  * 提高了伸缩性,可以通过添加服务器来负载请求
+  * 部署跨地区的ZooKeeper更方便
+    * observer能直接从本地内存数据库中取出数据来响应读请求，提高读的吞吐量
+  * 在出现Observer之前，伸缩性由follower来实现。
+    * 虽然对于读写操作来说，follower是"无状态"的。但**对于投票来说，follower是有状态的**，增、减follower的数量，都直接影响投票结果，特别是follower的数量越多，投票过程的性能就越差
+    * observer无论是读写请求还是投票，都是无状态的，observer数量不影响投票结果。这样就可以让一部分server作为follower参与投票，另一部分作为observer单纯地提供读写服务
+
+```shell
+#vim想要成为observer的配置文件
+peerType=observer
+
+#在所有 server的配置文件中，修改server.X配置项，在那些observer的节点上加上:observer后缀。
+server.1=IP:2181:3181:observer
+#这样配置后，所有节点都知道哪些节点是observer
+```
+
+
+
+
+
+## 监听器原理
+
+![](image.assets/image-20201120144857293.png)
+
 
 
 
@@ -90,20 +124,6 @@ ClientPort=2181
 #连接
 /usr/local/zookeeper/bin/zkCli.sh
 ```
-
-
-
-
-
-
-
-## 监听器原理
-
-![](image.assets/image-20201120144857293.png)
-
-
-
-
 
 
 
@@ -156,10 +176,6 @@ clientPort =2181
 
 
 
-
-
-
-
 # 集群搭建
 
 
@@ -202,63 +218,29 @@ server.3=192.168.186.128:2887:3887
 
 
 
-
-
-# Observer
-
-
-
-之前只有leader和follower。后来引入种新角色Observer，除了没有投票功能外，其它和follower一样
-
-
-
-* 优点
-  * 不参与投票,减轻了投票性能消耗
-  * 提高了伸缩性,可以通过添加服务器来负载请求
-  * 部署跨地区的ZooKeeper更方便
-    * observer能直接从本地内存数据库中取出数据来响应读请求，提高读的吞吐量
-  * 在出现Observer之前，伸缩性由follower来实现。
-    * 虽然对于读写操作来说，follower是"无状态"的。但**对于投票来说，follower是有状态的**，增、减follower的数量，都直接影响投票结果，特别是follower的数量越多，投票过程的性能就越差
-    * observer无论是读写请求还是投票，都是无状态的，observer数量不影响投票结果。这样就可以让一部分server作为follower参与投票，另一部分作为observer单纯地提供读写服务
-
-伸缩性指的是通过添加服务器来负载请求，从而提高整个集群处理请求的能力。也就是"一头牛拉不动了，找更多牛来拉"。
-
-
-
-```shell
-#vim想要成为observer的配置文件
-peerType=observer
-
-#在所有 server的配置文件中，修改server.X配置项，在那些observer的节点上加上:observer后缀。
-server.1=IP:2181:3181:observer
-#这样配置后，所有节点都知道哪些节点是observer
-```
-
-
-
 # 处理请求
 
 
 
 ZooKeeper集群中的每个server(包括observer)都能为客户端提供读、写服务。
 
-* 对于客户端的读请求，server直接从它本地的内存数据库中取出数据返回给客户端，不会联系leader。
+* 对于客户端的读请求，server直接从它本地的内存数据库中取出数据返回给客户端，不联系leader
 
-* 对于客户端的写请求，需要修改znode，所以必须在集群中进行协调。处理过程如下：
-  * 收到写请求的server，将写请求发送给leader
-  * leader收到来自follower/observer的写请求后，首先计算这次写操作之后的状态，然后将请求转换成带有状态的事务(版本号、zxid等)
-  * leader将这个事务以提案的方式广播出去(发送proposal)。
-  * 所有follower收到proposal后，进行投票，投票完成后返回ack给leader
+* 对于客户端的写请求，需要修改znode，必须在集群中进行协调
+  * 收到写请求的server将请求发送给leader
+  * leader收到写请求后，==首先计算这次写操作之后的状态，然后将请求转换成带有状态的事务(版本号、zxid)==
+  * leader将这个事务以提案的方式广播出去(proposal)
+  * 所有follower收到proposal后，进行投票，投票完成后**返回ack给leader**
     * 投票两种方式：(1)确认提案；(2)丢弃提案表示不同意
   * leader收集投票结果，投票过半提案通过,leader向所有server发送commit提交通知
-  * 所有节点将事务写入事务日志，并进行提交
+  * 所有节点将事务**写入事务日志，并提交**
   * 提交后，收到写请求的那个server向客户端返回成功信息
 
 ![](image.assets/image-20201120141058337.png)
 
 
 
-# 选举机制（Paxos算法）
+# 选举（Paxos算法）
 
 
 
@@ -314,25 +296,24 @@ ZooKeeper集群中的每个server(包括observer)都能为客户端提供读、�
 
 
 
-# CAP及一致性
+# CAP/一致性
 
 
 
-CAP理论告诉我们，一个分布式系统不可能同时满足以下三种,最多只能两项，P是必须的
+CAP只能满足两项，P是必须的
 
 * 一致性（C:Consistency）
-  * 数据在多个副本之间是否能够保持一致
   * 强一致性：任何时刻都最新
-  * 单调一致性：任何时刻，用户一旦读到某次更新后的值，就不会再读到更旧的值。**获取的数据版本单调递增**
+  * 单调一致性：一旦读到某次更新后的值，就不会再读到更旧的值。**获取的数据版本单调递增**
   * 会话一致性：一旦读到某次更新后的值，本次会话中不会再读到比这值更旧的值
-  * 最终一致性：只能读到某次更新后的值，但系统保证数据将最终达到完全一致的状态，所需时间不能保
-  * 弱一致性：无法在确定时间内读到最新更新的值
+  * 最终一致性：只能读到某次更新后的值，但系统保证数据将最终达到完全一致的状态，所需时间不确定
+  * 弱一致性：无法在确定时间内读到最新的值
 
 * 可用性（A:Available）
-  * 服务必须一直可用，请求总能在有限的时间内返回结果
+  * 请求总能在有限的时间内返回结果
 
 * 分区容错性（P:Partition Tolerance）
-  * 遇到任何网络分区故障的时候，仍能对外提供满足一致性和可用性的服务，除非是整个网络环境都发生了故障。
+  * 遇到任何网络分区故障的时候，仍能对外提供满足一致性和可用性的服务，除非是整个网络故障
     * 网络分区是指在分布式系统中，不同的节点分布在不同的子网络中，由于特殊原因导致这些子网络之间出现网络不连通，但各个子网络的内部网络是正常的，导致网络环境被切分成了若干个孤立的区域
     * 分布式系统的每个节点的加入与退出都可以看作是一个特殊的网络分区。
 
@@ -344,7 +325,7 @@ CAP理论告诉我们，一个分布式系统不可能同时满足以下三种,�
 
 
 
-* 顺序一致性：来自任意客户端的更新都会**按发送顺序提交**。属于**单调一致性**
+* 顺序一致性：客户端的更新**按发送顺序提交**。属于**单调一致性**
 
 * 原子性：要么成功，要么失败。失败则不会有客户端会看到更新
 
@@ -356,13 +337,9 @@ CAP理论告诉我们，一个分布式系统不可能同时满足以下三种,�
 
 
 
-==ZooKeeper保证CP,不保证A(可用)==
+访问请求能得到一致的数据结果，对网络分割具备容错性
 
-不能保证每次服务请求的可用性,访问请求能得到一致的数据结果，对网络分割具备容错性
-
-但不能保证每次服务请求的可用性（ZooKeeper可能会丢弃一些请求，消费者程序需要重新请求才能获得结果）
-
-**进行leader选举时集群不可用**
+==ZooKeeper不能保证可用性==（可能会丢弃请求，需要重新请求才能获得结果,**进行leader选举时集群不可用**）
 
 
 
@@ -430,11 +407,8 @@ public class CustomerSerializer implements ZkSerializer {
 		try {
 			result = new String(bytes, charset);
 		} catch (UnsupportedEncodingException e) {
-			throw new ZkMarshallingError("Wrong Charset:" + charset);
-		}
-		return result;
-	}
-}
+			throw new ZkMarshallingError("Wrong Charset:" + charset);	}
+		return result;}}
 ```
 
 
