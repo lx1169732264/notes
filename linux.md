@@ -17,7 +17,7 @@
 | **通配符** | **含义**                                                     |
 | :--------- | ------------------------------------------------------------ |
 | ls a.?     | 只找只有3个字符，前2字符为a.，最后一个字符任意的文件         |
-| []         | [”和“]”将字符组括起来，表示可以匹配字符组中的任意一个。“-”用于表示字符范围。 |
+| []         | [”和“]”将字符组括起来，表示可以匹配字符组中的任意一个。“-”用于表示字符范围 |
 | [abc]      | 匹配a、b、c中的任意一个                                      |
 | [a-f]      | 匹配从a到f范围内的的任意一个字符                             |
 
@@ -356,25 +356,25 @@
 
 
 
-# 初步安装
+# 安装
 
 
 
+```shell
 ## vim网络ip配置
-
 vim /etc/sysconfig/network-script/ifcfg-ens32			修改onboot yes
-
 systemctl restart sshd
 
 ## 安装ssh/gcc/vim/telnet
-
 sudo yum install sshd
-
 service sshd start
-
 yum -y install gcc gcc-c++ autoconf pcre pcre-devel automake
-
 yum install telnet
+
+## 关防火墙
+systemctl stop firewalld
+systemctl disable firewalld
+```
 
 
 
@@ -414,7 +414,7 @@ export PS1='[\u@ \W]\$'
 
 
 
-# 安装mysql
+## 安装mysql
 
 tar -xvf 
 
@@ -454,19 +454,17 @@ rpm -ivh net-tools-2.0-0.25.20131004git.el7.x86_64.rpm
 
 mysql-community-server-5.7.29-1.el7.x86_64.rpm
 
-## 关防火墙
 
-systemctl stop firewalld
 
-systemctl disable firewalld
 
-## 修改初始密码
+
+### 修改初始密码
 
 systemctl start mysqld.service	启动mysql后自动生成mysqld.log
 
 grep 'password' /var/log/mysqld.log		得到初始密码
 
-![4444444](image.assets/clip_image004.gif)
+![](image.assets/clip_image004.gif)
 
 mysql -u root -p
 
@@ -492,7 +490,7 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '123456';
 
 flush privileges;
 
-## 允许root远程登录
+### 允许root远程登录
 
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
 
@@ -518,7 +516,7 @@ sql_mode = STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_B
 
 default-character-set=utf8
 
-## 重启mysql
+### 重启mysql
 
 systemctl start mysqld.service
 
@@ -526,7 +524,9 @@ systemctl start mysqld.service
 
 
 
- # 网络适配器
+# 网络适配器
+
+
 
 *  桥接模式：默认使用vmnet0的虚拟网卡使用当有电脑路由器的分配的IP地址，也就是使用这种模式之后虚拟器就相当于当前局域网的一个真正的电脑了
 
@@ -581,7 +581,7 @@ netstat -nlp |grep :9181
 
 
 
-
+# 僵尸/孤儿进程
 
 
 
