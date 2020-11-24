@@ -489,6 +489,8 @@ lambda无法单独出现，需要函数式接口来盛放，lambda方法体是�
 
 ## 省略规则
 
+
+
 参数类型可以省略,但只能都省略或都不省略
 
 参数只有一个,小括号能省略
@@ -499,26 +501,32 @@ lambda无法单独出现，需要函数式接口来盛放，lambda方法体是�
 
 ## 延迟执行
 
-new了对象后，不一定会被使用
 
-```
+
+先合并字符串,再判断level==1,决定要不要执行方法 
+
+```java
 public class Demo01Logger {
     private static void log(int level, String msg) {
         if (level == 1) {
             System.out.println(msg);}}
+  
     public static void main(String[] args) {
         String msgA = "Hello";
         String msgB = "World";
         log(1, msgA + msgB);}}
 ```
 
-先合并了字符串,再判断level==1,决定要不要执行方法 
 
-```
+
+优化后,先判断,后执行字符串合并
+
+```java
 @FunctionalInterface
 public interface MessageBuilder {
     String buildMessage();
 }
+
 public class Demo02LoggerLambda {
     private static void log(int level, MessageBuilder builder) {
         if (level == 1) {
@@ -530,7 +538,7 @@ public class Demo02LoggerLambda {
         log(1, () -> msgA + msgB  );}}
 ```
 
-优化后,先判断,后执行字符串合并
+
 
 
 
@@ -2438,6 +2446,16 @@ Executors创建线程池对象的弊端
 
 
 
+适用场景
+
+* 在编译时不知道该对象或类可能属于哪些类，通过反射可以使程序代码访问装载到JVM中的类的内部信息
+* 反射提高了灵活性和扩展性，**低耦合**。它允许**程序创建和控制任何类的对象，无需提前硬编码**目标类
+* Struts、Hibernate、Spring 在实现过程中都采用了该技术
+* 反射是**解释操作**，用于字段和方法接入时效率低
+* 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，因而会带来维护问题。**反射代码比直接代码更复杂**
+
+
+
 
 
 ## Class
@@ -2703,26 +2721,6 @@ public void test() throws Exception {
     add.invoke(list, 5);
     add.setAccessible(true);}
 ```
-
-
-
-
-
-
-
-## 反射的使用场合和作用、及其优缺点
-
-
-
-* 在编译时不知道该对象或类可能属于哪些类，程序只依靠运行时信息来发现该对象和类的真实信息。通过反射可以使程序代码访问装载到 JVM 中的类的内部信息
-
-* 反射提高了 Java 程序的灵活性和扩展性，**低耦合**，提高自适应能力。它允许程序创建和控制任何类的对象，无需提前硬编码目标类
-
-* Struts、Hibernate、Spring 在实现过程中都采用了该技术
-
-* 反射基本上是**解释操作**，用于字段和方法接入时要远慢于直接代码。因此 Java 反射机制主要应用在对灵活性和扩展性要求很高的系统框架上。使用反射会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，因而会带来维护问题。反射代码比相应的直接代码更复杂。
-
-
 
 
 
