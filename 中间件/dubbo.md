@@ -3,7 +3,7 @@
 
 
 * 单一应用架构
-  * 当网站流量小，只需一个应用将所有功能都部署在一起，以减少部署节点和成本。此时，用于简化增删改查工作量的数据访问框架**(ORM)是关键。**
+  * 网站流量小，所有功能部署在一起，以减少部署节点和成本。此时，用于简化增删改查的数据访问框架**(ORM)是关键。**
     * 缺点： 1、扩展难 2、协同开发难3、不利于升级维护
   * 访问量大，单一应用增加机器带来的加速度越来越小，将应用拆成互不相干的几个应用，以提升效率。此时，用于加速前端页面开发的**Web框架(MVC)是关键**。
     * 缺点： 公用模块无法重复利用，开发性的浪费
@@ -187,6 +187,16 @@ server.port=8888
 
  
 
+# 服务暴露过程
+
+
+
+Dubbo 会在 Spring 实例化完 bean 之后，在刷新容器最后一步发布 ContextRefreshEvent 事件的时候，通知实现了 ApplicationListener 的 ServiceBean 类进行回调 onApplicationEvent 事件方法，Dubbo 会在这个方法中调用 ServiceBean 父类 ServiceConfig 的 export 方法，而该方法真正实现了服务的（异步或者非异步）发布。
+
+
+
+
+
 # 负载均衡LoadBalance
 
 
@@ -202,6 +212,20 @@ server.port=8888
 ```
 @Service(weight = 100, loadbalance = "roundrobin")	//provider设置权重与负载均衡
 ```
+
+
+
+## 服务降级 2.2+
+
+
+
+**服务器压力剧增时，对一些服务有策略地不处理或简单处理，从而释放服务器资源**
+
+
+
+consumer禁用后,consumer发起的请求会被直接返回null,并不会报错	**不影响本地存根的执行**
+
+consumer允许容错	在provider的响应时间过长,将直接返回null,并不会报错	能够减轻服务器的压力
 
 
 
@@ -244,8 +268,45 @@ server.port=8888
 
 
 * ==幂等操作==	多次请求对数据没有影响	**修改幂等**,重复修改最终结果一致	**删除也幂等**
-
 * 非幂等操作	==只有添加非幂等,重试为0==
+
+
+
+## 集群容错
+
+
+
+* 读操作用 Failover 失败自动切换，默认重试两次其他服务器
+
+* 写操作用 Failfast 快速失败，发一次调用失败就立即报错
+
+
+
+| **Failover Cluster** | ==缺省==    失败自动切换。通常用于==读==操作                 |
+| -------------------- | ------------------------------------------------------------ |
+| **Failfast Cluster** | 快速失败，只发起一次调用，失败立即报错。通常用于非幂等性==写==操作 |
+| **Failsafe Cluster** | 安全失败，出现异常时直接忽略。通常用于写入**审计日志**       |
+| Failback Cluster     | 失败自动恢复，**记录失败请求，定时重发**。通常用于**消息通知** |
+| Forking Cluster      | 并行调用多个服务器，只要一个成功即返回。通常用于**实时性要求较高的读操作**，但需要浪费更多服务资源。可通过 forks="2" 来设置最大并行数 |
+| Broadcast Cluster    | 广播调用所有提供者，逐个调用，任意一台报错则报错 。通常用于通知所有提供者更新缓存或日志等本地资源信息 |
+
+
+
+
+
+**集群模式配置**
+
+```java
+//注解
+@Reference(timeout = 3000, cluster = "failover", retries = 0, stub = "com.lx.service.impl.StubUserServiceImpl")
+    private UserService userService;
+
+//xml
+provider	<dubbo:service cluster="failsafe" />
+consumer	<dubbo:reference cluster="failsafe" />
+```
+
+
 
 
 
@@ -278,6 +339,22 @@ server.port=8888
 **超时,则会重新发两次请求**,依然超时则终止
 
 一般***只在提供者进行配置***,提供者更清楚服务的状态
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -405,63 +482,9 @@ public class StubUserServiceImpl implements UserService {
 
 
 
-# 服务降级
 
 
 
-**服务器压力剧增时，对一些服务有策略地不处理或简单处理，从而释放服务器资源**
-
-
-
-## consumer禁用/容错
-
-
-
-consumer禁用后,consumer发起的请求会被直接返回null,并不会报错	**不影响本地存根的执行**
-
-
-
-consumer允许容错	在provider的响应时间过长,将直接返回null,并不会报错	能够减轻服务器的压力
-
-
-
-## 集群容错
-
-**Failover Cluster**	**缺省**
-
-失败自动切换。通常用于读操作，因为重试会带来延迟
-
-**Failfast Cluster**
-
-快速失败，只发起一次调用，失败立即报错。通常用于**非幂等性写操作**
-
-**Failsafe Cluster**
-
-失败安全，出现异常时，直接忽略。通常用于写入审计日志等操作。
-
-**Failback Cluster**
-
-失败自动恢复，后台记录失败请求，定时重发。通常用于消息通知操作。
-
-**Forking Cluster**
-
-**并行调用多个服务器**，只要一个成功即返回。通常用于**实时性要求较高的读操作**，但需要浪费更多服务资源。可通过 forks="2" 来设置最大并行数。
-
-**Broadcast Cluster**
-
-广播调用所有提供者，逐个调用，任意一台报错则报错 [2]。通常用于通知所有提供者更新缓存或日志等本地资源信息。
-
-
-
-**集群模式配置**
-
-@Reference(timeout = 3000, **cluster = "failover", retries = 0**, stub = "com.lx.service.impl.StubUserServiceImpl")
-    private UserService userService;
-
-或
-
-provider	<dubbo:service cluster="failsafe" />
-consumer	<dubbo:reference cluster="failsafe" />
 
 
 
@@ -535,7 +558,7 @@ public class BaseController {
 
 
 
-* 基本原理:进程之间通过socket实现通信
+* 基本原理:进程间通过socket实现通信
 
 * 两个核心模块：通讯，序列化
 
@@ -548,9 +571,7 @@ public class BaseController {
 
 
 
-首先客户端需要告诉服务器，需要调用的函数，**函数和进程号存在映射**，客户端远程调用时，需要查函数，找到对应的ID，然后执行
 
-客户端需要把本地参数传给远程函数，**参数不在同一个内存里**，需要客户端把参数**序列化**,转换成字节流传给服务端，然后服务端反序列化,将字节流转换成自身能读取的格式
 
 
 
@@ -560,23 +581,27 @@ public class BaseController {
 
 1）服务消费方（client）以本地调用方式调用服务
 
-2）client stub接收到调用后负责将方法、参数等组装成能够进行网络传输的消息体
+2）client stub负责将方法、参数**序列化**,并将消息发送到服务端
 
-3）client stub找到服务地址，并将消息发送到服务端 
+3）server stub收到消息后进行**反序列化**,调用本地服务,并将结果返回给server stub
 
-4）server stub收到消息后进行解码
+4）server stub将返回结果**序列化**,发送至消费方
 
-5）server stub根据解码结果调用本地的服务
+5）client stub接收到消息，并进行**反序列化**
 
-6）本地服务执行并将结果返回给server stub
+6)  client得到最终结果
 
-7）server stub将返回结果打包成消息并发送至消费方
+**dubbo将2~5封装**，这些细节对用户来说是透明的，不可见的
 
-8）client stub接收到消息，并进行解码
 
-9）服务消费方得到最终结果
 
-**dubbo将2~8封装**，这些细节对用户来说是透明的，不可见的
+==在消息序列化时,需要注意三点：==
+
+* 通用性，能否支持Map等复杂的数据结构
+
+* 性能/时间/空间复杂度，由于RPC框架将会被公司几乎所有服务使用，如果序列化上能节约资源，对整个公司的收益都将非常可观
+
+* 可扩展性，能够支持自动增加新字段，删除老字段，而不影响老服务，这将大大提供系统的健壮性
 
 
 
@@ -602,9 +627,9 @@ public class BaseController {
 
 
 
-netty的话一般用channel.writeAndFlush()方法来发送消息二进制串，是异步的
+netty一般用channel.writeAndFlush()方法来发送消息二进制串，是异步的
 
-对于当前线程来说，将请求发送出来后，线程就可以往后执行了，在服务端处理完成后，再以消息的形式返回结果。于是这里出现以下两个问题：
+对当前线程来说，将请求发送出来后，线程就可以往后执行了，在服务端处理完成后，再以消息的形式返回结果。这里出现两个问题
 
 1）怎么让当前线程“暂停”，等结果回来后，再向后执行？
 
@@ -618,7 +643,7 @@ netty的话一般用channel.writeAndFlush()方法来发送消息二进制串，�
 
 1.client线程每次调用远程接口前，生成唯一的requestID（必需保证在一个Socket连接内唯一），一般用AtomicLong累计数字生成唯一ID
 
-2.将处理结果的回调对象callback，存放到全局ConcurrentHashMap里面put(requestID, callback)；
+2.将处理结果的回调对象callback，存放到全局ConcurrentHashMap.put(requestID, callback)
 
 3.当线程调用channel.writeAndFlush()发送消息后，紧接着执行callback的get()方法试图获取远程返回的结果。
 
@@ -646,21 +671,7 @@ private void setDone(Response res) {
 
 
 
-## 消息序列化
-
-
-
-从RPC的角度上看，主要看重三点：
-
-* 通用性，能否支持Map等复杂的数据结构
-
-* 性能/时间/空间复杂度，由于RPC框架将会被公司几乎所有服务使用，如果序列化上能节约资源，对整个公司的收益都将非常可观
-
-* 可扩展性，能够支持自动增加新字段，删除老字段，而不影响老服务，这将大大提供系统的健壮性
-
-
-
-## 通信
+## 通信模型
 
 
 
@@ -668,17 +679,19 @@ private void setDone(Response res) {
 
 
 
-## BIO	阻塞Blocking IO
+### BIO	阻塞Blocking IO
 
 ![](image.assets/image-20200816164751106.png)
 
-一个线程为一个流操作服务	会导致开辟过多线程
+一个线程为一个流操作服务	会导致开辟过多线程，任务没完成之前线程不会被释放，不能处理大量请求
 
 
 
-## NIO	非阻塞(多路复用)
+### NIO	非阻塞(多路复用)
 
 实现起来复杂
+
+每个请求视为通道，注册进选择器（selector），选择器监听多个通道，在发生事件后执行相应方法
 
 ![](image.assets/image-20200816165157221.png)
 
@@ -690,13 +703,44 @@ Selector选择器/多路复用器
 
 ### netty通信原理
 
-Netty是一个异步事件驱动的网络应用程序框架， 用于快速开发可维护的高性能协议服务器和客户端。极大地简化并简化了TCP和UDP套接字服务器等网络编程。
-
-如阿里巴巴的HSF、dubbo，Twitter的finagle等
 
 
+阿里巴巴的HSF、dubbo，Twitter的finagle
+
+Netty是一个**异步事件驱动**的网络应用程序框架，简化了TCP和UDP套接字编程。
+
+在 JDK 层面封装了NIO ，但 JDK 底层基于 Linux 的 **epoll 机制**实现
+
+整个I/O过程只在调用 epoll时才会阻塞，收发客户消息是不会阻塞的，从而使得系统在单线程/进程的情况下，可以同时处理多个客户端请求，这就是I/O 多路复用模型
+
+I/O多路复用的最大优势就是系统开销小，不需要创建新的额外线程，也不需要维护这些线程的运行、切换、同步问题，降低了系统的开发和维护的工作量，节省了时间和系统资源
 
 
+
+select，poll，epoll都是==同步IO多路复用==的机制。通过监视多个描述符，一旦某个描述符就绪（读/写就绪），能够通知程序进行相应的读写操作
+
+**但他们都需要在读写事件就绪后进行读写，这个读写过程是阻塞的**，而异步I/O会负责把数据从内核拷贝到用户空间,无需负责读写
+
+* select机制	O(n)
+  * 仅知道有I/O，却并不知道是哪个流（一个/多个），只能无差别轮询所有流
+
+* poll     O(n)
+  * 和select没有太大区别，将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态， **但它基于链表来存储,没有最大连接数的限制**
+
+* epoll    O(1)
+  * 可以理解为event poll(事件驱动)，能事先知道哪个流发生了IO,每个事件关联上fd（file description）
+  * I/O效率不会随着fd数目的增加而线性下将
+  * 使用mmap加速内核与用户空间的消息传递
+  * epoll拥有更加简单的API
+
+
+
+* Netty基本原理
+  * Netty启动，监听端口，初始化通道注册进selector
+  * 轮询accept事件
+  * 处理accept,建立连接channel
+  * 注册channel到selector
+  * 轮询读写,处理读写.....
 
 
 
@@ -708,11 +752,11 @@ Netty是一个异步事件驱动的网络应用程序框架， 用于快速开�
 
 ![](image.assets/522490-20151003183747543-2138843838 (1).png)
 
-每个提供者部署后都要将服务注册到zookeeper的某一路径上
+Provider部署后将服务注册到zookeeper的某一节点上
 
-服务中心定时向各个服务提供者发送请求（建立socket 长连接），如果长期没有响应，就认为该提供者已经“挂了”，并将其剔除
+服务中心定时向各个Provider发送请求（建立socket 长连接），如果长期没有响应，就认为该提供者已经“挂了”，并将其剔除
 
-消费者订阅相应路径，一旦路径上的数据变化（增加或减少），通知消费方进行更新
+消费者订阅节点，一旦节点上的数据变化（增加或减少），通知消费方进行更新
 
 ==更重要的是zookeeper的容错容灾能力（leader选举），确保服务注册表的高可用性==
 
@@ -754,21 +798,35 @@ Netty是一个异步事件驱动的网络应用程序框架， 用于快速开�
 
 Dubbo是阿里巴巴开源的基于 Java 的高性能 **RPC 分布式服务框架**，现已成为 Apache 基金会孵化项目。
 
+能够满足高并发**小数据量**的 rpc 调用，在大数据量下的性能表现并不好，建议使用 rmi 或 http 协议
+
+目前**不支持分布式事务**，后续可能采用基于 JTA/XA 规范实现
 
 
-**2、为什么要用Dubbo？**
 
-内部使用了 Netty、Zookeeper，保证了高性能高可用性。
+Dubbox 是继 Dubbo 停止维护后，当当网基于 Dubbo 做的一个扩展项目，支持了HTTP Restful 调用，更新了开源组件等
 
-使用 Dubbo 可以将核心业务抽取出来，作为独立的服务，逐渐形成稳定的服务中心，可用于提高业务复用灵活扩展，使前端应用能更快速的响应多变的市场需求。
 
-分布式架构可以承受更大规模的并发流量。
+
+**为什么用Dubbo？**
+
+内部使用了 Netty、Zookeeper，保证了高性能高可用性
+
+使用 Dubbo 可以将核心业务抽取出来，作为独立的服务，提高业务复用灵活扩展，使前端应用能更快速的响应多变的市场需求
+
+分布式架构可以承受更大规模的并发
 
 ![](image.assets/wps2-1597570300593.jpg) 
 
  
 
-**3、Dubbo 和 Spring Cloud 有什么区别？**
+## Dubbo 和 Spring Cloud 区别
+
+
+
+Dubbo和Spring Cloud没有好坏，只有适合不适合，不过我好像更倾向于使用 Dubbo, Spring Cloud 版本升级太快，组件更新替换太频繁，配置太繁琐
+
+
 
 1）通信方式不同
 
@@ -780,7 +838,15 @@ Dubbo 使用的是 **RPC 通信**，而 Spring Cloud 使用的是**HTTP** RESTFu
 
 
 
-**4、dubbo都支持什么协议，推荐用哪种？**
+
+
+
+
+
+
+
+
+**dubbo支持的协议****
 
 · dubbo://（推荐）
 
@@ -814,17 +880,23 @@ Dubbo 的服务容器只是一个简单的 Main 方法，并加载一个简单�
 
 
 
-**9、Dubbo默认使用什么注册中心，还有别的选择吗？**
+## Dubbo注册中心
 
-推荐使用 Zookeeper 作为注册中心，还有 Redis、Multicast、Simple 注册中心，但不推荐。
 
-**Dubbo 核心的配置**
+
+推荐使用 Zookeeper 作为注册中心，还有 Redis、Multicast、Simple 注册中心
+
+
+
+
+
+## Dubbo 配置
 
 ![](image.assets/wps6-1597570300594.jpg) 
 
 
 
-**12、在 Provider 上可以配置的 Consumer 端的属性有哪些？**
+## 在 Provider 上配置的 Consumer 端的属性
 
 1）timeout：方法调用超时
 2）retries：失败重试次数，默认重试 2 次
@@ -833,33 +905,23 @@ Dubbo 的服务容器只是一个简单的 Main 方法，并加载一个简单�
 
 
 
-**13、Dubbo启动时如果依赖的服务不可用会怎样？**
 
-Dubbo 缺省会在启动时检查依赖的服务是否可用，不可用时会抛出异常，阻止 Spring 初始化完成，默认 check="true"，可以通过 check="false" 关闭检查
 
 
 
 **14、Dubbo推荐使用什么序列化框架，你知道的还有哪些？**
 
-推荐使用Hessian序列化，还有Duddo、FastJson、Java自带序列化
+推荐使用Hessian序列化，还有FastJson、Java自带序列化
 
 
 
 **15、Dubbo默认使用的是什么通信框架，还有别的选择吗？**
 
-Dubbo 默认使用 Netty 框架，也是推荐的选择，另外内容还集成有Mina、Grizzly。
-
-**集群容错方案**
-
-![](image.assets/wps8-1597570300594.jpg) 
+Dubbo 默认使用 Netty 框架，也是推荐的选择，另外内容还集成有Mina、Grizzly
 
 
 
 
-
-**18、注册了多个同样的服务，如何测试指定的某一个服务呢？**
-
-可以配置直连，绕过注册中心
 
 
 
@@ -874,13 +936,17 @@ Dubbo 允许配置多协议，在不同服务上支持不同协议或者同一�
 
 
 
-**21、服务上线怎么兼容旧版本？**
-
-可以用版本号（version）过渡，多个不同版本的服务注册到注册中心，版本号不同的服务相互间不引用。这个和服务分组的概念有一点类似。
+## 服务上线兼容旧版本
 
 
 
-**22、Dubbo可以对结果进行缓存吗？**
+用版本号过渡，多个不同版本的服务注册到注册中心，版本号不同的服务相互间不引用
+
+
+
+
+
+## Dubbo可以对结果进行缓存吗？
 
 可以，提供了声明式缓存，用于加速热门数据的访问速度，以减少用户加缓存的工作量
 
@@ -898,35 +964,9 @@ Dubbo 允许配置多协议，在不同服务上支持不同协议或者同一�
 
  
 
-**24、Dubbo支持分布式事务吗？**
-
-目前暂时不支持，后续可能采用基于 JTA/XA 规范实现
-
-
-
-**26、Dubbo支持服务降级吗？**
-
-Dubbo 2.2.0 以上版本支持。
-
-
-
-**28、服务提供者能实现失效踢出是什么原理？**
-
-服务失效踢出基于 Zookeeper 的**临时节点**原理。
-
-
-
 **29、如何解决服务调用链过长的问题？**
 
 Dubbo 可以使用 Pinpoint 和 Apache Skywalking(Incubator) 实现分布式服务追踪，当然还有其他很多方案。
-
-
-
-**30、服务读写推荐的容错策略是怎样的？**
-
-读操作建议使用 Failover 失败自动切换，默认重试两次其他服务器
-
-写操作建议使用 Failfast 快速失败，发一次调用失败就立即报错
 
 
 
@@ -936,24 +976,6 @@ Dubbo 可以使用 Pinpoint 和 Apache Skywalking(Incubator) 实现分布式服�
 
 
 
-**33、说说 Dubbo 服务暴露的过程。**
-
-Dubbo 会在 Spring 实例化完 bean 之后，在刷新容器最后一步发布 ContextRefreshEvent 事件的时候，通知实现了 ApplicationListener 的 ServiceBean 类进行回调 onApplicationEvent 事件方法，Dubbo 会在这个方法中调用 ServiceBean 父类 ServiceConfig 的 export 方法，而该方法真正实现了服务的（异步或者非异步）发布。
 
 
 
-**35、Dubbo 和 Dubbox 有什么区别？**
-
-Dubbox 是继 Dubbo 停止维护后，当当网基于 Dubbo 做的一个扩展项目，支持了HTTP Restful 调用，更新了开源组件等。
-
-
-
-**38、在使用过程中都遇到了些什么问题？**
-
-Dubbo 的设计目的是为了满足高并发小数据量的 rpc 调用，在大数据量下的性能表现并不好，建议使用 rmi 或 http 协议。
-
-
-
-**40、你觉得用 Dubbo 好还是 Spring Cloud 好？**
-
-扩展性的问题，没有好坏，只有适合不适合，不过我好像更倾向于使用 Dubbo, Spring Cloud 版本升级太快，组件更新替换太频繁，配置太繁琐
