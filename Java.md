@@ -1246,7 +1246,7 @@ AbstractMap<K,V> implements Map<K,V> {
 
 
 
-#### 7 HashMap死锁隐患
+#### 7 死锁隐患
 
 
 
@@ -1254,21 +1254,15 @@ AbstractMap<K,V> implements Map<K,V> {
 
 原先:	3->5->7
 
-resize:	7à3
+多线程resize时,可能同时3->7	7->3,出现循环,查询3/7时出现死锁
 
-多线程环境下,可能同时3->7	7->3,出现循环
-
-![img](image.assets/wps2-1600480677595.jpg) 
-
-当查询时就会出现死锁
-
-
-
-==可以通过精心设计的一组object实现dos(拒绝服务攻击)==
-
-大量的object的HashCode相同,使得它们被存放在同一个桶中,使得HashMap退化为链表,而链表的查询复杂度O(n)
+==可以通过精心设计的一组object实现dos(拒绝服务攻击)==,对象的HashCode相同,使得它们被存放在同一个桶中,HashMap退化为链表,而链表的查询复杂度O(n)
 
  
+
+在put的时候，插入的元素超过了容量*负载因子,触发resize()和rehash()，会将原数组重新hash到新数组，在多线程的环境下，存在同时其他的元素也在进行put操作，如果hash值相同，可能出现同时在同一数组下用链表表示，造成闭环，导致在get时会出现死循环
+
+
 
 #### 8 HashMap
 
@@ -1278,8 +1272,8 @@ resize:	7à3
 
 ```java
 static final int hash(Object key) {
-​    int h;
-​    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); }
+    int h;
+    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); }
 ```
 
 jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
@@ -1306,7 +1300,7 @@ Node<K,V> hiHead = null, hiTail = null;
 
 扩容32个桶,					11111	=11101
 
-扩容后第一位只能是0或1,并且桶中的元素被分配在了1xxx和0xxx两个新桶中,元素保持原先的顺序.而保持了顺序就降低了多线程中,顺序调换出现的死锁问题
+扩容后第一位只能是0或1,并且桶中的元素被分配在了1xxx和0xxx两个新桶中,元素保持原先的顺序.而保持了顺序就降低了多线程中,顺序调换出现的死锁概率
 
  
 
@@ -1373,6 +1367,127 @@ cas乐观锁+synchronized锁
 
 
 
+
+
+#### CAS算法
+
+
+
+**无锁定算法**,Compare And Swap，比较与交换
+
+* 首先有三个操作数，内存位置V，预期值A和新值B
+* 如果在执行过程中，发现内存中V与预期值A相匹配，就将V更新为新值A。如果不匹配，那么处理器就不会执行任何操作
+* 无锁定,线程不必等待锁定，效率高
+
+在ConcurrentHashMap中，很多的操作都会依靠CAS算法完成
+
+
+
+### CAS的线程安全
+
+
+
+```java
+  // Unsafe mechanics  CAS保障了哪些成员变量操作是原子性的
+    private static final sun.misc.Unsafe U;
+    private static final long LOCKSTATE;
+      static {
+                U = sun.misc.Unsafe.getUnsafe();
+                Class<?> k = TreeBin.class; //操作TreeBin,后面会介绍这个类
+                LOCKSTATE = U.objectFieldOffset
+                    (k.getDeclaredField("lockState"));
+--------------------------------------------------------------------------------------
+    private static final sun.misc.Unsafe U;
+    private static final long SIZECTL;
+    private static final long TRANSFERINDEX;
+    private static final long BASECOUNT;
+    private static final long CELLSBUSY;
+    private static final long CELLVALUE;
+    private static final long ABASE;
+    private static final int ASHIFT;
+
+    static {
+        //以下变量会在下面介绍到
+            U = sun.misc.Unsafe.getUnsafe();
+            Class<?> k = ConcurrentHashMap.class;
+            SIZECTL = U.objectFieldOffset(k.getDeclaredField("sizeCtl"));
+            TRANSFERINDEX = U.objectFieldOffset(k.getDeclaredField("transferIndex"));
+            BASECOUNT = U.objectFieldOffset(k.getDeclaredField("baseCount"));
+            CELLSBUSY = U.objectFieldOffset(k.getDeclaredField("cellsBusy"));
+            Class<?> ck = CounterCell.class;
+            CELLVALUE = U.objectFieldOffset(ck.getDeclaredField("value"));
+            Class<?> ak = Node[].class;
+            ABASE = U.arrayBaseOffset(ak);
+            int scale = U.arrayIndexScale(ak);
+            if ((scale & (scale - 1)) != 0)
+                throw new Error("data type scale not a power of two");
+            ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);}
+
+
+
+
+//3个原子性操作方法：
+    static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+        return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
+    }
+
+    static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
+                                        Node<K,V> c, Node<K,V> v) {
+        return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v); }
+
+    static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
+        U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);}
+```
+
+
+
+1.7- 的ConcurrentHashMap中是锁定了Segment
+
+jdk1.8+ 锁定的是一个Node头节点，减小了锁的粒度，性能和冲突都会减少
+
+```java
+//这段代码其实是在扩容阶段对头节点的锁定，其实还有很多地方不一一列举。
+               synchronized (f) {
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph & n) == 0)
+                                    ln = new Node<K,V>(ph, pk, pv, ln);
+                                else
+                                    hn = new Node<K,V>(ph, pk, pv, hn);
+                            }
+                            setTabAt(nextTab, i, ln);
+                            setTabAt(nextTab, i + n, hn);
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        else if (f instanceof TreeBin) {
+                        .....  }    }
+```
+
+
+
+
+
 #### put
 
 
@@ -1389,7 +1504,7 @@ cas乐观锁+synchronized锁
 
 并发问题：假如put操作时正好有别的线程正在对table数组(map)扩容怎么办？
 
-   答：暂停put操作，先帮助其他线程对map扩容。
+答：暂停put操作，先帮助其他线程对map扩容。
 
 
 
@@ -1413,7 +1528,7 @@ cas乐观锁+synchronized锁
 
 线程安全,效率低
 
-
+所有涉及多线程都加上了synchronized关键字来**锁住整个table**
 
 
 
@@ -2303,17 +2418,29 @@ Lock在调度线程方面性能更好
 
 
 
-#### 乐观锁与悲观锁
+#### 悲观锁
 
-悲观锁，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。传统的关系型数据库里边就用到了很多这种锁机制，比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁。
 
-乐观锁认为别人不会修改，所以不会上锁，但是在更新时判断在此期间别人有没有去更新数据，可以使用版本号等机制,在更新数据时会提高版本号,在提交时,提交版本低于目前版本,将回滚。乐观锁适用于多读的应用类型，可以提高吞吐量
 
-两种锁各有优缺点，不可认为一种好于另一种，像乐观锁适用于写比较少的情况下，即冲突真的很少发生的时候，这样可以省去了锁的开销，加大了系统的整个吞吐量。但如果经常产生冲突，上层应用会不断的进行retry，反倒降低性能，所以这种情况下用悲观锁就比较合适。
+认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会block直到它拿到锁。传统的关系型数据库里边就用到了很多这种锁机制，比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁
+
+
+
+#### 乐观锁
+
+
+
+认为别人不会修改，所以不会上锁，但是在更新时判断在此期间别人有没有去更新数据，可以使用版本号等机制,在更新数据时会提高版本号,在提交时,提交版本低于目前版本,将回滚。乐观锁适用于多读的应用类型，可以提高吞吐量
+
+两种锁各有优缺点，不可认为一种好于另一种，像乐观锁适用于写比较少的情况下，即冲突真的很少发生的时候，这样可以省去了锁的开销，加大了系统的整个吞吐量。但如果经常产生冲突，上层应用会不断的进行retry，反倒降低性能，所以这种情况下用悲观锁就比较合适
+
+
 
 #### 同步锁
 
- Java 中每个对象都有一个内置锁。 当程序运行到非静态的 synchronized 同步方法上时，自动获得与正在执行代码类的当前实例（this 实例）有关的锁。获得一个对象的锁也称为获取锁、 锁定对象、在对象上锁定或在对象上同步。 当程序运行到 synchronized 同步方法或代码块时才该对象锁才起作用。 一个对象只有一个锁。所以，如果一个线程获得该锁，就没有其他线程可以 获得锁，直到第一个线程释放（或返回）锁。这也意味着任何其他线程都不 能进入该对象上的 synchronized 方法或代码块，直到该锁被释放。 释放锁是指持锁线程退出了 synchronized 同步方法或代码块。 关于锁和同步，有一下几个要点： 1）只能同步方法，而不能同步变量和类； 2）每个对象只有一个锁；当提到同步时，应该清楚在什么上同步？也就是 说，在哪个对象上同步？ 3）不必同步类中所有的方法，类可以同时拥有同步和非同步方法。 4）如果两个线程要执行一个类中的 synchronized 方法，并且两个线程使 用相同的实例来调用方法，那么一次只能有一个线程能够执行方法，另一个需要等待，直到锁被释放。也就是说：如果一个线程在对象上获得一个锁， 就没有任何其他线程可以进入（该对象的）类中的任何一个同步方法。 5）如果线程拥有同步和非同步方法，则非同步方法可以被多个线程自由访 问而不受锁的限制。 6）线程睡眠时，它所持的任何锁都不会释放。 7）线程可以获得多个锁。比如，在一个对象的同步方法里面调用另外一个 对象的同步方法，则获取了两个对象的同步锁。 8）同步损害并发性，应该尽可能缩小同步范围。同步不但可以同步整个方 法，还可以同步方法中一部分代码块。 9）在使用同步代码块时候，应该指定在哪个对象上同步，也就是说要获取哪个对象的锁。
+ Java 中每个对象都有一个内置锁。 当程序运行到非静态的 synchronized 同步方法上时，自动获得与正在执行代码类的当前实例（this 实例）有关的锁。获得一个对象的锁也称为获取锁、 锁定对象、在对象上锁定或在对象上同步。 当程序运行到 synchronized 同步方法或代码块时才该对象锁才起作用。 一个对象只有一个锁。所以，如果一个线程获得该锁，就没有其他线程可以 获得锁，直到第一个线程释放（或返回）锁。这也意味着任何其他线程都不 能进入该对象上的 synchronized 方法或代码块，直到该锁被释放。 释放锁是指持锁线程退出了 synchronized 同步方法或代码块。 关于锁和同步，有一下几个要点： 1）只能同步方法，而不能同步变量和类； 2）每个对象只有一个锁；当提到同步时，应该清楚在什么上同步？也就是 说，在哪个对象上同步？ 3）不必同步类中所有的方法，类可以同时拥有同步和非同步方法。 4）如果两个线程要执行一个类中的 synchronized 方法，并且两个线程使 用相同的实例来调用方法，那么一次只能有一个线程能够执行方法，另一个需要等待，直到锁被释放。也就是说：如果一个线程在对象上获得一个锁， 就没有任何其他线程可以进入（该对象的）类中的任何一个同步方法。 5）如果线程拥有同步和非同步方法，则非同步方法可以被多个线程自由访 问而不受锁的限制。 6）线程睡眠时，它所持的任何锁都不会释放。 7）线程可以获得多个锁。比如，在一个对象的同步方法里面调用另外一个 对象的同步方法，则获取了两个对象的同步锁。 8）同步损害并发性，应该尽可能缩小同步范围。同步不但可以同步整个方 法，还可以同步方法中一部分代码块。 9）在使用同步代码块时候，应该指定在哪个对象上同步，也就是说要获取哪个对象的锁
+
+
 
 #### 方法锁和静态方法锁的区别
 
@@ -2325,7 +2452,7 @@ Lock在调度线程方面性能更好
 
 
 
-### 死锁
+#### 死锁
 
 多个线程各自占有一部分共享资源,并发生互相等待
 
@@ -2356,6 +2483,38 @@ synchronized (对象) {
 }
 
 
+
+#### 原子性，指令有序性和线程可见性
+
+
+
+* 原子性和事务的原子性一致
+* 指令有序性:上下两个互不关联的语句不会被指令重排序
+  * 指令重排序是指处理器为了性能优化，在无关联的代码的执行是可能会和代码顺序不一致。比如说int i = 1；int j = 2；那么这两条语句的执行顺序可能会先执行int j = 2
+
+* 线程可见性:线程修改了某变量，其他线程能马上知道
+
+
+
+#### 无锁算法（nonblocking algorithms）
+
+
+
+使用低层原子化的机器指令， 保证并发情况下数据的完整性。典型的如CAS算法
+
+
+
+
+
+
+
+#### 内存屏障
+
+
+
+确保指令重排序时不会把其后面的指令排到内存屏障之前的位置，也不会把前面的指令排到内存屏障的后面
+
+即在执行到内存屏障这句指令时，在它前面的操作已经全部完成；它会强制将对缓存的修改操作立即写入主存；如果是写操作，它会导致其他CPU中对应的缓存行无效。在使用volatile修饰的变量会产生内存屏障
 
 
 
@@ -2391,31 +2550,62 @@ wait + notify 解决线程通信
 
 
 
-弱的同步机制，不能保证线程安全,如需要强线程安全，还需要使用 synchronized。
+==volatile弱同步，不能保证线程安全==
 
-volatile 变量用来确保将变量的更新操作通知到其他线程。当把变量声明为 volatile 类型后，编译器与运行时都会注意到这个变量是共享的，因此不会将该变量上的操作与其他内存操作一起重排序。volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值。
+synchronized强同步
+
+
+
+
 
 一、volatile 的内存语义是：
 
-当写一个 volatile 变量时，JMM 会把该线程对应的本地内存中的共享**变量值立即刷新到主内存**中。
+* 写入时，JMM 把该线程本地内存中的**变量值立即刷新到主内存,并通知其他线程**，如果其他线程的工作内存中存在这个变量拷贝副本，就放弃这个副本，重新去主内存获取
 
-当读一个 volatile 变量时，JMM 会把该线程对应的本**地内存设置为无效，直接从主内存中读取**共享变量。
+* 读取时，JMM 把该线程**本地内存设置为无效，直接从主内存中读取**
+
+* 有序性,产生内存屏障，防止指令重排,必定能够顺序执行
+
+* volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值
+
+
+
+
 
 二、volatile 底层的实现机制
 
-如果把加入 volatile 关键字的代码和未加入 volatile 关键字的代码都生成汇编代码，会发现加入 volatile 关键字的代码会多出一个 lock 前缀指令。
+把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
 
 1 、重排序时不能把后面的指令重排序到内存屏障之前的位置
 
 2、使得本 CPU 的 Cache 写入内存
 
-3、写入动作也会引起别的 CPU 或者别的内核无效化其 Cache，相当于让
-
-新写入的值对别的线程可见。
+3、写入动作也会引起别的 CPU 或者别的内核无效化其 Cache，相当于让新写入的值对别的线程可见
 
 
 
+### 线程不安全案例
 
+```java
+    public static volatile int c = 0;
+
+    public static void increase(){  c++;  }
+
+    public static void main(String[] args) throws InterruptedException {
+        //循环1000次,但c!=1000
+        for (int i = 0; i < 1000; i++) {
+            new Thread(new Runnable() {
+                public void run() {
+                    increase();
+                }
+            }
+            ).start();    }
+        Thread.sleep(5000);}
+
+volatile修饰的变量的确具有原子性，也就是c是具有原子性，但c++不具有，c++其实就是c = c +1，已经存在了多步操作。所以c具有原子性，但是c++这个操作不具有原子性。
+
+根据前面介绍的java内存模型，当有一个线程去读取主内存的过程中获取c的值，并拷贝一份放入自己的工作内存中，在对c进行+1操作的时候线程阻塞了（各种阻塞情况），那么这个时候有别的线程进入读取c的值，因为有一个线程阻塞就导致该线程无法体现出可见性，导致别的线程的工作内存不会失效，那么它还是从主内存中读取c的值，也会正常的+1操作。如此便导致了结果是小于等于1000的。
+```
 
 
 
@@ -2431,11 +2621,11 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 
 
 
-### Lock
+### Lock 1.5+
 
 
 
-1.5新特性
+
 
 能完成synchronized的所有功能,有更精确的线程语义和更好的性能。
 
@@ -2496,6 +2686,8 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 ## 线程池（thread pool）
 
 创建和销毁对象是很费时间的，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**  线程池也**利于管理线程的个数与活跃数**
+
+
 
 ### 线程池参数
 
@@ -2978,6 +3170,45 @@ CPU从内存取数据到寄存器，然后进行处理，但由于内存的处�
   * 为了线程切换能恢复到正确的位置，每条线程都需要一个独立的程序计数器
 
   * **不会OutofMemoryError**
+
+
+
+### 工作内存
+
+
+
+![img](image.assets/20170328111450634.jpg)
+
+
+
+每个线程都需要从主内存中读取操作，所有的变量存储在主内存中，每个线程从**主内存**中获得变量的值
+
+然后从图中可以看到每个线程获得数据之后会放入自己的**工作内存**，这个就是java内存模型的规定之二，保证每个线程操作的都是从主内存拷贝的**副本**，也就是说线程不能直接写主内存的变量，需要把主内存的变量值读取之后放入自己的工作内存中的变量副本中，然后操作这个副本。
+
+线程与线程之间无法直接访问对方工作内存中的变量
+
+
+
+![](image.assets/20170328142908765.png)
+
+
+
+基本执行步骤：
+
+1. lock（锁定）：线程读主内存时,把变量锁定
+2. unlock（解锁）：读完后解锁，别的线程就可以进入操作
+3. read（读取）：把变量值放入工作内存
+4. load（加载）：把read操作得到的值放入工作内存变量副本中
+5. use（使用）：把工作内存中的一个变量值传递给执行引擎
+6. assign（赋值）：执行引擎赋值给工作内存的变量
+7. store（存储）：把工作内存中的变量的值传到主内存
+8. write（写入）：把store操作的值写入主内存变量
+
+
+
+
+
+
 
 
 
