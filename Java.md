@@ -191,11 +191,10 @@ System.out.println((a==c));
 * 注意事项
   * 序列化，**只对状态进行保存，不管对象的方法**
   * **父类实现序列化，**子类自动序列化
-    　　c）当一个对象的**实例变量引用其他对象，**引用对象自动序列化；
-      　　d）并非所有的对象都可以序列化，至于为什么不可以，有很多原因了，比如：
-      　　1.安全方面的原因，比如一个对象拥有private，public等field，对于一个要传输的对象，比如写到文件，或者进行RMI传输 等等，在序列化进行传输的过程中，这个对象的private等域是不受保护的。
-
-　　2. 资源分配方面的原因，比如socket，thread类，如果可以序列化，进行传输或者保存，也无法对他们进行重新的资源分配，而且，也是没有必要这样实现。
+  * 对象的**实例变量引用其他对象，**引用对象自动序列化
+  * 并非所有的对象都可以序列化
+    　　* 安全方面:对象拥有private，public等字段，在写入文件，或者进行RMI传输时,private等域不受保护
+      * 资源分配方面:比如socket/thread类，如果可以序列化，进行传输或者保存，也无法对他们进行重新的资源分配
 
  
 
@@ -215,23 +214,7 @@ serialVersionUID = 1L意义:
 
 
 
-## 瞬态transient
 
-
-
-为了避免被序列号,可以声明为**静态或瞬态**
-
-生命周期仅存于调用者的内存中,不会被持久化
-
-只能修饰非本地变量，不能修饰方法和类
-
- 
-
-一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
-
-**实现Externalizable接口 ,则无视transient**
-
- 
 
  
 
@@ -863,6 +846,122 @@ foreach是通过iterator实现的遍历
 
 
 
+## fail-fast机制
+
+
+
+fail-fast产生的原因在于对集合进行迭代时，某个线程对该集合进行了修改，这时迭代器就会抛出 ConcurrentModificationException 异常信息，从而 fail-fast
+
+要了解fail-fast机制，我们首先要对ConcurrentModificationException 异常有所了解。当方法检测到对象的并发修改，但不允许这种修改时就抛出该异常。同时需要注意的是，该异常不会始终指出对象已经由不同线程并发修改，如果单线程违反了规则，同样也有可能会抛出该异常
+
+迭代器的快速失败行为无法得到保证，它不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常，所以因此，为提高此类操作的正确性而编写一个依赖于此异常的程序是错误的做法，正确做法是：ConcurrentModificationException 应该仅用于检测 bug
+
+
+
+ArrayList
+
+```java
+ public E next() {    
+            checkForComodification();    
+            /** 省略 */    
+        }    
+
+        public void remove() {    
+            if (this.lastRet < 0)    
+                throw new IllegalStateException();    
+            checkForComodification();    
+            /** 省略 */    
+        }
+
+//迭代器调用next()、remove()都会调用checkForComodification()，该方法主要就是检测modCount == expectedModCount,若不等则抛出ConcurrentModificationException 异常，从而产生fail-fast机制。
+
+//expectedModCount 在Itr中定义：int expectedModCount = ArrayList.this.modCount;它的值是不可能修改的，会变的只有modCount
+//modCount在 AbstractList 中定义的，为全局变量
+protected transient int modCount = 0; 
+```
+
+
+
+无论add、remove、clear方法,都会导致modCount的改变
+
+```java
+public boolean add(E paramE) {    
+    ensureCapacityInternal(this.size + 1);    
+    /** 省略此处代码 */    
+}    
+
+private void ensureCapacityInternal(int paramInt) {    
+    if (this.elementData == EMPTY_ELEMENTDATA)    
+        paramInt = Math.max(10, paramInt);    
+    ensureExplicitCapacity(paramInt);    
+}    
+
+private void ensureExplicitCapacity(int paramInt) {    
+    this.modCount += 1;    //修改modCount    
+    /** 省略此处代码 */    
+}    
+
+ublic boolean remove(Object paramObject) {    
+    int i;    
+    if (paramObject == null)    
+        for (i = 0; i < this.size; ++i) {    
+            if (this.elementData[i] != null)    
+                continue;    
+            fastRemove(i);    
+            return true;    
+        }    
+    else    
+        for (i = 0; i < this.size; ++i) {    
+            if (!(paramObject.equals(this.elementData[i])))    
+                continue;    
+            fastRemove(i);    
+            return true;    
+        }    
+    return false;    
+}    
+
+private void fastRemove(int paramInt) {    
+    this.modCount += 1;   //修改modCount    
+    /** 省略此处代码 */    
+}    
+
+public void clear() {    
+    this.modCount += 1;    //修改modCount    
+    /** 省略此处代码 */    
+}
+```
+
+
+
+### 避免fail-fast
+
+
+
+* 加synchronized
+  * 可能会阻塞
+
+
+
+* 使用CopyOnWriteArrayList来替换ArrayList，其所有修改值的操作都对底层数组进行复制来实现
+  * 无需同步,就能实现并发
+  * 遍历操作的数量远超可变操作数量
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # 集合
@@ -1009,9 +1108,27 @@ Map与List和Set不同，它是双列的集合
 
 
 
+
+
 少量数据时效率高
 
-扩容为1.5倍
+初始大小10,扩容为1.5倍
+
+
+
+
+
+### CopyOnWriteArrayList
+
+
+
+内部维护 transient volatile的数组
+
+```java
+private transient volatile Object[] array;
+```
+
+
 
 
 
@@ -3324,7 +3441,7 @@ BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(t
 
 
 
-# 拆箱装箱JDK1.5
+# 拆箱装箱 1.5+
 
 
 
@@ -3370,7 +3487,16 @@ BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(t
 short s1 = 1; 
 s1 = s1 + 1;		//错误,s1 + 1为int,需要强转
 s1 += 1;				//正确,被优化为s1 = (short)(s1 + 1)
+
+float f=3.4			//错误,3.4 是双精度数，将双精度型（double）赋值给浮点型（float）
+float f =(float)3.4	或 float f =3.4F		//正确
 ```
+
+
+
+
+
+
 
 
 
@@ -3613,16 +3739,6 @@ static并不代表不可修改,它是能够时刻保持最新的值的静态变�
 
 
 ```
-/**
- * Indicates that a field defining a constant value may be referenced
- * from native code.
- *
- * The annotation may be used as a hint by tools that generate native
- * header files to determine whether a header file is required, and
- * if so, what declarations it should contain.
- *
- * @since 1.8
- */
 @Documented
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
@@ -3635,7 +3751,7 @@ native是**java调用非java代码的接口**
 
 
 
-```
+```java
  //Native Method的声明更像是描述非java代码在java中的大致模样
  public class IHaveNatives
    {  native public void Native1( int x ) ;
@@ -3668,15 +3784,33 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 
 
 
+## transient瞬态
 
 
-### float f=3.4是否正确?
 
-答:不正确。3.4 是双精度数，将双精度型（double）赋值给浮点型（float）
+为了避免被序列号,可以声明为**静态或瞬态**
 
-属于下转型,会造成精度损失，因此需要强
+生命周期仅存于调用者的内存中,不会被持久化
 
-制类型转换 float f =(float)3.4; 或者写成 float f =3.4F;。
+只能修饰非本地变量，不能修饰方法和类
+
+ 
+
+一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
+
+**实现Externalizable接口 ,则无视transient**
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3694,23 +3828,32 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 
 
 
-
-
-# 匿名内部类可不可以继承或实现接口？
-
-匿名内部类是没有名字的内部类,不能继承其它类,但内部类可以作为接口,由另一个内部类实现.
-
-1、由于匿名内部类没有名字，所以它没有构造函数,所以它必须完全借用父类的构造函数来实例化，换言之：匿名内部类完全把创建对象的任务交给了父类去完成。
-
-2、在匿名内部类里创建新的方法没有太大意义，但它可以通过覆盖父类的方法达到神奇效果
-
-3、匿名内部类没有名字，所以无法向下强转，持有对一个匿名内部类对象引用的变量类型一定是它的直接或间接父类类型。
+# 内部类
 
 
 
 
 
-## 静态内部类和内部类有什么区别
+## 匿名内部类
+
+
+
+* 没有名字,==不能继承,但可以作为接口,由另一个内部类实现==
+  * 在匿名内部类里创建新方法没有太大意义，但它可以通过覆盖父类的方法达到神奇效果
+
+* ==无法向下强转==，持有对一个匿名内部类对象引用的变量类型一定是它的直接或间接父类类型。
+
+* 没有构造函数,依赖父类的构造函数来实例化,把创建对象的任务交给了父类
+
+
+
+
+
+
+
+## 静态内部类和内部类区别
+
+
 
 静态内部类不需要有指向外部类的引用。但非静态内部类需要持有对外部类的引用。
 
