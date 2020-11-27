@@ -1358,32 +1358,25 @@ Node<K,V> hiHead = null, hiTail = null;
 
 对桶进行了分段，每个分段都用锁进行保护，从而让锁的粒度小，并发性能高
 
-不接受空key/value
+==不接受空key/value==
 
-cas乐观锁+synchronized锁
-
-**加锁对象:**
-数组每个位置的头节点
+cas乐观锁+synchronized锁	**锁只加在数组头节点****
 
 
 
 
 
-#### CAS算法
+#### CAS无锁定算法
 
 
 
-**无锁定算法**,Compare And Swap，比较与交换
+Compare And Swap，比较与交换
 
 * 首先有三个操作数，内存位置V，预期值A和新值B
-* 如果在执行过程中，发现内存中V与预期值A相匹配，就将V更新为新值A。如果不匹配，那么处理器就不会执行任何操作
+* 如果在执行过程中，发现V与A匹配，就将V更新为A。不匹配不执行任何操作
 * 无锁定,线程不必等待锁定，效率高
 
 在ConcurrentHashMap中，很多的操作都会依靠CAS算法完成
-
-
-
-### CAS的线程安全
 
 
 
@@ -1394,8 +1387,7 @@ cas乐观锁+synchronized锁
       static {
                 U = sun.misc.Unsafe.getUnsafe();
                 Class<?> k = TreeBin.class; //操作TreeBin,后面会介绍这个类
-                LOCKSTATE = U.objectFieldOffset
-                    (k.getDeclaredField("lockState"));
+             LOCKSTATE = U.objectFieldOffset(k.getDeclaredField("lockState"));
 --------------------------------------------------------------------------------------
     private static final sun.misc.Unsafe U;
     private static final long SIZECTL;
@@ -1422,9 +1414,6 @@ cas乐观锁+synchronized锁
             if ((scale & (scale - 1)) != 0)
                 throw new Error("data type scale not a power of two");
             ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);}
-
-
-
 
 //3个原子性操作方法：
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
@@ -1488,23 +1477,368 @@ jdk1.8+ 锁定的是一个Node头节点，减小了锁的粒度，性能和冲�
 
 
 
+#### 成员变量
+
+
+
+```java
+
+private static int RESIZE_STAMP_BITS = 16;
+
+    /**
+     * The maximum number of threads that can help resize.
+     * Must fit in 32 - RESIZE_STAMP_BITS bits.
+     */
+    private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
+
+    /**
+     * The bit shift for recording size stamp in sizeCtl.
+     */
+    private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
+
+//判断当前状态	MOVED代表该节点是个forwarding Node，表示有线程处理过了
+    static final int MOVED     = -1;
+    static final int TREEBIN   = -2;
+
+//sizeCtl标志控制符
+//-N	正在进行初始化或扩容操作
+//N		hash表还没有被初始化，这个数值表示初始化或下一次进行扩容的大小,始终是当前容量的0.75倍
+private transient volatile int sizeCtl;
+```
+
+
+
+#### 内部类
+
+
+
+Node
+
+```java
+static class Node<K,V> implements Map.Entry<K,V> {
+        final int hash;
+        final K key;
+//用volatile修饰value/next，使得value和next具有可见性和有序性，保证线程安全
+  同时大家仔细看过代码就会发现同时它还错了一个find的方法，该方法主要是用户寻找某一个节点。
+        volatile V val;
+        volatile Node<K,V> next;
+  
+//setValue（）方法直接抛出异常，禁止用该方法设置value
+public final V setValue(V value) {   throw new UnsupportedOperationException();  }
+```
+
+
+
+TreeNode
+
+```java
+//TreeNode继承自Node,附带next指针
+static final class TreeNode<K,V> extends Node<K,V> {
+        TreeNode<K,V> parent;  // red-black tree links
+        TreeNode<K,V> left;
+        TreeNode<K,V> right;
+        TreeNode<K,V> prev;    // needed to unlink next upon deletion
+        boolean red;
+   
+//TreeBin内部封装了TreeNode,树的根节点为TreeBin,子结点为TreeNode
+//TreeNode的next指针可以在TreeBin中寻找下一个TreeNode，这也是与HashMap的区别
+static final class TreeBin<K,V> extends Node<K,V> {
+        TreeNode<K,V> root;
+        volatile TreeNode<K,V> first;
+        volatile Thread waiter;
+        volatile int lockState;
+        // values for lockState
+        static final int WRITER = 1; // set while holding write lock
+        static final int WAITER = 2; // set when waiting for write lock
+        static final int READER = 4; // increment value for setting read lock
+```
+
+
+
+ForwordingNode
+
+```java
+//主要是在扩容阶段，链接两个table的节点类，nextTable用于指向下一个table，但并不是说有2个table，而是在扩容的时,线程读取到为空或者处理完的节点设置为forwordingNode，别的线程发现这个forwordingNode会继续向后执行遍历，解决了多线程安全的问题
+//处理节点时会对节点上锁,保证线程安全
+static final class ForwardingNode<K,V> extends Node<K,V> {
+        final Node<K,V>[] nextTable;
+        ForwardingNode(Node<K,V>[] tab) {
+            super(MOVED, null, null, null);
+            this.nextTable = tab;
+        }
+
+        Node<K,V> find(int h, Object k) {
+            // loop to avoid arbitrarily deep recursion on forwarding nodes
+            outer: for (Node<K,V>[] tab = nextTable;;) {
+                Node<K,V> e; int n;
+                if (k == null || tab == null || (n = tab.length) == 0 ||
+                    (e = tabAt(tab, (n - 1) & h)) == null)
+                    return null;
+                for (;;) {
+                    int eh; K ek;
+                    if ((eh = e.hash) == h &&
+                        ((ek = e.key) == k || (ek != null && k.equals(ek))))
+                        return e;
+                    if (eh < 0) {
+                        if (e instanceof ForwardingNode) {
+                            tab = ((ForwardingNode<K,V>)e).nextTable;
+                            continue outer;
+                        }
+                        else
+                            return e.find(h, k);        }
+                    if ((e = e.next) == null)
+                        return null;    } }   }}
+```
+
+
+
+
+
+
+
+#### transfer
+
+
+
+在数组扩容时,**有且只能由一个线程构建一个nextTable**，然后把原table复制到nextTable中，复制可以多线程共同操作。在复制过程中有一定的规律和算法操控
+
+
+
+数组桶中的3种存储情况：空，链表头，TreeBin头
+
+1. 数组中某个值为空，放置**forwordingNode**
+2. 不为空，是链表头结点，就拆分为两个链表，存储到nextTable对应的两个位置
+3. 不为空，是TreeBin头结点，此处存储着红黑树，先判断需不需要把树转链表，做完一系列的处理，然后把对应的结果存储在nextTable的对应两个位置
+
+
+
+==拆分为两个链表的原因==
+
+* 由hash()和扩容策略决定
+
+* 在原先数组中，下标的计算是(lenth-1) & hash())，哈希值相同的都会在同一个链表中，而且lenth都是2的倍数
+
+* 扩容会扩大原先数组的两倍，如容量8（0111）二进制，扩大一倍(1111)，按位与得到前三位一致，只有第四位不一样
+
+* 9&7=1，1&7=1,扩容后，9&15=9，1&15=1，只有第四位不一样，原先在1位置的元素重新hash之后，只能得到1或则9(1+length)的位置，是对称的
+
+
+
+```java
+private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        int n = tab.length, stride; //stride 主要和CPU相关
+        //主要是判断CPU处理的量，如果小于16则直接赋值16
+        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            stride = MIN_TRANSFER_STRIDE; // subdivide range
+        if (nextTab == null) {            // initiating只能有一个线程进行构造nextTable，如果别的线程进入发现不为空就不用构造nextTable了
+            try {
+                @SuppressWarnings("unchecked")
+                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1]; //把新的数组变为原来的两倍，这里的n<<1就是向左移动一位，也就是乘2
+                nextTab = nt;
+            } catch (Throwable ex) {      // try to cope with OOME
+                sizeCtl = Integer.MAX_VALUE;
+                return;
+            }
+            nextTable = nextTab;
+            transferIndex = n; //原先扩容大小
+        }
+        int nextn = nextTab.length;
+        //构造一个ForwardingNode用于多线程之间的共同扩容情况
+        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        boolean advance = true; //遍历的确认标志
+        boolean finishing = false; // to ensure sweep before committing nextTab
+        //遍历每个节点
+        for (int i = 0, bound = 0;;) {
+            Node<K,V> f; int fh; //定义一个节点和一个节点状态判断标志fh
+            while (advance) {
+                int nextIndex, nextBound;
+                if (--i >= bound || finishing)
+                    advance = false;
+                else if ((nextIndex = transferIndex) <= 0) {
+                    i = -1;
+                    advance = false;
+                }
+                //下面就是一个CAS计算
+                else if (U.compareAndSwapInt
+                         (this, TRANSFERINDEX, nextIndex,
+                          nextBound = (nextIndex > stride ?
+                                       nextIndex - stride : 0))) {
+                    bound = nextBound;
+                    i = nextIndex - 1;
+                    advance = false;
+                }
+            }
+            if (i < 0 || i >= n || i + n >= nextn) {
+                int sc;
+                //如果原table已经复制结束
+                if (finishing) {
+                    nextTable = null; //可以看出在扩容的时候nextTable只是类似于一个temp用完会丢掉
+                    table = nextTab;
+                    sizeCtl = (n << 1) - (n >>> 1); //修改扩容后的阀值，应该是现在容量的0.75倍
+                    return;//结束循环
+                }
+                //采用CAS算法更新SizeCtl。
+                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+                        return;
+                    finishing = advance = true;
+                    i = n; // recheck before commit
+                }
+            }
+            //CAS算法获取某一个数组的节点，为空就设为forwordingNode
+            else if ((f = tabAt(tab, i)) == null)
+                advance = casTabAt(tab, i, null, fwd);
+           //如果这个节点的hash值是MOVED，就表示这个节点是forwordingNode节点，就表示这个节点已经被处理过了，直接跳过
+            else if ((fh = f.hash) == MOVED)
+                advance = true; // already processed
+            else {
+            //对头节点进行加锁，禁止别的线程进入
+                synchronized (f) {
+                //CAS校验这个节点是否在table对应的i处
+                    if (tabAt(tab, i) == f) {
+                        Node<K,V> ln, hn;
+                        //如果这个节点的确是链表节点
+                        //把链表拆分成两个小列表并存储到nextTable对应的两个位置
+                        if (fh >= 0) {
+                            int runBit = fh & n;
+                            Node<K,V> lastRun = f;
+                            for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                int b = p.hash & n;
+                                if (b != runBit) {
+                                    runBit = b;
+                                    lastRun = p;
+                                }
+                            }
+                            if (runBit == 0) {
+                                ln = lastRun;
+                                hn = null;
+                            }
+                            else {
+                                hn = lastRun;
+                                ln = null;
+                            }
+                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                int ph = p.hash; K pk = p.key; V pv = p.val;
+                                if ((ph & n) == 0)
+                                    ln = new Node<K,V>(ph, pk, pv, ln);
+                                else
+                                    hn = new Node<K,V>(ph, pk, pv, hn);
+                            }
+                            //CAS存储在nextTable的i位置上
+                            setTabAt(nextTab, i, ln);
+                            //CAS存储在nextTable的i+n位置上
+                            setTabAt(nextTab, i + n, hn);
+                            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
+                            setTabAt(tab, i, fwd);
+                            advance = true;
+                        }
+                        //如果这个节点是红黑树
+                        else if (f instanceof TreeBin) {
+                            TreeBin<K,V> t = (TreeBin<K,V>)f;
+                            TreeNode<K,V> lo = null, loTail = null;
+                            TreeNode<K,V> hi = null, hiTail = null;
+                            int lc = 0, hc = 0;
+                            for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                int h = e.hash;
+                                TreeNode<K,V> p = new TreeNode<K,V>
+                                    (h, e.key, e.val, null, null);
+                                if ((h & n) == 0) {
+                                    if ((p.prev = loTail) == null)
+                                        lo = p;
+                                    else
+                                        loTail.next = p;
+                                    loTail = p;
+                                    ++lc;  }
+                                else {
+                                    if ((p.prev = hiTail) == null)
+                                        hi = p;
+                                    else
+                                        hiTail.next = p;
+                                    hiTail = p;
+                                    ++hc;   }          }
+                            //如果拆分后的树的节点数量已经少于6个就需要重新转化为链表
+                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
+                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                                //CAS存储在nextTable的i位置上
+                            setTabAt(nextTab, i, ln);
+                              //CAS存储在nextTable的i+n位置上
+                            setTabAt(nextTab, i + n, hn);
+                            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
+                            setTabAt(tab, i, fwd);
+                            advance = true; 
+```
+
+
+
+
+
 #### put
 
 
 
-1.根据key的hash值定位到桶位置
+* 判断kv是否为空,为空报错
 
-2.判断if(table==null)，先初始化table
+* 根据key的hash值定位到桶位置,判断if(table==null)，先初始化table
 
-3.判断if(table[i]==null),cas添加元素。成功则跳出循环，失败则进入下一轮for循环。
+* 再判断table中指定的桶
+  * ==null,直接插入(无需加锁)
+  * ==桶的hash=-1,即MOVED状态（节点为forwordingNode），说明有线程正在进行扩容，当前线程协助扩容==
 
-4.判断是否有其他线程在扩容table，有则帮忙扩容，扩容完成再添加元素。进入真正的put步骤
+* 开始put()
+  * 桶为链表
+    * 遍历检查是否有相同的key?更新:插入
+    * 链表>8?树:void
+  * 桶为红黑树
+    * 插入
+    * 自平衡
 
-5.真正的put步骤。桶的位置不为空，遍历该桶的链表或者红黑树，若key已存在，则覆盖；不存在则将key插入到链表或红黑树的尾部。
+* 插入后,map已存储数量+1,==在addCount方法中判断是否需要扩容==
 
-并发问题：假如put操作时正好有别的线程正在对table数组(map)扩容怎么办？
 
-答：暂停put操作，先帮助其他线程对map扩容。
+
+##### addCount
+
+
+
+```java
+    private final void addCount(long x, int check) {
+        CounterCell[] as; long b, s;
+        if ((as = counterCells) != null ||
+            !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
+            CounterCell a; long v; int m;
+            boolean uncontended = true;
+            if (as == null || (m = as.length - 1) < 0 ||
+                (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
+                !(uncontended =U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
+                fullAddCount(x, uncontended);
+                return;
+            }
+            if (check <= 1)
+                return;
+            s = sumCount();
+        }
+        //是否需要进行扩容操作
+        if (check >= 0) {
+            Node<K,V>[] tab, nt; int n, sc;
+            while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
+                   (n = tab.length) < MAXIMUM_CAPACITY) {
+                int rs = resizeStamp(n);
+                //如果小于0就说明已经再扩容或者已经在初始化
+                if (sc < 0) {
+                    if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                        sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||transferIndex <= 0)
+                        break;
+                        //如果是正在扩容就协助扩容
+                    if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
+                        transfer(tab, nt);
+                }
+                //如果正在初始化就首次发起扩容
+                else if (U.compareAndSwapInt(this, SIZECTL, sc,(rs << RESIZE_STAMP_SHIFT) + 2))
+                    transfer(tab, null);
+                s = sumCount();
+```
 
 
 
@@ -1783,9 +2117,11 @@ return o1.getValue().compareTo(o2.getValue()); } });
 
 
 
-### TreeMap 和 TreeSet 在排序时如何比较元素？Collections工具类中的 sort（）方法如何比较元素？
+### TreeMap 和 TreeSet 在排序时如何比较元素？Collections.sort（）方法如何比较元素？
 
-TreeSet	实现Comparable接口，该接口提供了比较元素的**compareTo()方法**，当插入元素时会**回调**该方法比较元素的大小。
+
+
+TreeSet	实现Comparable接口，该接口提供了比较元素的**compareTo()方法**，当插入元素时会**回调**该方法比较元素的大小
 
 TreeMap	实现Comparable接口,根据键对元素进行排序
 
@@ -1803,11 +2139,13 @@ Collections工具类的sort方法有两种重载的形式，
 
 ## 队列
 
+
+
 offer，add区别：
 
-队列有大小限制时，在堆满进行插入时add抛出 unchecked 异常
+堆满插入时add抛出 unchecked 异常
 
-而offer()返回false
+offer()返回false
 
  
 
@@ -1837,7 +2175,7 @@ element() 和 peek() 用于在队列的头部查询元素。
 
 
 
-Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得到 FIFO（先进先出）行为。将元素添加到双端队列的末尾，从双端队列的开头移除元素。从 Queue 接口继承的方法完全等效于 Deque 方法，如下表所示：
+Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得到 FIFO（先进先出）行为。将元素添加到双端队列的末尾，从双端队列的开头移除元素。从 Queue 接口继承的方法完全等效于 Deque 方法
 
 | **Queue方法** | **等效Deque方法** |
 | ------------- | ----------------- |
@@ -1850,7 +2188,7 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
-也可用作 LIFO（后进先出）堆栈。在将双端队列用作堆栈时，元素被推入双端队列的开头并从双端队列开头弹出。堆栈方法完全等效于 Deque 方法，如下表所示：
+也可用作 LIFO（后进先出）堆栈。在将双端队列用作堆栈时，元素被推入双端队列的开头并从双端队列开头弹出。堆栈方法完全等效于 Deque 方法
 
 | **堆栈方法** | **等效Deque方法** |
 | ------------ | ----------------- |
@@ -1868,17 +2206,16 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
-### PriorityQueue 优先队列
+### PriorityQueue 优先队列 1.5+
 
-1.5新特性,是**基于优先堆**的一个无界队列，元素通过默认自然排序或者通过提供的Comparator在队列实例化的时排序。
 
-优先队列**不允许空值**，而且不支持non-comparable（不可比较）的对象，比如用户自定义的类。优先队列要求使用Java Comparable和Comparator接口给对象排序，并且在排序时会按照优先级处理其中的元素。
 
-优先队列的**头是最小元素**。排序同样，随机地取其中一个。当我们获取队列时，返回队列的头对象。
+* **基于优先堆**的**无界**队列，**容量不受限制,会自动扩容**，但可以指定初始容量
 
-优先队列**容量是不受限制**，但在创建时可以指定初始容量。向优先队列增加元素的时候，**队列会自动扩容**。
+* **不允许空值，不支持不可比较的对象**，如自定义类
 
-PriorityQueue是**非线程安全**的，所以Java提供了==PriorityBlockingQueue==（实现BlockingQueue接口）用于Java多线程环境。
+* **队头最小**
+* PriorityQueue是**非线程安全**的，==PriorityBlockingQueue线程安全==（实现BlockingQueue接口）
 
 
 
@@ -1912,15 +2249,18 @@ PriorityQueue是**非线程安全**的，所以Java提供了==PriorityBlockingQu
 
 ## Buffer类4个属性与方法
 
-buffer	标记当前的position
 
-capacity	最大容量
 
-limit	可以操作数据的个数
 
-position	正在被操作数据的位置
 
-​	position<=limit<=capacity
+* buffer	标记当前的position
+
+* capacity	最大容量
+
+* limit	可以操作数据的个数
+
+* position	正在被操作数据的位置
+  * position<=limit<=capacity
 
 
 
@@ -3068,6 +3408,30 @@ public void test() throws Exception {
 
 
 
+
+
+## 6种存储方式
+
+
+
+1．寄存器（register）**最快,位于处理器内部**。数量有限，由编译器根据需求进行分配。**无法直接控制**
+
+2．栈（stack）位于**随机访问存储器RAM**，**通过“栈指针”从处理器获得直接支持**。==指针向下移动，分配新内存；向上移动，释放内存==。创建程序时，**编译器必须知道存储在栈内所有数据的大小和生命周期**，因为它必须生成相应的代码，以便上下移动指针,’**限制了程序的灵活性**
+
+3．堆（heap）通用内存池,位于**随机访问存储器RAM**，用于存放对象。堆不同于堆栈的好处是：**编译器不需要知道要分配多少存储区域，也不必知道数据的生命周期,灵活性高,效率低**
+
+4．静态存储（static storage）位于**随机访问存储器RAM**,存放程序运行时一直存在的数据
+
+5．常量存储（constant storage）**直接存放在代码内部**，这样安全，因为它们永不改变。**有时在嵌入式中常量会和其它部分隔离，存放在只读存储器ROM（read-only memory）**
+
+6．非RAM存储（non-RAM storage）**数据存活于程序之外**，不受程序控制，没有运行时也存在,**字节流/持久化对象**,这种存储方式的技巧在于：把对象转化成可以存放在其它媒介上的事物，在需要时可恢复
+
+
+
+
+
+
+
 ## 内存模型
 
 
@@ -3218,7 +3582,7 @@ CPU从内存取数据到寄存器，然后进行处理，但由于内存的处�
 
 
 
-## java代码的3个阶段
+## 代码的3个阶段
 
 
 
@@ -3521,6 +3885,8 @@ public class Singleton2 {
 
 # 创建对象方式
 
+
+
 1、new 语句
 
 2、反射,调用 java.lang.Class 或者 java.lang.reflect.Constructor类的 newInstance()实例方法。
@@ -3529,11 +3895,9 @@ public class Singleton2 {
 
 4、反序列化，调用 java.io.ObjectInputStream 对象的readObject()方法。
 
-(1)和(2)都会显式地调用构造函数
+(1)和(2)显式调用构造
 
-(3)是在内存上已有对象的影印，不会调用构造函数
-
-(4)是从文件中还原类的对象，不会调用构造函数
+(3)(4)不调用构造
 
 
 
@@ -3541,9 +3905,9 @@ public class Singleton2 {
 
 
 
-(1)如果两个对象相同（equals 方法返回 true），则hashCode相同；
+(1)对象相同（equals 方法返回 true），则hashCode相同
 
-(2)如果两个对象的 hashCode 相同，它们并不一定相同
+(2)hashCode 相同，并不一定相同
 
 
 
@@ -3569,12 +3933,6 @@ public class Singleton2 {
 
 
 
-
-
-
-
-
-
 # Object 6个方法
 
 
@@ -3592,22 +3950,6 @@ public final native void notifyAll() 		唤醒所有等待线程
 ```
 
 
-
-# 6种存储方式
-
-
-
-1．寄存器（register）。**最快,位于处理器内部**。数量有限，由编译器根据需求进行分配。**无法直接控制**
-
-2．堆栈（stack）。位于**随机访问存储器RAM**（random-access memory），**通过“堆栈指针”从处理器获得直接支持**。==堆栈指针向下移动，分配新内存；向上移动，释放内存==。创建程序时，**编译器必须知道存储在堆栈内所有数据的大小和生命周期**，因为它必须生成相应的代码，以便上下移动堆栈指针。这一**约束限制了程序的灵活性**，所以对象并不存储于其中。
-
-3．堆（heap）。通用内存池,位于**随机访问存储器RAM**，用于存放对象。堆不同于堆栈的好处是：**编译器不需要知道要分配多少存储区域，也不必知道数据的生命周期**。**灵活性高,效率低**
-
-4．静态存储（static storage）。位于**随机访问存储器RAM**,这里的“静态”是指“在固定的位置”（尽管也在 RAM 里）。静态存储里存放程序运行时一直存在的数据。你可用关键字 Static 来标识一个对象的特定元素是静态的。
-
-5．常量存储（constant storage）。**通常直接存放在程序代码内部**，这样做安全，因为它们永远不会被改变。有时在嵌入式系统中，常量本身会和其它部分隔离开，在这种情况下，存放在只读存储器ROM（read-only memory）。
-
-6．非RAM存储（non-RAM storage）。**数据存活于程序之外**，不受程序控制，在程序没有运行时也可以存在。例如**“字节流对象”和“持久化对象”**。即使程序终止，它们仍可以保持自己的状态。这种存储方式的技巧在于：把对象转化成可以存放在其它媒介上的事物，在需要时，可恢复成常规的、基于 RAM 的对象。
 
 
 
