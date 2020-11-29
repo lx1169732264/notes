@@ -1,5 +1,7 @@
 ![image-20200827143208468](image.assets/image-20200827143208468.png)
 
+
+
 ## 两个角色
 
 * Storage    存储文件
@@ -7,7 +9,9 @@
 
 **Tracker、Storage都可以集群部署**，Tracker的每个节点地位平等，而Storage可以分为多个组，**每个组保存的文件不同**，组内部分为多个成员，**每个成员保存的内容一样**
 
-优点：支持横向扩展 ,可以存储大量文件，通过集群避免单点故障问题，用户不会因为服务器宕机而无法访问文件资源。
+优点：支持横向扩展 ,可以存储大量文件，通过集群避免单点故障问题，用户不会因为服务器宕机而无法访问文件资源
+
+
 
 ## 上传下载
 
@@ -86,6 +90,8 @@
   docker cp 容器ID:/fdfs_conf/tracker.conf /data/fdfs/fdfs_conf/ 
 
   docker cp 容器ID:/fdfs_conf/storage.conf /data/fdfs/fdfs_conf/
+  
+  
 
 ## 单机搭建
 
@@ -148,12 +154,6 @@ server {
 ​		root /data/fdfs/storage_path/data;       
 
 ​		ngx_fastdfs_module;    }   
-
-
-
-
-
-
 
 
 

@@ -2457,25 +2457,35 @@ outChannel.close();
 
 
 
-## 并行/并发/串行
+* 并行
+  * 同时多个进程运行
+* 并发
+  * 上下文快速切换,造成同时运行的假象
 
-* 并行	有两个门,两个人从前后门进入,互不干扰
-
-* 并发	两个人挤一个门进入
-
-并行时同一时刻多个进程运行,并发是经过上下文快速切换,造成同时运行的假象
-
-多线程代码是并发而不是并行,并发是因为多进程/多线程都是需要去完成的任务,不并行是因为**并行与否由操作系统的调度器决定**
-
-* 串行    按先后顺序进行
+* 串行
+  * 按先后顺序进行
 
 
 
-## JUC concurrent
+即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
 
-jdk1.5新特性,存放并发工具类
+线程的运行由**调度器安排调度**,调度器由操作系统控制,先后顺序无法干预
 
-如CopyOnWriteArrayList,底层维护了一个transient(序列化) volatile(唯一)的数组
+对同一份资源操作时,存在资源抢夺问题,需要加入并发控制
+
+线程会带来额外开销,如cpu调度时间,并发控制开销
+
+**每个线程在自己的工作内存交互,内存控制不当会造成数据不一致**
+
+
+
+## JUC concurrent 1.5+
+
+
+
+
+
+如CopyOnWriteArrayList,底层维护了transient(序列化) volatile(唯一)的数组
 
 ```
 final transient ReentrantLock lock = new ReentrantLock();//可重用锁
@@ -2484,29 +2494,27 @@ private transient volatile Object[] array;
 
 
 
-即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
-
-线程的运行由调度器安排调度,调度器由操作系统控制,先后顺序无法干预
-
-对同一份资源操作时,存在资源抢夺问题,需要加入并发控制
-
-线程会带来额外开销,如cpu调度时间,并发控制开销
-
-每个线程在自己的工作内存交互,内存控制不当会造成数据不一致
-
 
 
 ## ThreadLocal
 
-ThreadLocal 为每个线程创造一个资源的复本,而不是共享资源。将每一个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
 
-原理 : ThreadLocal 类中有一个Map，用于存储每一个线程的变量的副本。
+
+为每个线程**创造资源的副本**,而不是共享资源。将每个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
+
+原理 : ThreadLocal 类中有一个Map，用于存储每一个线程的变量的副本
+
+
 
 
 
 ## 创建线程3种方式
 
-* 继承Java.lang.Thread类，并覆盖 run() 方法        Thread本身就继承了Runnable 
+
+
+* 继承Java.lang.Thread类，覆盖 run() 方法        Thread本身就继承了Runnable 
+  * 优势：编写简单
+  * 劣势：单继承,无法继承其它父类
 
 ```
 public class TestThread extends Thread {
@@ -2517,13 +2525,11 @@ public class TestThread extends Thread {
         new TestThread().start();}}
 ```
 
-优势：编写简单；
-
-劣势：单继承,无法继承其它父类
 
 
-
-* 实现 Java.lang.Runnable 接口，并实现 run()方法。
+* 实现 Java.lang.Runnable 接口，实现 run()方法
+  * 优势：可继承其它类
+  * 劣势：较复杂，如需访问当前线程，需Thread.currentThread()
 
 ```
 public class TestThread2 implements Runnable {
@@ -2534,10 +2540,6 @@ public class TestThread2 implements Runnable {
         TestThread2 testThread =new TestThread2();
         new Thread(testThread).start();}}
 ```
-
-优势：可继承其它类，多线程可共享同一个Thread对象
-
-劣势：编程方式稍微复杂，如需访问当前线程，需调用Thread.currentThread()
 
 
 
