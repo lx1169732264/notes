@@ -1360,7 +1360,7 @@ Node<K,V> hiHead = null, hiTail = null;
 
 ==不接受空key/value==
 
-cas乐观锁+synchronized锁	**锁只加在数组头节点****
+cas乐观锁+synchronized锁	**锁只加在数组头节点**
 
 
 
@@ -1370,15 +1370,7 @@ cas乐观锁+synchronized锁	**锁只加在数组头节点****
 
 
 
-Compare And Swap，比较与交换
-
-* 首先有三个操作数，内存位置V，预期值A和新值B
-* 如果在执行过程中，发现V与A匹配，就将V更新为A。不匹配不执行任何操作
-* 无锁定,线程不必等待锁定，效率高
-
 在ConcurrentHashMap中，很多的操作都会依靠CAS算法完成
-
-
 
 ```java
   // Unsafe mechanics  CAS保障了哪些成员变量操作是原子性的
@@ -2494,6 +2486,138 @@ private transient volatile Object[] array;
 
 
 
+### CountDownLatch
+
+
+
+Java的concurrent包里面的CountDownLatch其实可以把它看作一个计数器，只不过这个计数器的操作是原子操作，同时只能有一个线程去操作这个计数器，也就是同时只能有一个线程去减这个计数器里面的值。
+
+   你可以向CountDownLatch对象设置一个初始的数字作为计数值，任何调用这个对象上的await()方法都会阻塞，直到这个计数器的计数值被其他的线程减为0为止。
+
+   CountDownLatch的一个非常典型的应用场景是：有一个任务想要往下执行，但必须要等到其他的任务执行完毕后才可以继续往下执行。假如我们这个想要继续往下执行的任务调用一个CountDownLatch对象的await()方法，其他的任务执行完自己的任务后调用同一个CountDownLatch对象上的countDown()方法，这个调用await()方法的任务将一直阻塞等待，直到这个CountDownLatch对象的计数值减到0为止。
+
+   举个例子，有三个工人在为老板干活，这个老板有一个习惯，就是当三个工人把一天的活都干完了的时候，他就来检查所有工人所干的活。记住这个条件：三个工人先全部干完活，老板才检查。所以在这里用Java代码设计两个类，Worker代表工人，Boss代表老板，具体的代码实现如下：
+
+Java代码 [![收藏代码](https://www.iteye.com/images/icon_star.png)](javascript:void())
+
+1. **package** org.zapldy.concurrent; 
+2.  
+3. **import** java.util.Random; 
+4. **import** java.util.concurrent.CountDownLatch; 
+5. **import** java.util.concurrent.TimeUnit; 
+6.  
+7. **public** **class** Worker **implements** Runnable{ 
+8.    
+9.   **private** CountDownLatch downLatch; 
+10.   **private** String name; 
+11.    
+12.   **public** Worker(CountDownLatch downLatch, String name){ 
+13. ​    **this**.downLatch = downLatch; 
+14. ​    **this**.name = name; 
+15.   } 
+16.    
+17.   **public** **void** run() { 
+18. ​    **this**.doWork(); 
+19. ​    **try**{ 
+20. ​      TimeUnit.SECONDS.sleep(**new** Random().nextInt(10)); 
+21. ​    }**catch**(InterruptedException ie){ 
+22. ​    } 
+23. ​    System.out.println(**this**.name + "活干完了！"); 
+24. ​    **this**.downLatch.countDown(); 
+25. ​     
+26.   } 
+27.    
+28.   **private** **void** doWork(){ 
+29. ​    System.out.println(**this**.name + "正在干活!"); 
+30.   } 
+31.    
+32. } 
+
+ 
+
+Java代码 [![收藏代码](https://www.iteye.com/images/icon_star.png)](javascript:void())
+
+1. **package** org.zapldy.concurrent; 
+2.  
+3. **import** java.util.concurrent.CountDownLatch; 
+4.  
+5. **public** **class** Boss **implements** Runnable { 
+6.  
+7.   **private** CountDownLatch downLatch; 
+8.    
+9.   **public** Boss(CountDownLatch downLatch){ 
+10. ​    **this**.downLatch = downLatch; 
+11.   } 
+12.    
+13.   **public** **void** run() { 
+14. ​    System.out.println("老板正在等所有的工人干完活......"); 
+15. ​    **try** { 
+16. ​      **this**.downLatch.await(); 
+17. ​    } **catch** (InterruptedException e) { 
+18. ​    } 
+19. ​    System.out.println("工人活都干完了，老板开始检查了！"); 
+20.   } 
+21.  
+22. } 
+
+ 
+
+Java代码 [![收藏代码](https://www.iteye.com/images/icon_star.png)](javascript:void())
+
+1. **package** org.zapldy.concurrent; 
+2.  
+3. **import** java.util.concurrent.CountDownLatch; 
+4. **import** java.util.concurrent.ExecutorService; 
+5. **import** java.util.concurrent.Executors; 
+6.  
+7. **public** **class** CountDownLatchDemo { 
+8.  
+9.   **public** **static** **void** main(String[] args) { 
+10. ​    ExecutorService executor = Executors.newCachedThreadPool(); 
+11. ​     
+12. ​    CountDownLatch latch = **new** CountDownLatch(3); 
+13. ​     
+14. ​    Worker w1 = **new** Worker(latch,"张三"); 
+15. ​    Worker w2 = **new** Worker(latch,"李四"); 
+16. ​    Worker w3 = **new** Worker(latch,"王二"); 
+17. ​     
+18. ​    Boss boss = **new** Boss(latch); 
+19. ​     
+20. ​    executor.execute(w3); 
+21. ​    executor.execute(w2); 
+22. ​    executor.execute(w1); 
+23. ​    executor.execute(boss); 
+24. ​     
+25. ​    executor.shutdown(); 
+26.   } 
+27.  
+28. } 
+
+​    当你运行CountDownLatchDemo这个对象的时候，你会发现是等所有的工人都干完了活，老板才来检查，下面是我本地机器上运行的一次结果，可以肯定的每次运行的结果可能与下面不一样，但老板检查永远是在后面的。
+
+Java代码 [![收藏代码](https://www.iteye.com/images/icon_star.png)](javascript:void())
+
+1. 王二正在干活! 
+2. 李四正在干活! 
+3. 老板正在等所有的工人干完活...... 
+4. 张三正在干活! 
+5. 张三活干完了！ 
+6. 王二活干完了！ 
+7. 李四活干完了！ 
+8. 工人活都干完了，老板开始检查了！ 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## ThreadLocal
@@ -2957,17 +3081,137 @@ volatile修饰的变量的确具有原子性，也就是c是具有原子性，�
 
 
 
-## synchronized 关键字的用法
+## synchronized
+
+
+
+**属于悲观锁**,认为程序中的并发情况严重，所以严防死守
 
 synchronized 关键字可以将对象或者方法标记为同步，以实现对对象和方法的互斥访问，可以用 synchronized(对象) { … }定义同步代码块，或者在声明方法时将 synchronized 作为方法的修饰符
 
 
 
-### Lock 1.5+
+synchronized关键字会让没有得到锁资源的线程进入BLOCKED状态，而后在争夺到锁资源后恢复为RUNNABLE状态，这个过程中涉及到操作系统用户模式和内核模式的转换，代价比较高。
+
+
+
+尽管JAVA 1.6为synchronized做了优化，增加了从偏向锁到轻量级锁再到重量级锁的过过度，但是在最终转变为重量级锁之后，性能仍然比较低。所以面对这种情况们就可以使用“**原子操作类**”
+
+
+
+## 原子操作类
+
+
+
+juc.atomic包
+
+AtomicBoolean，AtomicUInteger，AtomicLong。它们分别用于Boolean，Integer，Long类型的原子性操作
+
+
+
+Atomic操作类的底层正是用到了“CAS机制”
 
 
 
 
+
+
+
+
+
+## CAS无锁定算法
+
+
+
+Compare And Swap，比较与交换
+
+* 内存地址V，旧值A和新值B
+* 执行过程中发现V上的值与A相等(主内存未被修改)，就将V更新为B。不匹配不执行任何操作
+* 无锁定,线程不必等待锁定，效率高
+
+
+
+* 缺点
+  * CPU开销大  反复尝试更新，却一直不成功，给CPU压力
+  * 不能保证代码块的原子性   **只保证变量的原子性操作**
+
+
+
+### ABA问题
+
+
+
+**当一个值从A->B，又B->A，普通CAS机制会误判通过检测**
+
+
+
+| 线程1 | 获取当前值A | 期望更新为B |
+| ----- | ----------- | ----------- |
+| 线程2 | 获取当前值A | 期望更新为B |
+| 线程3 |             | 期望更新为A |
+
+
+
+* 1执行成功，A->B	同时2阻塞
+
+* 3获取当前值B,2仍然阻塞
+
+* 3执行，B->A
+
+* 2恢复，由于阻塞之前获得“当前值A”，并且compare()内存地址V中的实际值也是A，所以A->B
+
+
+
+**虽然代码逻辑无问题,但业务逻辑不合理**
+
+
+
+* 100存款，提款50
+
+* 提款机出问题，提款操作被同时提交两次，开启了两个线程，都获取当前值100，要更新成50
+  * 正常的业务为1次成功,1次失败
+
+* 1执行成功，100->50	2阻塞
+
+* 发生汇款50	2仍然阻塞
+
+* 汇款成功，50->100
+
+* 2恢复,100->50    被提款了2次
+
+
+
+==版本号==
+
+真正要做到严谨的CAS，compare()不仅要比较A和V的实际值，还要比较变量的版本号是否一致
+
+每次修改都更新版本号
+
+
+
+AtomicStampedReference类就实现了用版本号作比较额CAS机制。
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Lock 1.5+
+
+
+
+**属于乐观锁**，认为程序中的并发情况不严重，让线程不断去重试更新
+
+
+
+**需要显式指定起始位置lock()和终止位置unlock()**,一般会在finally块中写unlock()以防死锁
 
 能完成synchronized的所有功能,有更精确的线程语义和更好的性能。
 
@@ -2975,7 +3219,8 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 
 
 
-1) lock()。以阻塞方式来获取锁，如果获取到了锁，立即返回；如果别的线程持有锁，则当前线程等待，直到获取锁后返回。
+```
+lock()	以阻塞方式来获取锁，如果获取到了锁，立即返回；如果别的线程持有锁，则当前线程等待，直到获取锁后返回。
 
 2) tryLock()。以非阻塞的方式获取锁。只是尝试性的去获取一下锁，如果获取到锁，立即返回true，立即否则返回false。
 
@@ -2986,6 +3231,11 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 5) ReentrantLock()。创建一个ReentrantLock实例。
 
 6) Unlock()。释放锁
+```
+
+
+
+
 
 
 
@@ -2994,6 +3244,47 @@ synchronized 关键字可以将对象或者方法标记为同步，以实现对�
 
 
 重入锁,当前持有该锁的线程能够多次获取该锁，无需等待
+
+
+
+
+
+
+
+### synchronized VS lock
+
+
+
+- sync是关键字，lock是接口
+- synchronized是托管给JVM执行的，==lock是JDK代码实现的，需要手动释放,容易死锁==
+- ==sync默认是非公平锁，悲观锁。Lock是乐观锁，CAS思想==
+- synchronize语义清晰,编程更简洁，可以进行很多优化，有适应自旋，锁消除，锁粗化，轻量级锁，偏向锁等
+- lock的功能更多更灵活，缺点是一定要在finally里面 unlock()资源才行
+- 性能不一样：资源竞争激烈的情况下，lock性能会比synchronize好，**竞争不激烈的情况下，synchronize比lock性能好，synchronize会根据锁的竞争情况，从偏向锁-->轻量级锁-->重量级锁升级**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

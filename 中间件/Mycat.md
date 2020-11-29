@@ -1,4 +1,6 @@
-传统的关系性数据库已经无法满足快速查询与插入数据的需求。NoSQL的出现暂时解决了这一危机,通过**降低数据的安全性，减少对事务的支持，减少对复杂查询的支持**，来获取性能上的提升。
+传统的关系性数据库无法满足快速查询与插入数据的需求
+
+NoSQL通过**降低数据的安全性，减少对事务的支持，减少对复杂查询的支持**，来获取性能上的提升
 
 但有些场合NoSQL无法满足，还是需要关系性。此时就需要做数据库集群，将数据分散到不同的数据库
 
@@ -20,23 +22,21 @@ Mysql的表最大存储	500w条
 
 ==Mycat原理==
 
-它拦截了用户发送过来的SQL语句，首先对SQL语句做特定分析，如分片/路由/读写分离/缓存分析等，然后将此sql发往后端的真实数据库，并将返回结果做适当处理，最终返回给用户
+拦截SQL语句，做特定分析如分片/路由/读写分离/缓存等，然后将此sql发往后端的真实数据库，并将结果做适当处理，最终返回给用户
 
 
 
 主库将所有的写操作记录在binlog日志中，并生成**log dump线程，将binlog日志传给从库的I/O线程**
 
-**从库生成两个线程**，一个是I/O线程，另一个是SQL线程
+**从库两个线程**
 
- 
+* I/O线程去请求主库的binlog日志，并将binlog日志中的文件写入**relay log（中继日志**）中
 
-I/O线程去请求主库的binlog日志，并将binlog日志中的文件写入**relay log（中继日志**）中
-
-SQL线程会读取relay loy中的内容，并解析成具体的操作，来实现主从的操作一致，达到最终数据一致的目的
+* SQL线程读取relay loy中，并解析成具体操作，来实现主从复制
 
 
 
-mycat只能路由，分布，==不能数据同步==，所以要数据同步必做还要使用mysql的读写分离，主从复制
+mycat只能路由/分布，==不能数据同步==，所以要数据同步必做还要使用mysql的读写分离，主从复制
 
 
 
@@ -48,16 +48,19 @@ Mysql主从又叫Replication、AB复制。
 
 A与B两台机器做主从后，在A上写数据，另外一台B也会跟着写数据，实现数据实时同步
 
-mysql主从是基于**binlog**，主需开启binlog才能进行主从
+mysql主从是基于**binlog，主需开启binlog才能进行主从**
 
  
 
-主从3个步骤
-
 * 主创建**同步账户**授权给从
 * 主将更改操作记录到binlog里
-* 从将主的binlog事件（sql语句） 同步本机上并记录在relaylog里
+* 从将主的binlog同步到本机,并记录到**relaylog**
 * 从根据relaylog里面的sql语句按顺序执行
+
+
+
+* 只能在主机里面执行DML语句,可以在从机执行查询
+* **不要在从机操作**！！！！会不同步
 
 
 
@@ -77,60 +80,40 @@ mysql主从是基于**binlog**，主需开启binlog才能进行主从
 
 ## docker搭建
 
-* docker提取配置文件
 
+
+```shell
+#docker提取配置文件
 docker run --name M1 -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456 -d mysql:5.7
-
 docker run --name M1S1 -p 3308:3306 -e MYSQL_ROOT_PASSWORD=123456 -d mysql:5.7
 
-
-
-* 修改配置文件
-
+#修改配置文件
 mkdir /root/mysqlms		创建配置文件的文件夹
-
 docker cp M1:/etc/mysql/conf.d/docker.cnf m1.cnf 
-
 docker cp M1S1:/etc/mysql/conf.d/docker.cnf m1s1.cnf
 
-
-
 vim m1.cnf	主添加2条
-
 server-id=1
 log-bin=master.bin
 
-
-
 vim m1s1.cnf	从添加server-id
-
 server-id=2
 
-
-
-* 配置文件复制进docker
-
+#配置文件复制进docker
 docker cp m1.cnf M1:/etc/mysql/conf.d/docker.cnf
-
 docker cp m1s1.cnf M1S1:/etc/mysql/conf.d/docker.cnf
 
+#重启
+docker restart M1 M1S1
 
-
-docker restart M1 M1S1		重启docker
-
-
-
-* 创建共享账户给从机
-
+#创建共享账户给从机
 docker exec -it M1 bash    进入镜像
-
 mysql -uroot -p123456
-
 create user 'rep'@'%' identified by '123456';
-
-grant replication slave on *.* to 'rep'@'%';				**replication 复制权限**
-
-**flush privileges;**		刷新权限
+grant replication slave on *.* to 'rep'@'%';		replication 复制权限
+#刷新权限
+flush privileges;	
+```
 
 
 
@@ -142,45 +125,26 @@ grant replication slave on *.* to 'rep'@'%';				**replication 复制权限**
 
 * 配置从机
 
-docker exec -it M1 bash
 
+
+```shell
+docker exec -it M1 bash
 mysql -uroot -p123456
 
-
-
+#master_log_file 为主机show master status 的文件名	master_log_pos同理
 change master to master_host="120.76.132.188",master_port=3307,master_user="rep",master_password="123456",master_log_file="master.000001",master_log_pos=745;
 
-master_log_file 为主机show master status 的文件名	master_log_pos同理
+#启动主从
+start slave;
 
+#校验主从状态，有2个yes代表配置成功
+show slave status \G;
+​			Slave_IO_Running: Yes			如果是connecting,可能从机上主机的ip端口错误 ,如果是no		检查server-id配置
+​     Slave_SQL_Running: Yes		如果no	表示两个数据库并没有同步
 
-
-start slave ;		启动主从
-
-==show slave status \G;==	校验主从状态，有下图2个yes代表配置成功
-
-​			Slave_IO_Running: Yes
-​            Slave_SQL_Running: Yes
-
-* 如果第一个是connecting		可能从机上主机的ip端口错误
-
-​		stop slave;		先关闭主从 ，再重新change master
-
-* 第一个是no		检查server-id配置
-
-* 如果第二个no	表示两个数据库并没有同步
-
-
-
-## 主从操作规范
-
-
-
-* 只能在主机里面执行DML 语句
-* 使用navicat时，**不要在从机操作**！！！！会不同步
-
-* 在从机里面可以执行查询语句
-
-* 主机只有一台，但是从机可以有多台
+#配置失误后,先关闭主从，再重新change master,修改主从配置
+​		stop slave;		
+```
 
 
 
@@ -188,15 +152,13 @@ start slave ;		启动主从
 
 
 
-### 优点
+* 优点
+  * 可伸缩性：可以向集群系统添加更多的服务器
+  * 高可用性：在不需要操作者干预的情况下，防止系统发生故障或从故障中自动恢复的能力。通过把故障服务器上的应用程序转移到备份服务器上运行,减少服务器和应用程序的停机时间。
 
-高可伸缩性：服务器集群具有很强的可伸缩性。 随着需求和负荷的增长，可以向集群系统添加更多的服务器。在这样的配置中，可以有多台服务器执行相同的应用和数据库操作。
+* 缺点
 
-高可用性：在不需要操作者干预的情况下，防止系统发生故障或从故障中自动恢复的能力。通过把故障服务器上的应用程序转移到备份服务器上运行，集群系统能够把正常运行时间提高到大于99.9%，大大减少服务器和应用程序的停机时间。
-
-### 缺点
-
-​    我们知道集群中的应用只在一台服务器上运行，如果这个应用出现故障，其它的某台服务器会重新启动这个应用，接管位于共享磁盘柜上的数据区，进而使应用重新正常运转。我们知道整个应用的接管过程大体需要三个步骤：侦测并确认故障、后备服务器重新启动该应用、接管共享的数据区。因此在切换的过程中需要花费一定的时间，原则上根据应用的大小不同切换的时间也会不同，越大的应用切换的时间越长。
+  * 集群中的应用只在一台服务器上运行，如果这个应用出现故障，其它的某台服务器会重新启动这个应用，接管位于共享磁盘柜上的数据区，进而使应用重新正常运转。我们知道整个应用的接管过程大体需要三个步骤：侦测并确认故障、后备服务器重新启动该应用、接管共享的数据区。在切换的过程中需要花费一定的时间，原则上根据应用的大小不同切换的时间也会不同，越大的应用切换的时间越长
 
 
 
@@ -212,17 +174,13 @@ mysql集群需要**5台起步**
 
 ![image-20200920133844671](image.assets/image-20200920133844671.png)
 
-
-
-\#docker run --name M1 -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
-
-\#docker run --name M1S1 -p 3308:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
-
+```shell
+#docker run --name M1 -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
+#docker run --name M1S1 -p 3308:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
 docker run --name M1S2 -p 3309:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
-
 docker run --name M2 -p 3310:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
-
 docker run --name M2S1 -p 3311:3306 -e MYSQL_ROOT_PASSWORD=123456  -d mysql:5.7
+```
 
 
 
@@ -234,77 +192,75 @@ M2是M1的集群，需要额外加上 log_slave_updates=1
 
 
 
-\##docker cp m1.cnf M1:/etc/mysql/conf.d/docker.cnf
-
-\##docker cp m1s1.cnf M1S1:/etc/mysql/conf.d/docker.cnf
-
+```shell
+#docker cp m1.cnf M1:/etc/mysql/conf.d/docker.cnf
+#docker cp m1s1.cnf M1S1:/etc/mysql/conf.d/docker.cnf
 docker cp m1s2.cnf M1S2:/etc/mysql/conf.d/docker.cnf
-
 docker cp m2.cnf M2:/etc/mysql/conf.d/docker.cnf
-
 docker cp m2s1.cnf M2S1:/etc/mysql/conf.d/docker.cnf
 
-
-
+#重启
 docker restart M1S2 M2 M2S1
+```
 
 
 
 * 修改M1S2         master_log_pos可能有改动，再去查询一次
 
+```shell
 docker exec -it M1S2 bash
-
 mysql -uroot -p123456
 
-==show master status \G;==	**在M1上查看**
+#在M1上查看
+show master status \G;
 
 change master to master_host="120.76.132.188",master_port=3307,master_user="rep",master_password="123456",master_log_file="master.000001",master_log_pos=1058;
 
 start slave ;
 
 show slave status \G;
-
-
+```
 
 
 
 * 修改M2      M2也有从机，需要创建共享账户
 
+```shell
 docker exec -it M2 bash
-
 mysql -uroot -p123456
 
 
-
 create user 'rep1'@'%' identified by '123456';
-
 grant replication slave on *.* to 'rep1'@'%';
-
 flush privileges;
 
 
 
-==M2是M1的从机，修改master账户==
-
-==show master status \G;==	**在M1上查看**
+#M2是M1的从机，修改master账户
+#在M1上查看
+show master status \G;	
 
 change master to master_host="120.76.132.188",master_port=3307,master_user="rep",master_password="123456",master_log_file="master.000001",master_log_pos=1058;
 
 start slave ;
 
 show slave status \G;
+```
 
 
 
 * 修改M2S1
 
-==show master status \G;==	**在M2上查看**	**填M2的端口**	**用M2的共享账户rep1**
+```shell
+在M2上查看	填M2的端口	用M2的共享账户rep1
+show master status \G;
 
 change master to master_host="120.76.132.188",master_port=3310,master_user="rep1",master_password="123456",master_log_file="master.000002",master_log_pos=154;
 
 start slave ;
 
 show slave status \G;
+```
 
 
 
@@ -330,11 +286,8 @@ wget http://dl.mycat.io/1.6.7.1/Mycat-server-1.6.7.1-release-20190627191042-linu
 
 ![image-20200920160522595](image.assets/image-20200920160522595.png)
 
-
-
-连接时error:138	8066的端口没有放行
-
-​			error：10060	mycat启动失败
+* 连接时error:138	8066的端口没有放行
+* error：10060	mycat启动失败
 
 
 
