@@ -429,6 +429,9 @@ yum install telnet
 ## 关防火墙
 systemctl stop firewalld
 systemctl disable firewalld
+
+#可选项
+yum -y install bind-utils
 ```
 
 
