@@ -96,6 +96,22 @@ Mybatis 使用 RowBounds 对象进行分页，也可以直接编写 sql 实现�
 
 
 
+# 自增主键
+
+
+
+
+
+AUTO	数据库自增 依赖数据库
+NONE	未设置主键类型（默认雪花算法,可以通过注册填充插件进行填充）
+
+//下面这三种类型,只有当插入对象id为空时 才会自动填充。
+ID_WORKER	全局唯一（idWorker）数值类型
+
+ID_WORKER_STR(5)	全局唯一（idWorker的字符串表示）
+
+UUID	全局唯一（UUID）
+
 
 
 
