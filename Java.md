@@ -959,11 +959,11 @@ public void clear() {
 
 
 
-List 以特定索引来存取元素，可有重复元素。
+List 以特定索引来存取元素，可重复
 
-Set 不能存放重复元素（用对象的 equals()方法来区分元素是否重复）
+Set 不能存放重复元素（equals()区分是否重复）
 
-Map 保存键值对映射，映射关系可以是一对一或多对一。
+Map 保存键值对映射，映射关系可以是一对一或多对一
 
 Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种实现版本，基于哈希存储的版本理论存取时间复杂度为O(1)，而基于排序树版本的实现在插入或删除元素时会按照元素或元素的键（key）构成排序树从而达到排序和去重的效果。
 
@@ -979,13 +979,11 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 ## 集合和数组的比较
 
-数组不是面向对象的，存在明显的缺陷，集合完全弥补了数组的一些缺点，比数组更灵活，可大大提高软件的开发效率.不同的集合框架类可适用于不同场合
 
-1）**数组的效率高**于集合
 
-2）**数组能存放基本数据类型**和对象，而集合类中只能放对象
+数组不是面向对象的，存在明显的缺陷，集合完全弥补了数组的一些缺点，比数组更灵活
 
-3）**数组容量固定**，集合类容量动态改变
+1）**数组的效率高**,==能存放基本数据类型==,容量固定
 
 4）==数组无法判断实际有多少元素，length只告诉了array的容量==
 
@@ -999,29 +997,15 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-
-
-### ArrayList 和 LinkedList 的区别和联系
-
-* 相同点：
-  * 都实现List接口，有序、不唯一
-
-* 不同点：
-  * ArrayList数组实现,长度可变，查询效率高
-    * 初始容量10,满了时新建一个2倍容量的数组,并把原数组复制过去,实现扩容
-  * LinkedList 采用双向链表存储方式。插入、删除元素时效率高
-
-
-
 ## List、Map、Set区别
 
 
 
-List与Set实现公共父接口Collection,所以都是单列元素的集合。
+List与Set实现公共父接口Collection,都是单列元素的集合
 
-Set不允许重复，不能有两个相等（注意，不是仅仅是相同）的对象 ，所以，Set的add()返回boolean
+Set不允许重复，不能有两个相等（注意，不是仅仅是相同）的对象 ，所以Set的add()返回boolean
 
-Set取元素时，没法说取第几个，只能以Iterator接口取得所有的元素，再逐一遍历各个元素。
+Set无序，只能以Iterator遍历
 
 
 
@@ -1053,8 +1037,6 @@ Map与List和Set不同，它是双列的集合
 
 1）哈希表的查询快，时间复杂度为 O（1）
 
-2）HashMap、Hashtable、HashSet 这些集合采用的是哈希表结构，需要用hashCode
-
 3）系统类已经覆盖了hashCode 方法,**自定义类放入hash类集合，必须重写hashcode**。不重写调用的是Object的hashcode,比较地址。
 
 
@@ -1063,9 +1045,9 @@ Map与List和Set不同，它是双列的集合
 
 首先计算hashCode，得到一个位置用来存放当前对象，如在该位置没有一个对象存在的话，直接增加进去。
 
-如果在该位置有对象，进行**equals，如果false,再进行一次散列，将该对象放到散列后计算出的新地址里**。如果true，那么集合认为集合中已经存在该对象了，不会再将该对象增加到集合中了。
+如果在该位置有对象，进行**equals，如果false,再进行一次散列，将该对象放到散列后计算出的新地址里**。如果true，那么集合认为集合中已经存在该对象了，不会再将该对象增加到集合中了
 
-**hashCode决定数据在表中的存储位置，而equals判断是否存在相同数据。**
+**hashCode决定数据在表中的存储位置，equals判断是否存在相同数据**
 
 
 
@@ -1077,7 +1059,7 @@ Map与List和Set不同，它是双列的集合
 
 
 
-二叉树实现,
+二叉树实现
 
 
 
@@ -1096,8 +1078,6 @@ Map与List和Set不同，它是双列的集合
 
 
 ### ArrayList
-
-
 
 
 
@@ -1161,7 +1141,7 @@ private transient volatile Object[] array;
 
 * ArrayList和Vector中，从指定的位置检索，或在末尾插入、删除都是O(1)
 
-其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
+  * 其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
 
 * LinkedList
   * 插入、删除集合中任何位置都O(1)
@@ -1174,6 +1154,8 @@ private transient volatile Object[] array;
 
 
 ### List的多态
+
+
 
 List list = new ArrayList() 与 ArrayList alist = new ArrayList()
 
@@ -1217,13 +1199,21 @@ AbstractMap<K,V> implements Map<K,V> {
 
 
 
+![](image.assets/image-20201206204317626.png)
+
+
+
 
 
 #### 按位与2次幂容量
 
-取余:xxx%16  不断在做除法,效率低,并且负数取余仍是负数,还需要转为正数
 
-按位与: 	hash&(length-1)
+
+hash&(length-1)	==	hash%length
+
+* 取余不断在除法,效率低,并且负数取余仍是负数,还需要转为正数
+
+* 按位与: 	hash&(length-1)
 
 ​			(length-1)  1111
 
@@ -1239,19 +1229,17 @@ AbstractMap<K,V> implements Map<K,V> {
 
 #### 7 死锁隐患
 
-
-
-![img](image.assets/wps1-1600480677581.jpg) 
+ 
 
 原先:	3->5->7
 
 多线程resize时,可能同时3->7	7->3,出现循环,查询3/7时出现死锁
 
-==可以通过精心设计的一组object实现dos(拒绝服务攻击)==,对象的HashCode相同,使得它们被存放在同一个桶中,HashMap退化为链表,而链表的查询复杂度O(n)
+==可以通过一组HashCode相同的object实现dos(拒绝服务攻击)==,被存放在同一个桶中,HashMap退化为链表,查询复杂度O(n)
 
  
 
-在put的时候，插入的元素超过了容量*负载因子,触发resize()和rehash()，会将原数组重新hash到新数组，在多线程的环境下，存在同时其他的元素也在进行put操作，如果hash值相同，可能出现同时在同一数组下用链表表示，造成闭环，导致在get时会出现死循环
+put时元素超过了容量*负载因子,触发resize()和rehash()，将原数组重新hash到新数组，在多线程的环境下，其他元素也在put，如果hash值相同，可能出现同时在同一数组下用链表表示，造成闭环，导致在get时会出现死循环
 
 
 
@@ -1259,23 +1247,288 @@ AbstractMap<K,V> implements Map<K,V> {
 
 
 
-* hash()
+##### 成员变量
+
+
 
 ```java
-static final int hash(Object key) {
-    int h;
-    return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16); }
+DEFAULT_INITIAL_CAPACITY = 1 << 4;	//默认初始容量
+MAXIMUM_CAPACITY = 1 << 30    最大容量
+
+//红黑树长度小于6则会转回链表,红黑树的log(n)，log(8) = 3,log(6)≈ 2.6
+//链表平均查找长度是 log(n/2)，log(8) = 4，log(6)=3
+UNTREEIFY_THRESHOLD = 6    
+TREEIFY_THRESHOLD = 8;
+MIN_TREEIFY_CAPACITY = 64	//超过这个值，才能树化,否则只是扩容
+
+Node<K, V>[] table
+
+Set<Entry<K, V>> entrySet	存放缓存
+
+size	元素个数(kv数量，不是数组的长度)
+
+int modCount	//修改次数
+
+int threshold		扩容的阈值（容量*负载因子)
+
+float loadFactor	负载因子(太小导致数组的利用率低)
 ```
 
-jdk7中,容易出现低位相同,高位不同的hash	如1101……….1111
 
-​											1001………1111
 
-将高位与地位异或(不进位的加法),能够减少碰撞的概率
+
+
+
+
+##### 构造
+
+
+
+```java
+public HashMap() {	this.loadFactor = DEFAULT_LOAD_FACTOR; }
+public HashMap(int initialCapacity) {   this(initialCapacity, DEFAULT_LOAD_FACTOR);}
+
+public HashMap(int initialCapacity, float loadFactor) {
+      if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
+      if (initialCapacity > MAXIMUM_CAPACITY)  initialCapacity = MAXIMUM_CAPACITY;
+//Float.isNaN()判断非法数值,,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
+      if (loadFactor <= 0 || Float.isNaN(loadFactor)) throw new IllegalArgumentException("Illegal load factor:" +loadFactor);
+        this.loadFactor = loadFactor;
+  //tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
+        this.threshold = tableSizeFor(initialCapacity);
+    }
+
+		//修正容量为2^n
+    static final int tableSizeFor(int cap) {
+      //-1为了防止cap已经是2^n
+        int n = cap - 1;
+        n |= n >>> 1;
+        n |= n >>> 2;
+        n |= n >>> 4;
+        n |= n >>> 8;
+        n |= n >>> 16;
+        return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+    }
+
+
+//参数为Map的构造
+public HashMap(Map<? extends K, ? extends V> m) {
+        this.loadFactor = DEFAULT_LOAD_FACTOR;
+        putMapEntries(m, false);
+    }
+
+    final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
+        int s = m.size();//获取map元素个数
+        if (s > 0) {
+            if (table == null) {
+              //+1.0F 让计算出的size向上取整,获得更大的容量,避免resize(可能刚创建,元素就均匀分布到每个数组,触发扩容)
+                float ft = ((float)s / loadFactor) + 1.0F;
+                int t = ((ft < (float)MAXIMUM_CAPACITY) ?(int)ft : MAXIMUM_CAPACITY);
+              //得到的t大于阈值->更新阈值
+                if (t > threshold)   threshold = tableSizeFor(t);
+            }
+          	//已初始化,元素个数>阈值->扩容
+            else if (s > threshold)    resize();
+          
+          //遍历放入新map
+            for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
+                K key = e.getKey();
+                V value = e.getValue();
+                putVal(hash(key), key, value, false, evict);
+```
+
+
+
+
+
+
 
  
 
-* resize方法
+
+
+ 
+
+##### get
+
+
+
+```java
+public V get(Object key) {
+        Node<K,V> e;
+        return (e = getNode(hash(key), key)) == null ? null : e.value;
+    }
+
+final Node<K,V> getNode(int hash, Object key) {
+  //first存放对应下标链表的第一个元素
+        Node<K,V>[] tab; Node<K,V> first, e; 
+  			int n; K k;
+  //复制table到tab,判空
+        if ((tab = table) != null && (n = tab.length) > 0 &&(first = tab[(n - 1) & hash]) != null) {
+          
+          //下标第一个元素的key就是要找的key
+            if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
+                return first;
+          
+          //下标第一个元素不是,寻找下一个并赋值给e
+            if ((e = first.next) != null) {
+              	//红黑树的方法
+                if (first instanceof TreeNode)		 return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+              //遍历链表,直到下个节点不存在  
+              do {
+                //寻找对应key的位置
+                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
+                        return e;
+                } while ((e = e.next) != null);
+            }
+        }
+        return null;
+    }
+```
+
+
+
+##### hash
+
+
+
+```java
+    static final int hash(Object key) {
+        int h;
+//null==key -> 返回0		null不能调用hashCode(),所以给了默认值0		->		hashMap支持Null的Key
+//hashCode()与hashCode()右移16的异或运算(相同为0,否则1)	->	高16位与低16位都参与异或,减少碰撞概率
+//当length很小 -> 高位全0,低位不同	->	容易碰撞
+        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+    }
+```
+
+
+
+```shell
+#按位异或,计算hash
+1111 1111 1111 1111 1111 0000 1110 1010	// key.hashCode()结果
+0000 0000 0000 0000 1111 1111 1111 1111	// 右移16位
+1111 1111 1111 1111 0000 1111 0001 0101 // hash
+
+#对于(length - 1) & hash		假设length 16
+0000 0000 0000 0000 0000 0000 0000 1111 // 15 length-1
+1111 1111 1111 1111 0000 1111 0001 0101
+0000 0000 0000 0000 0000 0000 0000 0101 // 5
+
+
+#假设不进行16位右移操作
+1111 1111 1111 1111 1111 0000 1110 1010 //key.hashCode()结果
+0000 0000 0000 0000 0000 0000 0000 1111 // 15
+0000 0000 0000 0000 0000 0000 0000 1010 // 10
+
+1010 0110 0011 1111 1111 0000 1110 1010	//高位不同,低位相同
+0000 0000 0000 0000 0000 0000 0000 1111 // 15
+0000 0000 0000 0000 0000 0000 0000 1010 // 10
+#容易碰撞
+```
+
+
+
+##### put
+
+
+
+![](image.assets/HashMap.png)
+
+
+
+* 先通过hash值计算出key映射到哪个桶
+  * 桶上没有碰撞，直接插入
+  * 如果出现碰撞
+    * 用红黑树处理冲突，调用红黑树的方法插入数据
+    * 链式方法插入,插入后判断长度是否达到树化临界值
+    * 键重复，更新value
+
+* 插入后如果size大于阈值threshold，扩容
+
+
+
+* 底层数组创建机制
+  * 7，创建对象时就创建了数组
+  * 8，**首次调用put**才创建
+
+
+
+
+```java
+public V put(K key, V value) {  return putVal(hash(key), key, value, false, true); }
+
+//onlyIfAbsent=true,不改变现有的值		evict=false,table为新建状态
+final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; 
+  			//n数组长度		i key的hash值
+  			int n, i;
+  
+  			//table为空/长度为0	->	resize()实例化一个数组,赋值给tab		tab.length赋值给n
+        if ((tab = table) == null || (n = tab.length) == 0)        n = (tab = resize()).length;
+  
+  		//hash&(length-1)计算当前key的下标		获取当前下标的Node,赋值给p
+  		//p==null -> 当前数组下标位置没有存储值 -> 创建新Node,插入数组
+        if ((p = tab[i = (n - 1) & hash]) == null)       tab[i] = newNode(hash, key, value, null);
+        else {
+            Node<K,V> e; K k;
+          
+          //寻找键值对所在node的位置
+          //元素的hash==传入的hash,并且key相等			将node赋值给e(更新旧值)
+            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))	  e = p;
+            else if (p instanceof TreeNode)   e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            
+          	//key不相等,并且不是treeNode
+          	else {
+              	//binCount记录循环次数,判断是否需要树化
+                for (int binCount = 0; ; ++binCount) {
+                  
+                  	//到达链表末尾
+                    if ((e = p.next) == null) {
+                      	//将数据插入表尾.next
+                        p.next = newNode(hash, key, value, null);
+                      
+                      	//循环次数>=树化边界值-1	->	树化
+                        if (binCount >= TREEIFY_THRESHOLD - 1)  	treeifyBin(tab, hash);
+                        break;
+                    }
+                  
+                  	//当前位置的key与要put的key相同,跳出循环
+                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+          
+          //e不为空,则之前找到了键值对的Node
+            if (e != null) {
+                V oldValue = e.value;
+              
+              	//onlyIfAbsent=false,需要改变现有的值,将传入参数value赋值给e,返回e的旧值
+                if (!onlyIfAbsent || oldValue == null)       e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+  
+  			//更新修改次数
+        ++modCount;
+        if (++size > threshold)     resize();
+        afterNodeInsertion(evict);
+        return null;
+```
+
+
+
+##### resize
+
+
+
+==链表长度>=8，数组长度<64,也会扩容==
+
+
+
+
 
 ```java
 Node<K,V> loHead = null, loTail = null;
@@ -1293,38 +1546,95 @@ Node<K,V> hiHead = null, hiTail = null;
 
 扩容后第一位只能是0或1,并且桶中的元素被分配在了1xxx和0xxx两个新桶中,元素保持原先的顺序.而保持了顺序就降低了多线程中,顺序调换出现的死锁概率
 
- 
 
-* 底层数组创建机制
-  * 7，创建对象时就创建了数组
-  * 8，**首次调用put**才创建
 
-* hash相等时
-  * 产生hash碰撞,key值相同则替换，否则加到后面		**比较key用equals**
+每次扩容都是翻倍，与原来的(n-1)&hash的结果相比，只是多了一个二进制位，所以节点要么在原来的位置，要么就被分配到 原位置+原容量 这个位置。
 
 
 
-#### 成员变量
 
 
 
-* MAXIMUM_CAPACITY = 1 << 30    最大容量
 
-* UNTREEIFY_THRESHOLD = 6    链表的值小于6则会从红黑树转回链表
 
-* MIN_TREEIFY_CAPACITY** = 64	超过这个值，才能进行树形化
 
-* Node<K, V>[] table	table用来初始化(必须是二的n次幂)
 
-* Set<Entry<K, V>> entrySet	存放缓存
 
-* size	元素个数
 
-* int modCount	修改次数
 
-* int threshold		下次扩容的临界值，（容量\*负载因子)
 
-* float loadFactor	哈希表的负载因子
+
+##### remove
+
+
+
+```java
+//返回被删除key的value
+public V remove(Object key) {
+        Node<K,V> e;
+        return (e = removeNode(hash(key), key, null, false, true)) == null ? null : e.value;
+    }
+
+//matchValue=true	仅当值相同时移除		movable=true	移除时移动其他节点
+final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable) {
+        Node<K,V>[] tab; Node<K,V> p; 
+  			int n, index;
+  // (tab = table) != null  把hash桶赋值给tab，并且判断tab是否为nul
+  // (n = tab.length) > 0 获取tab的长度，赋值给n，判断n是否大于0
+  // (p = tab[index = (n - 1) & hash]) != null 根据hash计算索引位置，赋值给index, 并从tab中取出该位置的元素，赋值给p，并判断p!=nul
+        if ((tab = table) != null && (n = tab.length) > 0 &&(p = tab[index = (n - 1) & hash]) != null) {
+            
+          	//进到这里,说明table不为空,并且key对应table下标的链表不为空
+          	Node<K,V> node = null, e; K k; V v;
+          
+          	//链表表头就是待删除元素
+            if (p.hash == hash &&((k = p.key) == key || (key != null && key.equals(k))))	  node = p;
+            
+          	//遍历链表
+          	else if ((e = p.next) != null) {
+                if (p instanceof TreeNode)   node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+                else {
+                    do {
+                        if (e.hash == hash && ((k = e.key) == key ||(key != null && key.equals(k)))) {
+                            node = e;
+                            break;
+                        }
+                        p = e;
+                    } while ((e = e.next) != null);
+                }
+            }
+          
+            if (node != null && (!matchValue || (v = node.value) == value ||(value != null && value.equals(v)))) {
+                if (node instanceof TreeNode)
+                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+                
+              	//node == p	->	说明node是第一个节点,将下一个节点赋值给当前下标(删除)
+              	else if (node == p)    tab[index] = node.next;
+                else    p.next = node.next;
+                ++modCount;
+                --size;
+                afterNodeRemoval(node);
+                return node;
+            }
+        }
+        return null;
+```
+
+
+
+##### 遍历map
+
+
+
+==forEach是Map接口新增的default方法==
+
+```
+map.forEach((key, value) -> {
+        System.out.println(key + ":" + value);
+    });
+```
+
+
 
 
 
@@ -2787,15 +3097,8 @@ public final class Unsafe {
 ```java
  class Thread implements Runnable {
  ThreadLocal.ThreadLocalMap threadLocals = null;
-```
+   
 
-
-
-**静态内部类ThreadLocalMap为每个Thread都维护了一个数组table，ThreadLocal确定了一个数组下标，而这个下标就是value存储的对应位置**
-
-```java
-
-//set 方法
 public void set(T value) {
       //获取当前线程
       Thread t = Thread.currentThread();
@@ -2810,14 +3113,20 @@ public void set(T value) {
   
 //每个线程持有一个ThreadLocalMap对象。每一个新的线程Thread都会实例化一个ThreadLocalMap并赋值给成员变量threadLocals，使用时若已经存在threadLocals则直接使用已经存在的对象
 ThreadLocalMap getMap(Thread t) {return t.threadLocals;}
+   
  
 //createMap
 void createMap(Thread t, T firstValue) {
       //实例化一个新的ThreadLocalMap，并赋值给线程的成员变量threadLocals
       t.threadLocals = new ThreadLocalMap(this, firstValue);
 }
+```
 
 
+
+**静态内部类ThreadLocalMap为每个Thread都维护了一个数组table，ThreadLocal确定了一个数组下标，而这个下标就是value存储的对应位置**
+
+```java
 ThreadLocalMap {
         private static final int INITIAL_CAPACITY = 16;
         private Entry[] table;
@@ -2847,7 +3156,7 @@ ThreadLocalMap(ThreadLocal<?> firstKey, Object firstValue) {
 
 
 
-前面讲过每个线程Thread持有一个ThreadLocalMap类型的实例threadLocals，结合此处的构造方法可以理解成每个线程Thread都持有一个Entry型的数组table，而一切的读取过程都是操作table
+每个Thread持有一个ThreadLocalMap的实例threadLocals，结合此处的构造方法可以理解成每个线程Thread都持有一个Entry型的数组table，而一切的读取过程都是操作table
 
 table是set/get的焦点，在看具体的set和get方法前，先看下面这段代码。
 
@@ -2980,34 +3289,13 @@ ThreadLocal实现主要涉及Thread，ThreadLocal，ThreadLocalMap这三个类�
 
 
 
-ThreadLocal和Synchronized都是为了解决多线程中相同变量的访问冲突问题，不同的点是
+ThreadLocal和Synchronized都是为了解决多线程中相同变量的访问冲突问题
+
+不同的点是
 
 - Synchronized是通过线程等待，牺牲时间来解决访问冲突
-- ThreadLocal是通过每个线程单独一份存储空间，牺牲空间来解决冲突，并且相比于Synchronized，ThreadLocal具有线程隔离的效果，只有在线程内才能获取到对应的值，线程外则不能访问到想要的值。
-
-正因为ThreadLocal的线程隔离特性，使他的应用场景相对来说更为特殊一些。在android中Looper、ActivityThread以及AMS中都用到了ThreadLocal。当某些数据是以线程为作用域并且不同线程具有不同的数据副本的时候，就可以考虑采用ThreadLocal。
-
-
-
-![](image.assets/image-20201206120358348.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- ThreadLocal是通过每个线程单独一份存储空间，牺牲空间来解决冲突，**具有线程隔离效果，只有在线程内才能获取到对应的值**
+  - 正因为线程隔离特性，当数据是以线程为作用域并且不同线程具有不同的数据副本的时候,就可以考虑采用ThreadLocal。如android中Looper、ActivityThread以及AMS
 
 
 
@@ -3056,28 +3344,23 @@ public class TestThread2 implements Runnable {
 
 * 实现Callable接口  (有返回值,可以抛出异常)
 
-1. 实现Callable接口,定义返回值类型
-2. 重写call()方法,需要抛出异常
-4. 创建执行服务  ExecutorService service = Executors.newFixedThreadPool(3);
-5. 提交执行   Future<String> result = service.submit(new TestCallable());
-6. 获取结果  result.get();
-7. 关闭服务   service.shutdown();
-
-```
+```java
+//1.实现Callable接口,定义返回值类型
 public class TestCallable implements Callable<String> {
 
+  //2.重写call()方法,需要抛出异常
     @Override
     public String call() {
         return Thread.currentThread().getName(); }
 
     public static void main(String[] args) throws ExecutionException, InterruptedException  {
-        //创建执行服务
+        //3.创建执行服务
         ExecutorService service = Executors.newFixedThreadPool(3);
-        //提交执行
+        //4.提交执行
         Future<String> result = service.submit(new TestCallable());
-        //获取返回值
+        //5.获取返回值
         String str = result.get();
-        //关闭服务	需要抛出2个异常
+        //6.关闭服务	需要抛出2个异常
         service.shutdown();}}
 ```
 
@@ -3087,25 +3370,26 @@ public class TestCallable implements Callable<String> {
 
 ## 线程的6种状态
 
-![image-20200904093701936](image.assets/image-20200904093701936.png)
+![](image.assets/image-20200904093701936.png)
 
-* 新建 NEW，线程被创建出来，但尚未启动时的线程状态；
+* 新建 NEW
 
-* 就绪 RUNNABLE，表示可以运行的线程状态，它可能正在运行，或者是在排队等待操作系统给它分配 CPU 资源；
+* 就绪 RUNNABLE   排队等待操作系统分配 CPU
 
-比如Thread.start方法就是将线程从NEW状态 转换成 RUNNABLE 状态。
+  * Thread.start()  NEW-> RUNNABLE
+  * 就绪不代表立即运行,还需要和其他线程竞争CPU
 
-* 阻塞 BLOCKED，处于阻塞状态的线程正在等待监视器锁
+* 阻塞 BLOCKED  等待锁
 
-比如等待执行 synchronized 代码块或者使用 synchronized 标记的方法。
+  * synchronized
 
-* 等待 WAITING，等待另一个线程执行某个特定的动作。
+* 等待 WAITING   等待另一个线程执行特定的动作
 
-比如，一个线程调用了Object.wait()方法，那它就在等待另一个线程调用Object.notify() 或 Object.notifyAll() 方法。
+  * Object.wait() => Object.notify() /notifyAll() 
 
-* 计时等待 TIMED_WAITING，和上者类似，只是多了一个超时时间。
+* 计时等待 TIMED_WAITING，和WAITING类似，只是多了超时时间
 
-比如调用了有超时时间设置的方法 Object.wait(long timeout) 和 Thread.join(long timeout) 等这些方法时，它才会进入此状态；
+  * Object.wait(long timeout) /Thread.join(long timeout) 设置了超时时间时，才会进入此状态
 
 * 终止 TERMINATED，线程死亡	**死亡线程将无法再次start**
 
@@ -3170,13 +3454,7 @@ final void notifyAll()唤醒同一个对象上所有调用 wait()方法的线程
 
 
 
-JDK 1.5 通过 Lock 接口提供了显式(explicit)的锁机制，增强了灵活性以及对线程的协调。Lock 接口中定义了加锁（lock()）和解锁(unlock())的方法，同时还提供了 newCondition()方法来产生用于线程之间通信的Condition 对象；
-
 JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对某个共享资源进行访问的线程的数量。在对资源进行访问之前，线程必须得到信号量的许可（调用 Semaphore 对象的 acquire()方法）；在完成对资源的访问后，线程必须向信号量归还许可（调用 Semaphore 对象的 release()方法）。
-
-
-
-
 
 
 
@@ -3231,8 +3509,6 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 
 
 
-
-
 **对象锁分为三种：共享资源、this、当前类的字节码文件对象**
 
 
@@ -3260,14 +3536,6 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 #### 同步锁
 
  Java 中每个对象都有一个内置锁。 当程序运行到非静态的 synchronized 同步方法上时，自动获得与正在执行代码类的当前实例（this 实例）有关的锁。获得一个对象的锁也称为获取锁、 锁定对象、在对象上锁定或在对象上同步。 当程序运行到 synchronized 同步方法或代码块时才该对象锁才起作用。 一个对象只有一个锁。所以，如果一个线程获得该锁，就没有其他线程可以 获得锁，直到第一个线程释放（或返回）锁。这也意味着任何其他线程都不 能进入该对象上的 synchronized 方法或代码块，直到该锁被释放。 释放锁是指持锁线程退出了 synchronized 同步方法或代码块。 关于锁和同步，有一下几个要点： 1）只能同步方法，而不能同步变量和类； 2）每个对象只有一个锁；当提到同步时，应该清楚在什么上同步？也就是 说，在哪个对象上同步？ 3）不必同步类中所有的方法，类可以同时拥有同步和非同步方法。 4）如果两个线程要执行一个类中的 synchronized 方法，并且两个线程使 用相同的实例来调用方法，那么一次只能有一个线程能够执行方法，另一个需要等待，直到锁被释放。也就是说：如果一个线程在对象上获得一个锁， 就没有任何其他线程可以进入（该对象的）类中的任何一个同步方法。 5）如果线程拥有同步和非同步方法，则非同步方法可以被多个线程自由访 问而不受锁的限制。 6）线程睡眠时，它所持的任何锁都不会释放。 7）线程可以获得多个锁。比如，在一个对象的同步方法里面调用另外一个 对象的同步方法，则获取了两个对象的同步锁。 8）同步损害并发性，应该尽可能缩小同步范围。同步不但可以同步整个方 法，还可以同步方法中一部分代码块。 9）在使用同步代码块时候，应该指定在哪个对象上同步，也就是说要获取哪个对象的锁
-
-
-
-#### 方法锁和静态方法锁的区别
-
-静态方法，需要对Class对象加锁。
-
-非静态方法，需要对本对象(this)加锁。
 
 
 
