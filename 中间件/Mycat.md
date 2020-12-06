@@ -307,49 +307,36 @@ wget http://dl.mycat.io/1.6.7.1/Mycat-server-1.6.7.1-release-20190627191042-linu
 
 * 逻辑库
 
+**Mycat可以被看做是若干个数据库集群构成的逻辑库**
+
 实际应用并不需要知道中间件的存在，业务开发人员只需要知道数据库的概念
 
-**数据库中间件可以被看做是一个或多个数据库集群构成的逻辑库**
 
-![image-20200920161108827](image.assets/image-20200920161108827.png)
 
-MYCAT服务区中的TESTDB库，只是逻辑上存在的数据库
+在{MYCAT_HOME}/conf/schema.xml 用<schema> 标签定义
 
-在Mycat中逻辑库在{MYCAT_HOME}/conf/schema.xml 用<schema> 标签定义
-
-![image-20200920161241948](image.assets/image-20200920161241948.png)
+![](image.assets/image-20200920161241948.png)
 
 
 
 * 逻辑表
-
-对应用来说，读写数据的表就是逻辑表。
-
-逻辑表的数据来源可以是多个分片库，针对不同的数据分布和管理特点，将逻辑表又分为
-
-1. 分片表
-
-2. 全局表    每张表存放全部数据
-
-3. ER表
-
-4. 非分片表
-
-   在schema.xml使用<table>标签对逻辑表进行定义
+  * 在schema.xml使用<table>标签对逻辑表进行定义
+  * 对应用来说，读写数据的表就是逻辑表,逻辑表的数据来源于若干个分片库
+  * 针对不同的数据分布和管理特点，将逻辑表分为
+    * 分片表
+    * 全局表    每张表存放全部数据
+    * ER表
+    * 非分片表
 
 
 
 * 分片表
 
-每个分片都有表的一部分数据，所有分片数据的合集构成了完整的表数据
 
-```
+
+```shell
 <table name="company" primaryKey="ID" type="global" dataNode="dn1,dn2,dn3" />
-```
-
-如上，定义了3张分片表 dn1,dn2,dn3
-
-```
+#定义了3张分片表 dn1,dn2,dn3
 <dataNode name="dn1" dataHost="localhost1" database="db1" />
 <dataNode name="dn2" dataHost="localhost2" database="db2" />
 <dataNode name="dn3" dataHost="localhost1" database="db3" />
@@ -373,11 +360,10 @@ MYCAT服务区中的TESTDB库，只是逻辑上存在的数据库
 
 * 非分片表
 
-对于数据量小的表，不需要进行数据切分
+  * 对于数据量小的表，不需要进行数据切分
+  * 只指定一个分片节点
 
-![image-20200920170150809](image.assets/image-20200920170150809.png)
-
-只指定一个分片节点
+![](image.assets/image-20200920170150809.png)
 
 
 
@@ -395,13 +381,11 @@ MYCAT服务区中的TESTDB库，只是逻辑上存在的数据库
 
 * 节点主机
 
-数据切分后，每个分片节点（dataNode）不一定都会独占一台机器，同一机器上面可以有多个分片数据库，这样一个或多个分片节点（dataNode）所在的机器就是节点主机,为了规避单节点主机并发数限制。
+  * 若干个分片节点（dataNode）所在的机器就是节点主机,规避单节点主机并发数限制
+  * 尽量将读写压力高的分片节点（dataNode）均衡的放在不同的节点主机，
+  * schema.xml中使用<dataHost>进行分片节点的定义
 
-尽量将读写压力高的分片节点（dataNode）均衡的放在不同的节点主机，
-
-schema.xml中使用<dataHost>进行分片节点的定义
-
-```
+```shell
 <dataHost name="M1" maxCon="1000" minCon="10" balance="0"
         writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
    <heartbeat>select user()</heartbeat>
@@ -415,52 +399,42 @@ schema.xml中使用<dataHost>进行分片节点的定义
 
 
 
-# server.xml
+# 配置
 
-* 端口
 
-```
+
+## server.xml
+
+
+
+```shell
+#端口
 <property name="serverPort">8066</property>
-```
 
-
-
-* 账号
-
-```
+#账号
 <user name="root" defaultAccount="true">
    <property name="password">123456</property>
-   <property name="schemas">TESTDB</property></user>
+   <property name="schemas">TESTDB</property>
+</user>
 ```
 
 
 
-# schema.xml
-
-* 配置虚拟表
-
-```
- <schema name="TESTDB" checkSQLschema="false" sqlMaxLimit="100">
-   <table name="sys_user" primaryKey="ID" dataNode="dn1,dn2,dn3"  rule="sharding-by-intfile" /></schema>
-```
+## schema.xml
 
 
 
-* 配置数据节点dataNode
+```shell
+#配置虚拟表
+<schema name="TESTDB" checkSQLschema="false" sqlMaxLimit="100">
+<table name="sys_user" primaryKey="ID" dataNode="dn1,dn2,dn3"  rule="sharding-by-intfile" /></schema>
 
-```
+#配置数据节点dataNode		name节点名称	dataHost主机名	database数据库名
 <dataNode name="dn1" dataHost="localhost1" database="db1" />
 <dataNode name="dn2" dataHost="localhost1" database="db2" />
 <dataNode name="dn3" dataHost="localhost1" database="db3" />
-```
 
-name 节点名称	dataHost 主机名	database 数据库名
-
-
-
-* 配置节点主机dataHost
-
-```
+#配置节点主机dataHost
 <dataHost name="localhost1" maxCon="1000" minCon="10" balance="0"
         writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
    <heartbeat>select user()</heartbeat>
@@ -474,6 +448,8 @@ name 节点名称	dataHost 主机名	database 数据库名
 
 
 
+
+
 ## maxCon/minCon
 
 连接数。标签内嵌套的 writeHost、readHost标签都会根据这个实例化连接数
@@ -481,14 +457,14 @@ name 节点名称	dataHost 主机名	database 数据库名
 
 
 ## balance 属性
-负载均衡类型，目前的取值有 3 种：
 
-1. balance="0"		不开启读写分离
-2. balance="1"，全部的 readHost 与 stand by writeHost 参与select语句的负载均衡，简单的说，当双
-主双从模式(M1->S1，M2->S2，并且 M1 与 M2 互为主备)，正常情况下，M2,S1,S2 都参与select语句的负载均衡。
-3. balance="2"，所有读操作都随机的在 writeHost、readhost 上分发。
-4. balance="3"，所有读请求随机的分发到 wiriterHost 对应的 readhost 执行，writerHost 不负担读压
-力，注意 balance=3 只在 1.4 及其以后版本有，1.3 没有
+
+| 负载均衡类型 |                                                              |
+| ------------ | ------------------------------------------------------------ |
+| balance="0"  | 不开启读写分离                                               |
+| balance="1"  | 全部的 readHost 与 stand by writeHost 参与select语句的负载均衡，简单的说，当双主双从模式(M1->S1，M2->S2， M1 -> M2)，M2,S1,S2 都参与select语句的负载均衡 |
+| balance="2"  | 读操作随机的在 write/readhost 上分发                         |
+| balance="3"  | 所有读请求随机的分发到 wiriterHost 对应的 readhost 执行，writerHost 不负担读压<br/>力，注意 balance=3 只在 1.4 及其以后版本有，1.3 没有 |
 
 
 
@@ -500,11 +476,15 @@ name 节点名称	dataHost 主机名	database 数据库名
 
 ## switchType
 
+
+
 - -1 表示不自动切换	
 - 1   **默认**，自动切换 
 - 2  基于 MySQL 主从同步的状态决定是否     **心跳语句show slave stat**
 
 * 3 基于 MySQL galary cluster 的切换机制（适合集群）心跳语句 show status like ‘wsrep%
+
+
 
 ## dbType
 
@@ -527,25 +507,17 @@ mongodb、oracle、spark 等
 
 
 
-### 数据切分
-
 数据被分散到多个数据库，减轻单台设备负载
 
-根据切分规则，可以分为两种
+两种切分规则
 
 * 垂直切分  按照不同的表切分到不同的数据库上
 * 水平切分  根据数据的逻辑关系，将同一个表中的数据按照某种条件拆分到多台数据库上
 
 
 
-
-
-### 数据切分的一些经验及参考：
-
-第一：能不切分尽量不要切分。
-第二：如果要切分一定要选择合适的切分规则，提前规划好。
-第三：数据切分尽量通过数据冗余或表分组来降低跨库join的可能。
-第四：由于数据库中间件对数据join实现优劣难以把握，而且实现高性能难度极大，业务读取尽量少用join。
+* 数据切分尽量通过数据冗余或表分组来降低跨库join的可能。
+* 由于数据库中间件对数据join实现优劣难以把握，而且实现高性能难度大，业务读取尽量少用join
 
 
 

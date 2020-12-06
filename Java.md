@@ -780,44 +780,38 @@ list.stream().collect(Collectors.toList());
 
 
 
-```
- for (Iterator iterator = set.iterator(); iterator.hasNext();) {
-            String string = (String) iterator.next();
-            System.out.println(string);
-        }
-```
-
-
-
-* forEachRemaining(Consumer<? super E> action)：为每个剩余元素执行给定的操作,直到所有的元素都已经被处理或行动将抛出一个异常
-
-* hasNext()  如果迭代器中还有元素，则返回true。
-
-* next()：返回迭代器中的下一个元素
-
-* remove()：删除迭代器新返回的元素。
-
-
-
 ==Iterator只能单向移动==
 
-==Iterator.remove()是唯一能安全地在迭代过程中修改集合==；如果在迭代过程中以任何其它的方式修改集合将会产生未知的行为。而且每调用一次next()方法，remove()方法只能被调用一次，如果违反这个规则将抛出一个异常。
+
+
+```java
+forEachRemaining(Consumer<? super E> action) 为剩余元素执行指定的操作,直到所有的元素都完成或抛出异常
+hasNext()  如果迭代器中还有元素，则返回true
+next()		返回迭代器中的下一个元素
+remove()	删除当前元素//唯一能安全地在迭代过程中修改集合的方式,并且每次next()只能一次remove()
+```
+
+
 
 
 
 ## ListIterator
 
-继承于Iterator接口,功能更强大,
 
-只能用于各种List类型的访问。可以通过调用listIterator()方法产生一个指向List开始处的ListIterator, 还可以调用listIterator(n)方法创建一个一开始就指向列表索引为n的元素处的ListIterator。
 
-==双向移动==
+继承于Iterator接口,功能更强大
 
-==产生迭代器前一个和后一个元素的索引==
+只能用于List类型的访问
 
-用set()替换它访问过的最后一个元素.
+==双向移动,保留迭代器前一个和后一个元素的索引==
 
-用add()在next()方法返回的元素之前或previous()方法返回的元素之后插入一个元素.
+
+
+```java
+listIterator(n)	//指定迭代器初始位置
+set()	//替换当前元素.
+previous()	//前一个元素
+```
 
 
 
@@ -850,11 +844,25 @@ foreach是通过iterator实现的遍历
 
 
 
-fail-fast产生的原因在于对集合进行迭代时，某个线程对该集合进行了修改，这时迭代器就会抛出 ConcurrentModificationException 异常信息，从而 fail-fast
+在迭代时对该集合进行修改，迭代器抛出 ConcurrentModificationException(检测到对象的并发修改)
 
-要了解fail-fast机制，我们首先要对ConcurrentModificationException 异常有所了解。当方法检测到对象的并发修改，但不允许这种修改时就抛出该异常。同时需要注意的是，该异常不会始终指出对象已经由不同线程并发修改，如果单线程违反了规则，同样也有可能会抛出该异常
+该异常不会始终指出对象已经由不同线程并发修改，如果**单线程违反了规则，同样也有可能会抛出该异常**
 
-迭代器的快速失败行为无法得到保证，它不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常，所以因此，为提高此类操作的正确性而编写一个依赖于此异常的程序是错误的做法，正确做法是：ConcurrentModificationException 应该仅用于检测 bug
+迭代器的快速失败行为无法得到保证，它不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常
+
+
+
+为提高并发修改集合的正确性,依赖于此异常是错误的
+
+正确做法是：
+
+* ConcurrentModificationException 仅用于检测 bug
+
+* synchronized  (阻塞问题)
+
+* 使用CopyOnWriteArrayList来替换ArrayList，其所有修改值的操作都对底层数组复制来实现
+  * 无需同步,就能实现并发
+  * 遍历操作的数量远超可变操作数量
 
 
 
@@ -930,23 +938,6 @@ public void clear() {
     /** 省略此处代码 */    
 }
 ```
-
-
-
-### 避免fail-fast
-
-
-
-* 加synchronized
-  * 可能会阻塞
-
-
-
-* 使用CopyOnWriteArrayList来替换ArrayList，其所有修改值的操作都对底层数组进行复制来实现
-  * 无需同步,就能实现并发
-  * 遍历操作的数量远超可变操作数量
-
-
 
 
 
@@ -2449,17 +2440,25 @@ outChannel.close();
 
 
 
-* 并行
-  * 同时多个进程运行
-* 并发
-  * 上下文快速切换,造成同时运行的假象
-
-* 串行
-  * 按先后顺序进行
+| 并行 | 同时多个进程运行                  |
+| ---- | --------------------------------- |
+| 并发 | 上下文快速切换,造成同时运行的假象 |
+| 串行 | 按先后顺序进行                    |
 
 
 
-即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
+* 守护线程 daemon
+  * 即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
+
+**JVM必须保证用户线程执行完毕,但无需等待守护线程执行完毕**
+
+
+
+如日志记录,监控内存,垃圾回收
+
+
+
+
 
 线程的运行由**调度器安排调度**,调度器由操作系统控制,先后顺序无法干预
 
@@ -2779,9 +2778,242 @@ public final class Unsafe {
 
 
 
-为每个线程**创造资源的副本**,而不是共享资源。将每个线程存取数据的行为加以隔离，给每个线程特定空间来保管该线程所独享的资源
+为每个线程**创造资源的副本**,而不是共享资源。隔离每个线程存取数据的行为，给线程特定空间来保管该线程的独享资源
 
-原理 : ThreadLocal 类中有一个Map，用于存储每一个线程的变量的副本
+
+
+ ThreadLocal 维护ThreadLocalMap，存储每个线程的变量的副本，数据存储以后，只有指定线程可以得到存储数据
+
+```java
+ class Thread implements Runnable {
+ ThreadLocal.ThreadLocalMap threadLocals = null;
+```
+
+
+
+**静态内部类ThreadLocalMap为每个Thread都维护了一个数组table，ThreadLocal确定了一个数组下标，而这个下标就是value存储的对应位置**
+
+```java
+
+//set 方法
+public void set(T value) {
+      //获取当前线程
+      Thread t = Thread.currentThread();
+      //实际存储的数据结构类型
+      ThreadLocalMap map = getMap(t);
+      //如果存在map就直接set，没有则创建map并set
+      if (map != null)
+          map.set(this, value);
+      else
+          createMap(t, value);
+  }
+  
+//每个线程持有一个ThreadLocalMap对象。每一个新的线程Thread都会实例化一个ThreadLocalMap并赋值给成员变量threadLocals，使用时若已经存在threadLocals则直接使用已经存在的对象
+ThreadLocalMap getMap(Thread t) {return t.threadLocals;}
+ 
+//createMap
+void createMap(Thread t, T firstValue) {
+      //实例化一个新的ThreadLocalMap，并赋值给线程的成员变量threadLocals
+      t.threadLocals = new ThreadLocalMap(this, firstValue);
+}
+
+
+ThreadLocalMap {
+        private static final int INITIAL_CAPACITY = 16;
+        private Entry[] table;
+        private int size = 0;
+        private int threshold; // Default to 0
+  
+//Entry为ThreadLocalMap静态内部类，对ThreadLocal的弱引用,让ThreadLocal和储值形成key-value的关系
+static class Entry extends WeakReference<ThreadLocal<?>> {
+    Object value;
+
+    Entry(ThreadLocal<?> k, Object v) {
+           super(k);
+           value = v;
+    }
+}
+
+//ThreadLocalMap构造方法
+ThreadLocalMap(ThreadLocal<?> firstKey, Object firstValue) {
+        //创建了长度为16的Entry数组
+        table = new Entry[INITIAL_CAPACITY];
+        //位运算，结果与取模相同，计算出需要存放的位置
+        int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1);
+        table[i] = new Entry(firstKey, firstValue);
+        size = 1;
+        setThreshold(INITIAL_CAPACITY);
+```
+
+
+
+前面讲过每个线程Thread持有一个ThreadLocalMap类型的实例threadLocals，结合此处的构造方法可以理解成每个线程Thread都持有一个Entry型的数组table，而一切的读取过程都是操作table
+
+table是set/get的焦点，在看具体的set和get方法前，先看下面这段代码。
+
+
+
+```java
+//在某一线程声明了ABC三种类型的ThreadLocal
+//一个Thread只有一个ThreadLocalMap
+//ABC对应同一个ThreadLocalMap对象,但存储在table数组的不同位置
+ThreadLocal<A> sThreadLocalA = new ThreadLocal<A>();
+ThreadLocal<B> sThreadLocalB = new ThreadLocal<B>();
+ThreadLocal<C> sThreadLocalC = new ThreadLocal<C>();
+```
+
+
+
+ABC在table中的位置通过这里确定
+
+```java
+  //ThreadLocalMap中set方法。
+  private void set(ThreadLocal<?> key, Object value) {
+            Entry[] tab = table;
+            int len = tab.length;
+            //获取索引值
+            int i = key.threadLocalHashCode & (len-1);
+
+            //遍历tab如果已经存在则更新值
+            for (Entry e = tab[i];
+                 e != null;
+                 e = tab[i = nextIndex(i, len)]) {
+                ThreadLocal<?> k = e.get();
+
+                if (k == key) {
+                    e.value = value;
+                    return;
+                }
+
+                if (k == null) {
+                    replaceStaleEntry(key, value, i);
+                    return;
+                }
+            }
+            
+            //如果上面没有遍历成功则创建新值
+            tab[i] = new Entry(key, value);
+            int sz = ++size;
+            //满足条件数组扩容x2
+            if (!cleanSomeSlots(i, sz) && sz >= threshold)
+                rehash();
+        }
+```
+
+
+
+在ThreadLocalMap中的set方法与构造方法能看到
+
+- `int i = key.threadLocalHashCode & (len-1)`
+- `int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1)`
+  将threadLocalHashCode进行一个位运算（取模）得到索引i，threadLocalHashCode代码如下
+
+
+
+```java
+    private final int threadLocalHashCode = nextHashCode();
+
+    private static AtomicInteger nextHashCode = new AtomicInteger();
+
+    private static final int HASH_INCREMENT = 0x61c88647;
+
+    private static int nextHashCode() {
+        //每次new ThreadLocal会使threadLocalHashCode自增，增量为0x61c88647
+        return nextHashCode.getAndAdd(HASH_INCREMENT);
+    }
+```
+
+
+
+0x61c88647是斐波那契散列乘数,是通过它散列(hash)出来的,结果分布均匀，避免hash冲突
+
+
+
+对于某一ThreadLocal来讲，它的索引i是确定的，在不同线程之间访问的是不同table数组的同一位置(即都为table[i])，不同线程间的table独立的
+
+对于同一线程的不同ThreadLocal来讲，这些ThreadLocal实例共享table数组，然后每个ThreadLocal实例在table中的索引i不同
+
+
+
+
+
+### get方法
+
+
+
+```java
+//ThreadLocal中get方法
+public T get() {
+    Thread t = Thread.currentThread();
+    ThreadLocalMap map = getMap(t);
+    if (map != null) {
+        ThreadLocalMap.Entry e = map.getEntry(this);
+        if (e != null) {
+            @SuppressWarnings("unchecked")
+            T result = (T)e.value;
+            return result;
+        }
+    }
+    return setInitialValue();
+}
+    
+//ThreadLocalMap中getEntry方法
+private Entry getEntry(ThreadLocal<?> key) {
+       int i = key.threadLocalHashCode & (table.length - 1);
+       Entry e = table[i];
+       if (e != null && e.get() == key)
+            return e;
+       else
+            return getEntryAfterMiss(key, i, e);
+   }
+```
+
+理解了set方法，get方法也就清楚明了，无非是通过计算出索引直接从数组对应位置读取即可。
+
+ThreadLocal实现主要涉及Thread，ThreadLocal，ThreadLocalMap这三个类。关于ThreadLocal的实现流程正如上面写的那样，实际代码还有许多细节处理的部分并没有在这里写出来。
+
+
+
+
+
+### ThreadLocal特性
+
+
+
+ThreadLocal和Synchronized都是为了解决多线程中相同变量的访问冲突问题，不同的点是
+
+- Synchronized是通过线程等待，牺牲时间来解决访问冲突
+- ThreadLocal是通过每个线程单独一份存储空间，牺牲空间来解决冲突，并且相比于Synchronized，ThreadLocal具有线程隔离的效果，只有在线程内才能获取到对应的值，线程外则不能访问到想要的值。
+
+正因为ThreadLocal的线程隔离特性，使他的应用场景相对来说更为特殊一些。在android中Looper、ActivityThread以及AMS中都用到了ThreadLocal。当某些数据是以线程为作用域并且不同线程具有不同的数据副本的时候，就可以考虑采用ThreadLocal。
+
+
+
+![](image.assets/image-20201206120358348.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2946,15 +3178,7 @@ JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对�
 
 
 
-## 守护线程 daemon
 
-
-
-**JVM必须保证用户线程执行完毕,但无需等待守护线程执行完毕**
-
-
-
-如日志记录,监控内存,垃圾回收
 
 
 
