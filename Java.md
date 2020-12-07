@@ -212,6 +212,42 @@ serialVersionUID = 1L意义:
 
 
 
+# 继承
+
+
+
+超类和子类 成员变量名称相同
+
+并不会重写父类的成员变量,**子类中将有两个相同名称的变量**
+
+```java
+public class A {  
+    public int m = 1;  
+ 
+    public void view(){
+        System.out.println(this.m);
+    }  
+}  
+ 
+public class B extends A{  
+ 
+    public int m = 2;  
+ 
+/**
+ *  @Override
+ *  public void view(){
+ *      System.out.println(this.m);		//2
+ *      System.out.println(super.m);	//1
+ *  }
+ */  
+ 
+    public static void main(String[] args) {
+        B b = new B();
+        b.view();		//1
+    }  
+}  
+```
+
 
 
 
