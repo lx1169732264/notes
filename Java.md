@@ -258,15 +258,17 @@ public class B extends A{
 
 
 
-## 默认方法
+## default 默认方法
+
+
 
 实现接口需要实现其所有的抽象方法,当接口加入新方法时，我们就需要对项目重新编写
 
-使用**default**修饰， 定义**方法体**。default方法所有的子类会**默认实现** ，可以避免修改代码
+使用**default**修饰， 定义**方法体**。**子类会默认实现default** ，避免修改代码
 
 
 
-这个default是jdk8新关键字，**和访问限定修饰符“default”不是一个概念**，与switch中的default功能完全不同.
+这个default是jdk8新关键字，**和访问限定修饰符“default”不是一个概念**，与switch中的default功能完全不同
 
 实际上是**public default**,省略了public
 
@@ -277,6 +279,8 @@ public class B extends A{
 
 
 ## 静态方法
+
+
 
 接口的静态方法不会被实现类所实现
 
@@ -308,7 +312,9 @@ public class B extends A{
 
 ### Supplier
 
-java.util.function.Supplier<T> 接口仅包含一个无参的方法： T get() 。
+
+
+仅一个无参的方法： T get() 
 
 用来获取一个泛型参数指定类型的对象数据。由于这是一个函数式接口，这也就意味着对应的Lambda表达式需要“对外提供”一个符合泛型类型的对象数据。
 
@@ -1113,6 +1119,71 @@ Map与List和Set不同，它是双列的集合
 
 
 
+### AbstractList
+
+
+
+```java
+public abstract class AbstractList<E> extends AbstractCollection<E> implements List<E> {
+  	//都是直接抛出异常
+		public E set(int index, E element) {  throw new UnsupportedOperationException();}
+    public void add(int index, E element) {   throw new UnsupportedOperationException();}
+    public E remove(int index) {    throw new UnsupportedOperationException();}
+}
+```
+
+
+
+#### SubList
+
+
+
+```java
+//ArrayList
+public List<E> subList(int fromIndex, int toIndex) {
+    subListRangeCheck(fromIndex, toIndex, size);
+    return new SubList(this, 0, fromIndex, toIndex);
+}
+
+    static void subListRangeCheck(int fromIndex, int toIndex, int size) {
+        if (fromIndex < 0)    throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
+        if (toIndex > size)    throw new IndexOutOfBoundsException("toIndex = " + toIndex);
+        if (fromIndex > toIndex)  throw new IllegalArgumentException("fromIndex(" + fromIndex +") > toIndex(" + toIndex + ")");
+    }
+```
+
+
+
+
+
+```java
+//AbstractList的内部类SubList,与ArrayList没有继承关系，无法强转
+class SubList<E> extends AbstractList<E> {
+    private final AbstractList<E> l;
+    private final int offset;
+    private int size;
+
+  	//把原列表的部分属性赋值给SubList
+  	//SubList并没有重新创建一个List，而是直接引用了原有的List（父类的视图）
+    SubList(AbstractList<E> list, int fromIndex, int toIndex) {
+        if (fromIndex < 0)   throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
+        if (toIndex > list.size())   throw new IndexOutOfBoundsException("toIndex = " + toIndex);
+        if (fromIndex > toIndex)     throw new IllegalArgumentException("fromIndex("+fromIndex +")>toIndex("+toIndex+")");
+        l = list;
+        offset = fromIndex;
+        size = toIndex - fromIndex;
+        this.modCount = l.modCount;	//重点
+//对父/子List做的非结构性修改（non-structural changes），都会影响到彼此
+//对子List做结构性修改，操作同样会反映到父List上
+//对父List做结构性修改，会抛出异常ConcurrentModificationException
+      
+//如果需要对subList作修改，又不想动原list。那么可以创建subList的深度拷贝
+```
+
+
+
+
+
 ### ArrayList
 
 
@@ -1207,7 +1278,52 @@ List接口有多个实现类，现在你用的是ArrayList，也许哪一天需�
 
 
 
+
+
+### Arrays.asList
+
+
+
+**不建议使用于基本数据类型的数组**
+
+该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
+
+
+
+==得到的List长度不可变==,不支持add()、remove()、clear()等,会抛出java.lang.UnsupportedOperationException
+
+```java
+public static <T> List<T> asList(T... a) {
+        return new ArrayList<>(a);	//是Arrays的内部类ArrayList(继承自AbstractList),没有实现add()、remove(),调用将直接抛出异常
+    }
+
+==体现的是适配器模式，只是转换接口，后台的数据仍是数组==
+private static class ArrayList<E> extends AbstractList<E>implements RandomAccess, java.io.Serializable{
+        private final E[] a;
+
+        ArrayList(E[] array) { a = Objects.requireNonNull(array); }
+```
+
+
+
+转化列表后只是用来遍历，用Arrays.asList()
+
+List还要添加或删除元素，new java.util.ArrayList，然后循环添加元素
+
+
+
+
+
 ## Map
+
+
+
+| 集合类            | Key              | Value            | Super       | 说明                 |
+| ----------------- | ---------------- | ---------------- | ----------- | -------------------- |
+| Hashtable         | 不允许为null     | 不允许为null     | Dictionary  | 安全                 |
+| ConcurrentHashMap | **不允许为null** | **不允许为null** | AbstractMap | 锁分段技术(JDK&CAS ) |
+| TreeMap           | 不允许为null     | **允许为null**   | AbstractMap | 不安全               |
+| HashMap           | **允许为null**   | **允许为null**   | AbstractMap | 不安全               |
 
 
 
@@ -4221,18 +4337,81 @@ Session session2 = declaredConstructor.newInstance();
 
 
 * @Target	作用范围
-  * Type：作用于类
-  * METHOD：作用于方法
-  * FIELD：作用于字段
-  * ElementType取值
+  
+* ```shell
+  Type：作用于类
+  METHOD：作用于方法
+  FIELD：作用于字段
+  PACKAGE
+  ElementType取值
+  PARAMETER
+  TYPE_PARAMETER  标注类型参数
+  CONSTRUCTOR
+  LOCAL_VARIABLE  局部变量
+  ANNOTATION_TYPE  注解类
+  TYPE_USE  所有类型
+  ```
 
 * @Retention：描述注解被保留的阶段
-  * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到
-* @Documented：描述注解是否被抽取到api文档中
+  
+  * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到	**默认**
+  
+  * RetentionPolicy.SOURCE：注解只保留在源文件，当Java文件编译成class文件的时候，注解被遗弃
+  
+  * RetentionPolicy.CLASS：注解被保留到class文件，但jvm加载class文件时候被遗弃
+  
+    生命周期长度 SOURCE < CLASS < RUNTIME
+  
+    需要在运行时动态获取注解信息，那只能用RUNTIME注解，比如@Deprecated使用RUNTIME注解
+     在编译时进行预处理操作，比如生成一些辅助代码（如 ButterKnife），就用 CLASS注解；
+     只是检查性的操作，比如 @Override 和 @SuppressWarnings，使用SOURCE 注解。
+  
+* @Documented：描述注解是否被抽取到javadoc中
 
 * @Inherited：描述注解是否可以被继承
 
- 
+* @Repeatable:指明注解为可重复注解，可以在同一个地方多次使用
+
+* @Scheduled
+
+  ```shell
+  #Cron 定时时间		允许正则表达式
+  @Scheduled(cron = "0 0 5 * * ?")      [秒] [分] [小时] [日] [月] [周] [年]
+  ?    不指定值
+  \-    区间
+  ,    指定多个值
+  /    递增触发。秒”5/15” 表示从5秒开始，每增15秒触发
+  L    最后。对于日字段，表示当月的最后一天.对于周字段上设置”6L”这样的格式,则表示“本月最后一个星期五”
+  W   离指定日期的最近的工作日(周一至周五). 例如在日字段上置”15W”，表示离每月15号最近的那个工作日触发。如果15号正好是周六，则找最近的周五(14号)触发, 如果15号是周未，则找最近的下周一(16号)触发.如果15号正好在工作日(周一至周五)，则就在该天触发。如果指定格式为 “1W”,它则表示每月1号往后最近的工作日触发。如果1号正是周六，则将在3号下周一触发。(注，”W”前只能设置具体的数字,不允许区间”-“)。
+  \#    序号(表示每月的第几个周几)，例如在周字段上设置”6#3”表示在每月的第三个周六.注意如果指定”#5”,正好第五周没有周六，则不会触发该配置
+  ’L’和‘W’组合使用。在日字段上设置”LW”,则表示在本月的最后一个工作日触发；周字段的设置，若使用英文字母是不区分大小写的，即MON与mon相同
+  
+  # zone时区.一般留空
+  fixedDelay上一次执行完毕后多长时间再执行
+  @Scheduled(fixedDelay = 5000) //上一次执行完毕时间点之后5秒再执行
+  
+  fixedDelayString 同上的字符串形式,支持占位符
+  @Scheduled(fixedDelayString = "5000") //上一次执行完毕时间点之后5秒再执行
+   fixedRate上一次开始执行后多长时间再执行
+  
+  @Scheduled(fixedRate = 5000) //上一次开始执行时间点之后5秒再执行
+  
+  fixedRateString同上的字符串形式。支持占位符
+  
+  initialDelay第一次延迟多长时间后再执行
+  
+  @Scheduled(initialDelay=1000, fixedRate=5000) //第一次延迟1秒后执行，之后按fixedRate的规则每5秒执行一次
+  
+  initialDelayString同上的字符串形式。支持占位符
+  ```
+
+
+
+
+
+
+
+
 
 
 
