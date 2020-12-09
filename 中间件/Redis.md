@@ -270,39 +270,15 @@ aof-load-truncated yes
 
 
 
-# 数据类型
-
-
-
-无论是哪种类型，Redis都不会直接存储，而是通过redisObject对象进行存储。
-
-Redis中不存在表这个概念，首先考虑哪种数据类型适合业务，此外，我们无法像在关系数据库中那样，使用sql来操作Redis中的数据，需要直接使用API发送对应的命令，来操作想要操作的数据
-
-
-
-1.字符串	Redis中所有键必须是字符串
-
-2.list    类似双向链表。
-
-3.hash	其字段和值必须是字符串
-
-4.set	唯一，无序
-
-5.zset	有序集合
-
-
-
-
-
-
-
-## 单线程
+# 单线程
 
 
 
 利用**队列**将并发变为串行，消除了传统数据库串行控制的开销
 
-没有锁的概念，多个客户端连接并不存在竞争，利用setnx实现锁
+单线程**避免了不必要的上下文切换和竞争条件，不存在多线程切换消耗CPU**，不存在加锁释放锁操作，不存在死锁
+
+利用setnx实现锁的功能
 
 没有线程切换消耗CPU/线程安全
 
@@ -310,21 +286,41 @@ CPU不是Redis的瓶颈，**Redis的瓶颈是机器内存的大小/网络带宽*
 
 
 
-* 完全基于内存，绝大部分请求是纯粹的内存操作，非常快速。数据存在内存中，类似HashMap，查找和操作的时间复杂度都是O(1)；
-
-* 单线程**避免了不必要的上下文切换和竞争条件，不存在多线程导致的切换而消耗 CPU，不用去考虑锁**，不存在加锁释放锁操作，不存在死锁
-
 * ==多路I/O复用模型，非阻塞IO==,**“多路”指多个网络连接，“复用”指的是复用同一线程**
 
 
 
 
 
+## setnx
 
 
-2， 默认16个数据库，类似数组下表从零开始，初始为零号库
+
+set if not exists
+
+只有不存在的时候才设置, 成功返回 1 ，失败返回 0 。可以实现锁的效果
+
+
+
+默认16个数据库，类似数组下表从零开始，初始为零号库
 
 统一密码管理，16个库密码相同
+
+
+
+
+
+# 指令
+
+
+
+无论是哪种类型，Redis都不会直接存储，而是通过redisObject对象进行存储
+
+Redis中不存在表这个概念，首先考虑哪种数据类型适合业务，此外，我们无法像在关系数据库中那样，使用sql来操作Redis中的数据，需要直接使用API发送对应的命令，来操作想要操作的数据
+
+
+
+
 
 3，切换数据库
 
@@ -340,10 +336,6 @@ Flushall；清空全部库
 
 
 
-# 指令
-
-
-
 * 基本指令
   * keys * 		获取所有的key	可以跟正则
   * dbsize       当前数据库 key 的数量
@@ -356,6 +348,7 @@ Flushall；清空全部库
   * exists key 		是否存在key
   * **expire key seconds 	过期(秒)**
   * **pexpire key milliseconds   毫秒**
+  
 * expireat key timestamp   某个时间戳（秒）之后过期；
   * pexpireat key millisecondsTimestamp：某个时间戳（毫秒）之后过期；
   * persist key 	删除过期时间
@@ -363,59 +356,107 @@ Flushall；清空全部库
   * monitor      实时监听并返回redis服务器接收到的所有请求信息。
   * flushall       删除全部数据库中所有 key，此方法不会失败
   * flushdb       删除当前数据库中所有 key,此方法不会失败
+
   
-* String
-  * getrange name 0 -1 		字符串分割  0 -1是全部	其中-1等价于n-1,即末尾下标.
-  * getset name new_value 修改key对应值，返回旧值
-  * mset k1 v1 k2 v2 		批量设置
-  * mget key1 key2 批量获取
 
-  * setnx key value 			不存在就插入
-  * setrange key index value 从index开始替换value
 
-  * incr age 递增
-  * incrby age 10 递增
 
-  * decr age 递减
-  * decrby age 10 递减
 
-  * incrbyfloat 增减浮点数
-  * append 追加
+## String
 
-  * strlen 长度
-  * object encoding key  得到key 的类型  string里面有三种编码
-    * int	能够用64位有符号整数表示的字符串
-    * embstr 长度<=39字节的字符串，性能高
-    * raw  用于>=39字节的
 
-* list
-  * lpush mylist a b c 左插入
-  * rpush mylist x y z 右插入
-  * lrange mylist 0 -1  取出数据集合  0 -1取出所有      0  1取第一个和第二个
-    * 可以用lrange实现分页
-  * lpop mylist 弹出最后一个元素
-  * rpop mylist 弹出第一个元素
-  * llen mylist 长度
-  * lrem mylist count value 删除
 
-    * count > 0 : 头->尾搜索，移除COUNT个等于VALUE的元素
-    * count < 0 : 尾->头搜索
-    * count = 0 : 移除所有与 VALUE 相等的值。
-  * lindex mylist 2 指定索引的值
-  * lset mylist 2 n 索引设值
-  * ltrim mylist 0 4    修剪(trim)，不在指定区间之内的元素都将被删除
-    * Java分割是左闭右开,redis是左右闭
-  * linsert mylist before/after a   在元素前或后插入元素。 当元素不存在或空列表时，不执行任何操作,当key不是列表类型，返回一个错误。
-  * rpoplpush list list2
-    *  移除列表的最后一个元素，并将该元素添加到另一个列表并返回。
+不仅可以是 String，也可以是数字（当数字类型用 Long 可以表示的时候encoding就是整型，其他都存储在 sdshdr 当做字符串）
+
+redis 的 string是二进制安全的,可以包含任何数据。如数字，字符串，jpg图片或者序列化的对象
+
+可以实现Memcached的所有功能,并且效率更高
+
+
+
+* getrange name 0 -1 		字符串分割  0 -1是全部	其中-1等价于n-1,即末尾下标.
+* getset name new_value 修改key对应值，返回旧值
+* mset k1 v1 k2 v2 		批量设置
+* mget key1 key2 批量获取
+
+* setnx key value 			不存在就插入
+* setrange key index value 从index开始替换value
+
+* incr age 递增
+* incrby age 10 递增
+
+* decr age 递减
+* decrby age 10 递减
+
+* incrbyfloat 增减浮点数
+* append 追加(智能分配内存,每次2倍)
+
+* strlen 长度
+* object encoding key  得到key 的类型  string里面有三种编码
+  * int	能够用64位有符号整数表示的字符串
+  * embstr 长度<=39字节的字符串，性能高
+  * raw  用于>=39字节的
+
+
+
+## list
+
+
+
+类似双向链表
+
+
+
+* 微博最新消息排行
+
+- 消息队列
+  - 利用PUSH将任务存在 List 中，然后工作线程再用 POP 操作将任务取出进行执行
+
+
+
+* lpush mylist a b c 左插入
+* rpush mylist x y z 右插入
+* lrange mylist 0 -1  取出数据集合  0 -1取出所有      0  1取第一个和第二个
+  * 可以用lrange实现分页
+* lpop mylist 弹出最后一个元素
+* rpop mylist 弹出第一个元素
+* llen mylist 长度
+* lrem mylist count value 删除
+
+  * count > 0 : 头->尾搜索，移除COUNT个等于VALUE的元素
+  * count < 0 : 尾->头搜索
+  * count = 0 : 移除所有与 VALUE 相等的值。
+* lindex mylist 2 指定索引的值
+* lset mylist 2 n 索引设值
+* ltrim mylist 0 4    修剪(trim)，不在指定区间之内的元素都将被删除
+  * Java分割是左闭右开,redis是左右闭
+* linsert mylist before/after a   在元素前或后插入元素。 当元素不存在或空列表时，不执行任何操作,当key不是列表类型，返回一个错误。
+* rpoplpush list list2
+  *  移除列表的最后一个元素，并将该元素添加到另一个列表并返回。
 
 
 
 ## hash
 
-```
+
+
+在 Memcached 中经常将一些结构化的信息打包成hashmap，在客户端序列化后存储为JSON字符串。在需要修改其中某一项时将JSON字符串取出来，反序列化，修改后再序列化存储回去,简单修改一个属性就干这么多事情，消耗必定是很大的，也不适用于并发操作场合
+
+而 Redis 的 Hash 结构可以像在数据库中 Update一样只修改某一项属性值
+
+
+
+==字段和值必须是字符串==
+
+
+
+- 存储、读取、修改用户属性
+
+
+
+```shell
     hset myhash name cxx
-         |--字段已经存在，旧值将被覆盖。
+         |--字段已经存在，旧值将被覆盖
     hmget myhash       批量获取
     hgetall myhash     获取所有
     hexists myhash name        是否存在
@@ -431,13 +472,21 @@ Flushall；清空全部库
 
 ## set
 
-```
+
+
+- 共同好友
+- 利用唯一性，可以统计访问网站的所有独立 IP
+- 好友推荐的时候，根据 tag 求交集，大于某个 threshold 就可以推荐
+
+
+
+```shell
     sadd myset redis   添加
     smembers myset     获取所有
     srem myset set1    删除
     sismember myset set1 判断是否存在
     scard key_name     长度
-    sdiff | sinter | sunion    差|交|并集
+    sdiff | sinter | sunion    #差|交|并集
     srandmember 随机获取集合中的元素
     spop 从集合中弹出一个元素
 ```
@@ -446,7 +495,11 @@ Flushall；清空全部库
 
 ## zset
 
-Zset增加了一个**权重参数score**，实现有序排列。
+
+
+Zset增加了一个**权重参数score**，实现有序排列
+
+
 
 ```
     zadd zset 1 one
@@ -464,6 +517,16 @@ Zset增加了一个**权重参数score**，实现有序排列。
     Zrank zset 0 -1 分数最小的元素排名为0
     Zrevrank zset 0 -1 分数最大的元素排名为0
 ```
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -525,7 +588,7 @@ AOF	日志记录每个写操作
 
 **只在Slave上持久化RDB文件,减少性能损耗,留后手**，而且只要15分钟备份一次就够了，save 900 1
 
-如果Enalbe AOF，好处是在最恶劣情况下也只会丢失不超过两秒数据，启动脚本较简单只load自己的AOF文件就可以了。代价是持续的IO，以及rewrite和rewrite过程中产生的新数据写到新文件造成的阻塞不可避免的。只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。默认超过原大小100%大小时重写可以改到适当的数值。
+如果Enalbe AOF，好处是在最恶劣情况下也只会丢失不超过两秒数据，启动脚本较简单只load自己的AOF文件就可以了。代价是持续的IO，以及rewrite和rewrite过程中产生的新数据写到新文件造成的阻塞不可避免的。只要硬盘许可，应该尽量减少AOF rewrite的频率，AOF重写的基础大小默认值64M太小了，可以设到5G以上。默认超过原大小100%大小时重写可以改到适当的数值
 
 
 
@@ -693,6 +756,20 @@ Module只要编译引入到Redis中就能轻松的实现我们某些需求的功
 - RedisSearch 主要支持一些富文本的的搜索
 - **RedisBloom** 支持分布式环境下的Bloom 过滤器
   - bloomfilter就类似于一个hash set，用于快速判某个元素是否存在于集合中，其典型的应用场景就是快速判断一个key是否存在于某容器，不存在就直接返回。布隆过滤器的关键就在于hash算法和容器大小
+
+
+
+
+
+# 订阅-发布系统
+
+
+
+发布（Publish）与订阅（Subscribe）
+
+在 Redis 中，你可以设定对某一个 key 值进行消息发布及消息订阅，当一个 key 值上进行了消息发布后，所有订阅它的客户端都会收到相应的消息。这一功能最明显的用法就是用作实时消息系统，比如普通的即时聊天，群聊等功能
+
+
 
 
 
@@ -1323,18 +1400,6 @@ mem_fragmentation_ratio：内存碎片比率，used_memory_rss / used_memory
 
 
 
-## **35.缓存和数据库一致性**
-
-
-
-只能采取合适的策略来降低缓存和数据库间数据不一致的概率，而无法保证两者间的强一致性。
-
-合适的策略包括 合适的缓存更新策略，更新数据库后要及时更新缓存、缓存失败时增加重试机制，例如MQ模式的消息队列
-
-
-
-
-
 
 
 ## **43.redis通讯协议**
@@ -1364,13 +1429,17 @@ RESP 的特点：实现简单、快速解析、可读性好
 - 时间复杂度：每次请求都是O(1)，完成所有迭代需要O(N)，N是元素数量；
 - 可用版本：version >= 2.8.0；
 
-## **48.Redis 管道 Pipeline**
-
-在某些场景下我们在**一次操作中可能需要执行多个命令**，而如果我们只是一个命令一个命令去执行则会浪费很多网络消耗时间，如果将命令一次性传输到 `Redis`中去再执行，则会减少很多开销时间。但是需要注意的是 `pipeline`中的命令并
 
 
+# 管道 Pipeline
 
-## LRU 算法**
+
+
+在某些场景下我们在**一次操作中可能需要执行多个命令**，而如果我们只是一个命令一个命令去执行则会浪费很多网络消耗时间，如果将命令一次性传输到 `Redis`中去再执行，则会减少很多开销时间
+
+
+
+## LRU 算法
 
 ```text
 class LRUCache<K, V> extends LinkedHashMap<K, V> {
@@ -1426,15 +1495,15 @@ class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
 
 
-每隔一点时间对数据库进行检查，删除里面的过期键，由算法决定删除多少过期键以及检查多少个数据库
+每隔一定时间对数据库进行检查，删除里面的过期键，由算法决定删除多少过期键以及检查多少数据库
 
 
 
-1. 定期删除策略每隔一段时间执行一次删除过期键操作，并通过限制删除操作执行的时长和频率来减少删除操作对CPU时间的影响。
+通过限制删除操作执行的时长和频率来减少删除操作对CPU时间的影响
 
-2. 定时删除策略有效地减少了因为过期键带来的内存浪费
 
-   
+
+
 
 ## 惰性删除
 
@@ -1444,23 +1513,18 @@ class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
 
 
-- **优点：**对cpu友好，在每次从键空间获取键时进行过期键检查并是否删除，删除目标也仅限当前处理的键，这个策略不会在其他无关的删除任务上花费任何cpu时间。
-- **缺点：**对内存不友好，过期键过期也可能不会被删除，导致所占的内存也不会释放。甚至可能会出现内存泄露的现象，当存在很多过期键，而这些过期键又没有被访问到，这会可能导致它们会一直保存在内存中，造成内存泄露。
+- **优点：**对cpu友好，在每次从键空间获取键时进行过期键检查并是否删除，删除目标也仅限当前处理的键，这个策略不会在其他无关的删除任务上花费任何cpu时间
+- **缺点：**对内存不友好，过期键过期可能不会被删除，所占的内存也不会释放,导致内存泄露
 
 
-
-## **58.Redis常见的几种缓存策略**
-
-- Cache-Aside
-- Read-Through
-- Write-Through
-- Write-Behind
 
 
 
 
 
 ## **60.Redis 到底是怎么实现“附近的人”**
+
+
 
 ### **使用方式**
 

@@ -27,6 +27,8 @@ JDK源码上的注解: 注意，由于字符串是不可变的，因此不需要
 
 ## indexof("")
 
+
+
 ==不存在返回-1	空字符串返回0==
 
  
@@ -1115,9 +1117,7 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-==Collections类==
 
-​	专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
 
 
 
@@ -1125,7 +1125,7 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-## 集合和数组的比较
+## 集合VS数组
 
 
 
@@ -2665,6 +2665,81 @@ public interface Comparable<T> {
 
 
 
+
+
+## Collections类
+
+
+
+​	专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
+
+
+
+
+
+
+
+
+
+### unmodifiableList()
+
+
+
+==装饰器模式==
+
+传入一个List实例la，返回这个list的只读视图，类型依然是List
+
+之后对视图进行add、remove等改变其内容的操作,直接抛出异常UnsupportedOperationException
+
+```java
+static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements List<E> {
+
+        final List<? extends E> list;
+
+        UnmodifiableList(List<? extends E> list) {
+            super(list);
+            this.list = list;
+        }
+
+        public boolean equals(Object o) {return o == this || list.equals(o);}
+        public int hashCode()           {return list.hashCode();}
+
+        public E get(int index) {return list.get(index);}
+        public E set(int index, E element) {
+            throw new UnsupportedOperationException();
+        }
+        public void add(int index, E element) {    throw new UnsupportedOperationException();}
+        public E remove(int index) {   throw new UnsupportedOperationException(); }
+        public int indexOf(Object o)            {return list.indexOf(o);}
+        public int lastIndexOf(Object o)        {return list.lastIndexOf(o);}
+        public boolean addAll(int index, Collection<? extends E> c) {    throw new UnsupportedOperationException();}
+
+        @Override
+        public void replaceAll(UnaryOperator<E> operator) {   throw new UnsupportedOperationException();}
+        @Override
+        public void sort(Comparator<? super E> c) {  throw new UnsupportedOperationException();}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## 队列
 
 
@@ -2759,7 +2834,9 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 # NIO
 
-![nio与io区别](image.assets/nio与io区别.png)
+
+
+![](image.assets/nio与io区别.png)
 
 * io
   * 阻塞的IO模型
@@ -3009,7 +3086,7 @@ outChannel.close();
 
 线程的运行由**调度器安排调度**,调度器由操作系统控制,先后顺序无法干预
 
-对同一份资源操作时,存在资源抢夺问题,需要加入并发控制
+对同一份资源操作时,存在资源抢夺问题,需要并发控制
 
 线程会带来额外开销,如cpu调度时间,并发控制开销
 
@@ -3019,11 +3096,11 @@ outChannel.close();
 
 ==线程安全主要体现在以下3个方面==
 
-* 原子性：提供了互斥访问，同一时刻只能有一个线程进行操作
+* 原子性：互斥访问，同时只能有一个线程进行操作
 
 * 可见性：线程对主内存的修改可以及时被其他线程观察到
 
-* 有序性：线程观察其他线程中的指令执行顺序，由于指令重排序的存在，该观察结果一般杂乱无序
+* 有序性：线程中的指令执行顺序，由于指令重排序的存在，该观察结果一般杂乱无序
 
 
 
