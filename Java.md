@@ -6397,7 +6397,7 @@ public void testAnnotation() {
 
 
 
-## 内存模型
+## JMM
 
 
 
@@ -6405,45 +6405,38 @@ public void testAnnotation() {
 
 ### 栈
 
+**-Xss**
 
 
-* 虚拟机是和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
+
+* 虚拟机和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
 * 执行时输入字节码文件,进行字节码解析,可能通过解释器执行,也可能通过执行编译器产生本地代码执行
 * 虚拟机栈==分配的内存大小确定==
   
   * ==对象引用,基本类型,指令地址==
-  
-  * ==局部变量表==
-  
-    * 存放**方法参数**和**局部变量**
-    * 容量以变量槽（Slot）为最小单位，每个Slot都应该至少能存放一个boolean、byte、char、short、int、float、reference类型的数据
+  * ==局部变量表==(大小固定,运行期间不变)
+  * 存放**对象引用和局部变量**
+    * 32位变量槽（Slot），Slot至少能存放一个boolean、byte、char、short、int、float、reference类型的数据
     * **局部变量必须手动赋值**，不会被被赋初值,不像类变量那样有加载过程中有准备阶段
-  
-  * ==操作数栈==
-  
-    * 后入先出，栈的最大深度在编译时确定。32位数据类型所占的栈容量为1，64位数据类型所占栈容量为2
-    * 方法在执行过程中，各种字节码指令往操作数栈中写入或提取内容(出入栈)。比如执行add，将栈顶的两个int出栈并相加，然后结果入栈
+  * ==操作数栈==(工作空间)
+  * 后入先出，最大深度在编译时确定。每32位对应栈容量1
+    * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
     * Jvm的解释执行引擎就是基于操作数栈的执行引擎
-  
   * ==动态连接==
-  
-    * class文件的常量池中有大量的符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数
-    * 这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
-  
-  * ==方法返回地址==
-  
-    * 方法执行时，只有正常/异常完成能退出方法
-      * 正常完成出口：执行引擎遇到一个方法返回的字节码指令，这时候执行引擎读取栈帧中的方法返回地址，将返回值传递给上层的方法调用者。
-      * 异常完成出口：遇到异常并且没有在方法体内得到处理，也就是在本地异常表内没有搜索到匹配的异常处理器,执行引擎不会读取方法返回地址，上层调用者不会得到任何返回值
-  
-    * ==方法退出:把当前栈帧出栈。恢复上层方法的局部变量表和操作数栈，把返回值压入调用者栈帧的操作数栈中，调整PC计数器,执行下一条指令==
+    * **每个栈帧都包含一个指向运行时常量池中该栈帧所属方法的引用**,从而支持方法调用过程中的动态连接
+    * class文件的常量池中有大量的符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
+  * ==方法返回地址(出口)==
+  * 只有正常/异常完成能退出方法
+      * 正常出口：执行引擎遇到返回的字节码指令，读取栈帧中的方法返回地址，将返回值传递给上层的方法调用者
+      * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，上层调用者不会得到任何返回值
+    
+  * ==方法退出:把当前栈帧出栈。恢复上层方法的局部变量表和操作数栈，把返回值压入调用者栈帧的操作数栈中，调整PC计数器,执行下一条指令==
     * 一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
-  
-  * 线程私有，生命周期与线程相同,==方法调用进栈,结束出栈==
-  
+  * 线程私有，生命周期与线程相同,方法调用进栈,结束出栈
   * 效率高.由操作系统自动分配,有专门的寄存器存放栈的地址，压栈出栈有专门指令
-  
   * 按先后定义的顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
+  * **如果线程请求的深度大于虚拟机所允许的深度，StackOverflowError**
+  * **如果虚拟机栈动态扩展，而扩展时无法申请到足够的内存，OutOfMemoryError**
 * 本地方法栈
   
   * 为虚拟机使用到本地方法服务（native）
@@ -6454,16 +6447,18 @@ public void testAnnotation() {
 
 ### 堆 heap
 
+-Xms -Xmx
 
 
-* 只有1个,被所有线程共享
+
+* 只有1个,被所有线程共享,虚拟机启动时创建
 * 存储==对象和对象的class信息(操作指令)==
 * ==堆是gc的主要区域==
   * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
   * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下一次GC，Eden和使用区里都存在需要回收的对象,从而导致碎片
   * **Survivor from/to区交替空闲** -> 新生代实际可用90%
     * Eden主要存放新创建对象,==分配内存时需要加锁==
-      * 线程在Eden上被分配独享的空间TLAB（Thread Local Allocation Buffer）,==在TLAB分配内存不需要加锁==，JVM给线程中的对象分配内存时尽量在TLAB分配,如果对象过大或TLAB用完，则仍在堆上进行分配
+      * 线程在Eden上被分配独享的空间TLAB（Thread Local Allocation Buffer）,==在TLAB分配内存不需要加锁==，JVM给线程中的对象分配内存时尽量在TLAB分配,对象过大或TLAB用完时，则仍在堆上进行分配
       * Eden满时
         * **进入老年代的对象大小在GC前未知**
         * 之前晋升到老年代的平均值>老年代剩余空间，**full GC**
@@ -6478,6 +6473,46 @@ public void testAnnotation() {
 
 
 ![](image.assets/堆分区.png)
+
+
+
+#### TLAB
+
+-XX:TLABSize
+
+
+
+Thread Local Allocation Buffer
+
+
+
+堆区线程共享,由于频繁创建实例,在并发环境下从堆区中划分内存空间是线程不安全的,但为避免多个线程操作同一地址,需要使用加锁等机制,将导致分配速度降低,所以需要TLAB
+
+
+
+**JVM为每个线程在Eden区分配了一个私有缓存区**(一般只占Eden的1%)
+
+使得线程可以不加锁地在多线程的情况下创建对象
+
+快速分配策略:当TLAB空间不足时,重新创建TLAB.多线程同时分配内存时,使用TLAB可以避免线程安全问题,提升内存分配的吞吐量
+
+所有OpenJDK衍生出来的JVM都提供了TLAB的设计
+
+
+
+- 尽管不是所有的对象实例都能够在TLAB中成功分配内存,但JVM确实是将TLAB作为内存分配的首选
+- 在程序中,开发人员可以通过选项"-XX:UseTLAB"设置是否开启TLAB空间。
+- 一旦对象在TLAB空间分配内存失败时, JVM就会尝试着通过使用加锁机制确保数据操作的原子性,从而直接在Eden空间中分配内存
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6528,22 +6563,51 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-### 方法区/静态区
+### 方法/静态区
+
+**-XX:MaxPermSize**
 
 
 
-* 只有1个,被线程共享
-* 存储==已被虚拟机加载的class文件信息,类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
-* ==永久代==
-  * ==GC主要进行常量池回收，类型卸载==
-* 常量池,包含==基本类型和对象型的常量值==
-
-  * Boolean,String及数组
-  * ==小于127的Byte,Short,Integer,Long,Character== **不包括浮点数**
-  * **编译期生成的常量**,如string的intern()
+* 只有1个,共享
+* 存储==已被虚拟机加载的class信息(编译后的代码),类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
+* ==永久代,GC主要进行常量池回收，类型卸载==
 * 方法表
   * 实现动态调用的核心,存放在方法区中的类型信息中
   * 方法区的类型信息指向方法表，方法表指向具体方法,这些方法中包括从父类继承/自身重写
+
+
+
+
+
+#### 运行时常量池
+
+**-XX:PermSize和-XX:MaxPermSize**
+
+
+
+- **常量池** 是Class文件的一部分,可以理解为Class文件中的资源仓库，它是Class文件结构中与其他项目资源关联最多的数据类型,**数据在编译期被确定**
+  - **字符串常量池**：编译期,类中产生的字符串类型数据
+  - **运行时常量池**：虚拟机加载Class后把常量池中的数据放入运行时常量池
+    - 包含==基本类型和对象型的常量值==
+    - ==小于127的Byte,Short,Integer,Long,Character== **不包括浮点数**
+    - **编译期生成的常量**,如string的intern()
+
+
+
+* 2类常量:
+  * 字面量：字符串、声明为final的常量值等
+  * 符号引用：类和接口的完全限定名、字段的名称和描述符、方法的名称和描述符
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6556,6 +6620,18 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 * ==通过堆中的class对象访问到方法区中类信息(反射)==
 
 ![](image.assets/image-20201024224300360.png)
+
+
+
+
+
+### 直接内存
+
+**可通过-XX:MaxDirectMemorySize指定，如果不指定，则默认与Java堆的最大值（-Xmx指定）一样**。
+
+- **直接内存（Direct Memory）并不是虚拟机运行时数据区的一部分，也不是Java虚拟机规范中定义的内存区域，但是这部分内存也被频繁地使用，而且也可能导致OutOfMemoryError异常出现**。
+
+
 
 
 
@@ -6913,7 +6989,29 @@ public class Singleton2 {
 
 
 
-# == hash equals
+
+
+
+
+# Object 6个方法
+
+
+
+```java
+public boolean equals(Object) 	比较地址
+public native int hashCode() 	获取哈希码 	是native Method,不是用java实现的方法
+public String toString()
+public final native Class getClass() 		获取类结构信息
+protected void finalize() throws Throwable 	垃圾回收前执行的方法
+protected native Object clone() throws CloneNotSupportedException 	克隆
+public final void wait() throws InterruptedException 	多线程等待
+public final native void notify() 			唤醒
+public final native void notifyAll() 		唤醒所有等待线程
+```
+
+
+
+## == hash equals
 
 
 
@@ -6945,31 +7043,7 @@ public class Singleton2 {
 
 
 
-# Object 6个方法
-
-
-
-```java
-public boolean equals(Object) 	比较地址
-public native int hashCode() 	获取哈希码 	是native Method,不是用java实现的方法
-public String toString()
-public final native Class getClass() 		获取类结构信息
-protected void finalize() throws Throwable 	垃圾回收前执行的方法
-protected native Object clone() throws CloneNotSupportedException 	克隆
-public final void wait() throws InterruptedException 	多线程等待
-public final native void notify() 			唤醒
-public final native void notifyAll() 		唤醒所有等待线程
-```
-
-
-
-
-
-
-
-
-
-# 对象克隆
+## 对象克隆
 
 
 
@@ -6979,7 +7053,7 @@ public final native void notifyAll() 		唤醒所有等待线程
 
 
 
-## 深度/浅度克隆
+### 深/浅克隆
 
 浅度拷贝即直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存。而深度拷贝为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
 
@@ -6987,7 +7061,7 @@ public final native void notifyAll() 		唤醒所有等待线程
 
  
 
-## hutool克隆
+### hutool克隆
 
 
 
@@ -7083,48 +7157,6 @@ toLowerCase()
 
 
 
-
-
-# Switch
-
-
-
-1.5前，只能是byte，short，char，int类型(或其包装类)的常量表达式
-
-1.5后，引入枚举enum
-
-1.7后，exper还可以是String类型。
-
-**long在所有版本都不行**
-
-
-
-1.7通过hashCode(),将string转换为int,switch(String)只是语法糖,在相应位置插入了强制转换代码，底层并没有修改
-
-==Switch中的String必须先判空==
-
-```java
-//在编译后的class中
-String string = "Hello";
-            String s;
-            switch ((s = string).hashCode()){
-            case 2301506: 
-                //用equals进行安全检查（避免hash相同值不同）
-                if (!s.equals("Java"))
-```
-
-
-
-每个case要么通过continue/break/return等来终止，要么注释说明程序将继续执行到哪一个case为止
-
-必须包含一个default语句并且放在最后
-
-
-
-
-
-
-
 # 异常
 
 ![](image.assets/异常.png)
@@ -7166,7 +7198,7 @@ String string = "Hello";
 * 内存泄露(OOM)：对象不被GC回收，始终占用内存。==分配的对象可达但已无用==
   * 内存泄露是内存溢出的一种诱因，不是唯一因素
 
-* 内存溢出：无法申请到足够的内存。通常发生于OLD段或Perm段垃圾回收后，仍然无内存空间容纳对象的情况
+* 内存溢出：**无法满足内存分配需求**
   * 栈溢出(SOF)：递归太深而发生堆栈溢出
   * **静态的集合类过多**
   * 数据库、网络、输入输出流，没有显式关闭
@@ -7226,7 +7258,7 @@ String string = "Hello";
 
 
 
-# 修饰符
+# 修饰符/关键字
 
 
 
@@ -7418,6 +7450,46 @@ native修饰符将有一个指向该方法的实现的指针。这些实现在�
 2）java.sql.Date是针对 SQL 语句使用的，只包含日期而没有时间部分。
 
 以下操作中容易出现不易被发现的 BUG：获得一个 JAVA 里的日期对象。 从数据库里读取日期 试图比较两个日期对象是否相等。如果毫秒部分丢失，本来认为相等的两个日期对象用 Equals 方法可能返回 false。sql.Timestamp比util.Date类精确度要高
+
+
+
+
+
+## Switch
+
+
+
+1.5前，只能是byte，short，char，int类型(或其包装类)的常量表达式
+
+1.5后，引入枚举enum
+
+1.7后，exper还可以是String类型。
+
+**long在所有版本都不行**
+
+
+
+1.7通过hashCode(),将string转换为int,switch(String)只是语法糖,在相应位置插入了强制转换代码，底层并没有修改
+
+==Switch中的String必须先判空==
+
+```java
+//在编译后的class中
+String string = "Hello";
+            String s;
+            switch ((s = string).hashCode()){
+            case 2301506: 
+                //用equals进行安全检查（避免hash相同值不同）
+                if (!s.equals("Java"))
+```
+
+
+
+每个case要么通过continue/break/return等来终止，要么注释说明程序将继续执行到哪一个case为止
+
+必须包含一个default语句并且放在最后
+
+
 
 
 
