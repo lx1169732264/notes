@@ -932,7 +932,23 @@ list.stream().collect(Collectors.toList());
 
 
 
-# 集合
+# 集合/数组
+
+
+
+集合主要分为两种：Collection 和 Map
+
+Collection 是 List 和 Set 接口的父接口
+
+ArrayList 和 LinkedList 是 List 的实现类
+
+HashSet 和 TreeSet 是 Set 的实现类
+
+LinkedHashSet 是 HashSet 的子类
+
+HashMap 和 TreeMap 是 Map 的实现类
+
+LinkedHashMap 是 HashMap 的子类
 
 
 
@@ -940,7 +956,7 @@ List 以特定索引来存取元素，可重复
 
 Set 不能存放重复元素（equals()区分是否重复）
 
-Map 保存键值对映射，映射关系可以是一对一或多对一
+Map 保存键值对映射，映射关系 一对一/多对一
 
 Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种实现版本，基于哈希存储的版本理论存取时间复杂度为O(1)，而基于排序树版本的实现在插入或删除元素时会按照元素或元素的键（key）构成排序树从而达到排序和去重的效果。
 
@@ -950,7 +966,6 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-集合主要分为两种：Collection 和 Map。Collection 是 List 和 Set 接口的父接 口；ArrayList 和 LinkedList 是 List 的实现类；HashSet 和 TreeSet 是 Set 的实现类； LinkedHashSet 是 HashSet 的子类。HashMap 和 TreeMap 是 Map 的实现类； LinkedHashMap 是 HashMap 的子类
 
 
 
@@ -958,7 +973,8 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-需要多个线程操作同一个容器，那么可以通过工具类 Collections 中的 synchronizedList 方法将其转换成线程安全的容器后再使 用（这其实是装潢模式最好的例子，将已有对象传入另一个类的构造器中创 建新的对象来增加新功能）。
+
+
 
 
 
@@ -966,15 +982,14 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-数组不是面向对象，集合更灵活
+| 集合                           | 数组                                              |
+| ------------------------------ | ------------------------------------------------- |
+| 面向对象,效率高                | 非面向对象                                        |
+|                                | 无法判断实际有多少元素，length只告诉了array的容量 |
+| 有多种实现方式和不同的适用场合 | 仅采用顺序表                                      |
+|                                |                                                   |
 
-1）**数组的效率高**,==能存放基本类型==,容量固定
 
-4）==数组无法判断实际有多少元素，length只告诉了array的容量==
-
-5）集合有多种实现方式和不同的适用场合，数组仅采用顺序表方式
-
-6）集合以类的形式存在，具有封装、继承、多态等类的特性，通过简单的方法和属性调用即可实现各种复杂操作，提高效率
 
 
 
@@ -986,27 +1001,14 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-List与Set实现公共父接口Collection,都是单列元素的集合
-
-Set不允许重复，不能有两个相等的对象 ，所以Set的add()返回boolean
-
-Set无序，只能以Iterator遍历
-
-
-
-List表示有先后顺序的集合
-
-==一个对象可以被反复存储进List中，相当于集合中有多个索引指向了这个对象==
-
-
-
-
-
-Map与List和Set不同，它是双列的集合
-
-可以获得所有的key的集合，可以获得所有value的集合，还可以获得key和value组合成的Map.Entry对象的集合
-
-
+| List                       | Set                      | Map                 |
+| -------------------------- | ------------------------ | ------------------- |
+| 单列                       | 单列                     | 双列                |
+| 重复(重复存储多个对象索引) | 不重复,add()返回boolean  | key不重复,value重复 |
+| 有序                       | 无序，只能以Iterator遍历 |                     |
+|                            |                          |                     |
+|                            |                          |                     |
+|                            |                          |                     |
 
 
 
@@ -1020,19 +1022,21 @@ Map与List和Set不同，它是双列的集合
 
 
 
-1）哈希表的查询快，O（1）
+哈希表的查询快，O（1）
 
-3）系统类已经覆盖了hashCode 方法,**自定义类放入hash类集合，必须重写hashcode**。不重写调用的是Object的hashcode,比较地址
+**自定义类放入hash类集合，必须重写hashcode**
 
 
 
 ==向哈希Set中添加数据的原理==
 
-首先计算hashCode，得到一个位置用来存放当前对象，如在该位置没有一个对象存在的话，直接增加进去。
+* 计算hashCode得到位置
+  * 该位置没有对象，直接插入
+  * 有对象，equals()
+    * false,放到重新散列后的新地址
+    * true，元素重复,不插入
 
-如果在该位置有对象，进行**equals，如果false,再进行一次散列，将该对象放到散列后计算出的新地址里**。如果true，那么集合认为集合中已经存在该对象了，不会再将该对象增加到集合中了
-
-**hashCode决定数据在表中的存储位置，equals判断是否存在相同数据**
+**hashCode决定存储位置，equals判断重复**
 
 
 
@@ -1270,28 +1274,20 @@ List还要添加或删除元素，new java.util.ArrayList，然后循环添加�
 
 
 
-* 是Hashtable的轻量级实现（非线程安全的实现）
+* 是Hashtable的非线程安全实现
 
 * 允许空键/值
 
-* 继承了AbstractMap,实现了Map，克隆，序列化接口
+  
+
 
 ```java
+//继承AbstractMap,实现了Map，克隆，序列化接口
 HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {
-//AbstractMap已经实现过了Map接口，而HashMap又继承了AbstractMap，这样使得HashMap已经实现了Map接口，然而HashMap又再次去实现了Map接口,这是JDK中多此一举的失误
-  
+
+//AbstractMap已经实现Map接口，而HashMap又继承AbstractMap再实现了Map接口,是JDK中多此一举的失误
 AbstractMap<K,V> implements Map<K,V> {
 ```
-
-
-
-* HashMap把Hashtable的contains方法去掉了，改成containsvalue和containsKey。因为contains方法容易让人引起误解
-
-
-
-![](image.assets/image-20201206204317626.png)
-
-
 
 
 
@@ -1327,7 +1323,7 @@ hash&(length-1)	==	hash%length
 
 ```java
 DEFAULT_INITIAL_CAPACITY = 1 << 4;	//默认初始容量
-MAXIMUM_CAPACITY = 1 << 30    最大容量
+MAXIMUM_CAPACITY = 1 << 30    //最大容量
 
 //红黑树长度小于6则会转回链表,红黑树的log(n)，log(8) = 3,log(6)≈ 2.6
 //链表平均查找长度是 log(n/2)，log(8) = 4，log(6)=3
@@ -1337,10 +1333,10 @@ MIN_TREEIFY_CAPACITY = 64	//超过这个值，才能树化,否则只是扩容
 
 Node<K, V>[] table
 Set<Entry<K, V>> entrySet	存放缓存
-size	元素个数(kv数量，不是数组的长度)
+size	//kv数量
 int modCount	//修改次数
-int threshold		扩容的阈值（容量*负载因子)
-float loadFactor	负载因子(太小导致数组的利用率低)
+int threshold		//扩容阈值（容量*负载因子)
+float loadFactor	//负载因子(太小导致数组的利用率低)
 ```
 
 
@@ -1356,10 +1352,10 @@ public HashMap(int initialCapacity) {   this(initialCapacity, DEFAULT_LOAD_FACTO
 public HashMap(int initialCapacity, float loadFactor) {
       if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
       if (initialCapacity > MAXIMUM_CAPACITY)  initialCapacity = MAXIMUM_CAPACITY;
-//Float.isNaN()判断非法数值,,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
+//Float.isNaN()判断非法值,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
       if (loadFactor <= 0 || Float.isNaN(loadFactor)) throw new IllegalArgumentException("Illegal load factor:" +loadFactor);
         this.loadFactor = loadFactor;
-  //tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
+  			//tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
         this.threshold = tableSizeFor(initialCapacity);
     }
 
@@ -1761,23 +1757,6 @@ CAS+同步锁+Node+红黑树
     private static final long ABASE;
     private static final int ASHIFT;
 
-    static {
-        //以下变量会在下面介绍到
-            U = sun.misc.Unsafe.getUnsafe();
-            Class<?> k = ConcurrentHashMap.class;
-            SIZECTL = U.objectFieldOffset(k.getDeclaredField("sizeCtl"));
-            TRANSFERINDEX = U.objectFieldOffset(k.getDeclaredField("transferIndex"));
-            BASECOUNT = U.objectFieldOffset(k.getDeclaredField("baseCount"));
-            CELLSBUSY = U.objectFieldOffset(k.getDeclaredField("cellsBusy"));
-            Class<?> ck = CounterCell.class;
-            CELLVALUE = U.objectFieldOffset(ck.getDeclaredField("value"));
-            Class<?> ak = Node[].class;
-            ABASE = U.arrayBaseOffset(ak);
-            int scale = U.arrayIndexScale(ak);
-            if ((scale & (scale - 1)) != 0)
-                throw new Error("data type scale not a power of two");
-            ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);}
-
 //3个原子性操作方法：
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
         return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
@@ -1843,7 +1822,10 @@ jdk1.8+ 锁定的是一个Node头节点，减小了锁的粒度，性能和冲�
 
 
 
+ConcurrentHashMap的并发度就是segment的大小，默认为16，这意味着最多同时可以有16条线程操作ConcurrentHashMap，这也是ConcurrentHashMap对Hashtable的最大优势
+
 ```java
+		//
 		private static int RESIZE_STAMP_BITS = 16;
 
     private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
@@ -2222,7 +2204,13 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 
 
 
+#### size()为什么要做同步
 
+
+
+同一时间只能有一条线程执行固定类的同步方法，但是对于类的非同步方法，可以多条线程同时访问。所以，这样就有问题了，可能线程A在执行Hashtable的put方法添加数据，线程B则可以正常调用size()方法读取Hashtable中当前元素的个数，那读取到的值可能不是最新的，可能线程A添加了完了数据，但是没有对size++，线程B就已经读取size了，那么对于线程B来说读取到的size一定是不准确的。
+
+**而给size()方法加了同步之后，意味着线程B调用size()方法只有在线程A调用put方法完毕之后才可以调用，这样就保证了线程安全性**
 
 
 
@@ -2255,7 +2243,7 @@ final boolean accessOrder;
 
 
 
-构造器	，**默认都采用插入顺序存储**,都通过调用父类来创建对象
+构造器，**默认都采用插入顺序存储**,都通过调用父类来创建对象
 
 ```java
 public LinkedHashMap() {
@@ -2348,15 +2336,11 @@ void afterNodeRemoval(Node<K,V> e) { // unlink
     // 将 p 节点的前驱后后继引用置空
     p.before = p.after = null;
     // b 为 null，表明 p 是头节点
-    if (b == null)
-        head = a;
-    else
-        b.after = a;
+    if (b == null)   head = a;
+    else    b.after = a;
     // a 为 null，表明 p 是尾节点
-    if (a == null)
-        tail = b;
-    else
-        a.before = b;
+    if (a == null)   tail = b;
+    else   a.before = b;
 //删除逻辑
 1.根据 hash 定位到桶位置
 2.遍历链表
@@ -2420,9 +2404,7 @@ public V get(Object key) {
 
 
 
-红黑树实现
-
-线程不安全
+红黑树实现,线程不安全
 
 
 
@@ -2432,15 +2414,14 @@ TreeMap底层是根据红黑树的数据结构构建的，默认是key的自然�
 
 ==将TreeMap的EntrySet转换成list，然后使用Collections.sor排序==
 
-```
+```java
  Map<String,String> map = new TreeMap<String,String>();
 
 List<Entry<String, String>> list = new ArrayList<Entry<String, String>>(map.entrySet());
 Collections.sort(list,new Comparator<Map.Entry<String,String>>() {
 //升序排序
 public int compare(Entry<String, String> o1, Entry<String, String> o2) {
-return o1.getValue().compareTo(o2.getValue()); } });
-
+	return o1.getValue().compareTo(o2.getValue()); } });
 ```
 
 
@@ -2676,11 +2657,11 @@ public void clear() {
 
 
 
-## Collections类
+## Collections
 
 
 
-​	专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
+专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
 
 
 
@@ -2754,11 +2735,11 @@ static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements Li
 
 
 
+### synchronizedList
 
 
 
-
-
+转换成线程安全的容器（==装潢模式==，将已有对象传入另一个类的构造器中创建新的对象来增加新功能）
 
 
 
@@ -2871,12 +2852,12 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 * io
   * 阻塞的IO模型
   * 单向
-  * 以最基础的字节流处理数据
+  * 字节流处理数据
 
 * nio
   * ==多路复用==的IO模型
   * 利用缓冲实现了数据在channel中的**双向**传输
-  * 以块的方式处理数据,效率高
+  * **以块的方式处理数据**,效率高
   * 通道和缓冲区
     * 缓冲区可以分片，只读/直接/间接缓冲区
 
@@ -3086,23 +3067,17 @@ outChannel.close();
 
 
 
-
-
-
-
 # 多线程
 
 
 
-**进程**：在操作系统中能独立运行，并作为资源分配的基本单位。它表示运行中的程序。运行程序是进程从创建->运行->消亡的过程
+**进程**：在操作系统中能独立运行，并作为资源分配的基本单位。是运行中的程序。运行程序是进程创建->运行->消亡的过程
 
-**线程**：是比进程更小的执行单位，能够完成进程中的一个功能，也被称为轻量级进程。进程在执行的过程中可以产生多个线程
+**线程**：是比进程更小的执行单位，也被称为轻量级进程
 
 同类的多个**线程共享进程的堆和方法区**，但**每个线程有自己的程序计数器、虚拟机栈和本地方法栈**，所以系统在各个线程之间作切换工作时，负担比进程小
 
 ![](image.assets/JVM模型(线程).png)
-
-
 
 
 
@@ -3113,8 +3088,9 @@ outChannel.close();
 
 
 
-* 守护线程 daemon
-  * 即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
+守护线程 daemon
+
+即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
 
 **JVM必须保证用户线程执行完毕,但无需等待守护线程执行完毕**
 
@@ -3124,33 +3100,13 @@ outChannel.close();
 
 
 
-线程的运行由**调度器安排调度**,调度器由操作系统控制,先后顺序无法干预
-
-对同一份资源操作时,存在资源抢夺问题,需要并发控制
-
-线程会带来额外开销,如cpu调度时间,并发控制开销
-
-**每个线程在自己的工作内存交互,内存控制不当会造成数据不一致**
-
-
-
-==线程安全主要体现在以下3个方面==
-
-* 原子性：互斥访问，同时只能有一个线程进行操作
-* 可见性：线程对主内存的修改可以及时被其他线程观察到
-* 有序性：上下两个互不关联的语句不会被指令重排序
-  * 指令重排序是指处理器为了性能优化，在无关联的代码的执行是可能会和代码顺序不一致
-  * 如果编译器推迟执行一个操作，其他线程可能在这个操作执行完之前都不会看到该操作的结果，这反映了缓存的影响
-
-
-
-
-
 上下文切换
 
-**CPU给每个线程分配CPU时间片**,不停地切换线程，在切换前会保存上一个任务的状态，以便下次切换回这个任务时，可以再加载这个任务的状态。所以**任务从保存到加载的过程就是一次上下文切换**。**上下文切换会影响多线程的执行速度**
+**CPU给每个线程分配CPU时间片**,不停地切换线程
 
+在切换前会保存上一个任务的状态，以便下次切换回这个任务时，可以再加载这个任务的状态。
 
+**任务从保存到加载的过程就是一次上下文切换,频繁切换影响执行速度**
 
 
 
@@ -3172,15 +3128,17 @@ Java内存模型规定主内存是共享内存区域，所有线程都可以访�
 
 
 
-## start() 会执行 run() 
+## start() 会执行 run()
+
+
 
 new 一个 Thread，线程进入初始状态；
 
 调用 start()方法，会启动一个线程并使线程进入了就绪状态，当分配到时间片后就可以开始运行了。 start() 会执行线程的相应准备工作，然后自动执行 run() 方法的内容，这是真正的多线程工作
 
-而直接执行 run() 方法，会把 run 方法当成一个 main 线程下的普通方法去执行，并不会在某个线程中执行它，并不是多线程工作
+而直接执行run()是作为main线程下的普通方法，并不是多线程
 
-**总结： 调用 start 方法可启动线程并使线程进入就绪状态，而 run 方法只是 thread 的一个普通方法调用，还是在主线程里执行**
+
 
 
 
@@ -3197,14 +3155,25 @@ new 一个 Thread，线程进入初始状态；
 Compare And Swap，比较与交换
 
 * 内存地址V，旧值A和新值B
-* 执行过程中发现V上的值与A相等(主内存未被修改)，就将V更新为B。不匹配不执行任何操作
+* 执行过程中发现V上的值 == A (主内存未被修改)，就将V更新为B
+  * 不匹配则不更新,并可以再次尝试
 * 无锁定,线程不必等待锁定，效率高
 
 
 
+CAS不通过JVM,直接利用 JNI（Java Native Interface本地调用）,直接调用CPU 的cmpxchg汇编指令
+
+JUC都是建立在CAS之上的，因此对于synchronized性能更高
+
+==读/改/写都是原子性操作==
+
+
+
 * 缺点
-  * CPU开销大  反复尝试更新，却一直不成功，给CPU压力
+  * CPU开销大  反复尝试更新，却一直不成功，给CPU压力,**只适合冲突较少的场景**
   * 不能保证代码块的原子性   **只保证变量的原子性操作**
+
+
 
 
 
@@ -3254,9 +3223,7 @@ Compare And Swap，比较与交换
 
 ==版本号==
 
-真正要做到严谨的CAS，compare()不仅要比较A和V的实际值，还要比较变量的版本号是否一致
-
-每次修改都更新版本号
+compare()不仅要比较A和V的实际值，还要比较变量的版本号是否一致,每次修改都更新版本号
 
 
 
@@ -3266,29 +3233,35 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## JUC 1.5+
+
+
+
+Java的CAS会使用现代处理器上提供的高效机器级别原子指令，这些原子指令以原子方式对内存执行读-改-写操作，这是在多处理器中实现同步的关键（从本质上来说，能够支持原子性读-改-写指令的计算机器，是顺序计算图灵机的异步等价机器，因此任何现代的多处理器都会去支持某种能对内存执行原子性读-改-写操作的原子指令）
+
+同时，volatile变量的读/写 + CAS 可以实现线程之间的通信
+
+把这些特性整合在一起，就形成了整个concurrent包实现的基石
+
+
+
+concurrent包的通用实现模式：
+
+首先，声明共享变量为volatile
+
+然后，使用CAS的原子条件更新来实现线程同步
+
+同时，配合volatile的读/写 + CAS所具有的volatile读和写的内存语义来实现线程通信
+
+
+
+AQS的实现模式:
+
+非阻塞数据结构 + 原子变量类
+
+
+
+![](image.assets/concurrent包的实现.png)
 
 
 
@@ -3298,7 +3271,7 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 
 
-Java的concurrent包里面的CountDownLatch其实可以把它看作一个计数器，只不过这个计数器的操作是原子操作，同时只能有一个线程去操作这个计数器，也就是同时只能有一个线程去减这个计数器里面的值。
+相当于原子操作的计数器，同时只能有一个线程去操作计数器
 
 
 
@@ -3308,7 +3281,7 @@ Java的concurrent包里面的CountDownLatch其实可以把它看作一个计数�
 
 
 
-向CountDownLatch对象设置一个初始的数字作为计数值，任何调用这个对象上的await()方法都会阻塞，直到这个计数器的计数值被其他的线程减为0为止。
+向CountDownLatch对象设置初始计数值，任何调用这个对象上的await()方法都会阻塞，直到这个计数器的计数值被其他的线程减为0
 
 
 
@@ -3384,6 +3357,10 @@ public class CountDownLatchDemo {
 
 
 
+限制代码块的并发数
+
+
+
 - acquire（获取） 成功获取,信号量–
 - release（释放）信号量++，然后唤醒等待的线程
 - 信号量主要用于两个目的，一个是用于多个共享资源的互斥使用，另一个用于并发线程数的控制
@@ -3425,9 +3402,7 @@ public class SemaphoreDemo {
 
 
 
-juc.atomic包
-
-AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
+juc.atomic包	AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
 
 
 
@@ -3486,9 +3461,136 @@ public final class Unsafe {
 
 
 
+### Executor 1.5+
+
+
+
+Executor根据一组执行策略来调度，执行和控制的异步任务
+
+无限制的创建线程会引起内存溢出。所以需要创建线程池来回收再利用线程
+
+
+
+==Executors类里面提供了一些静态工厂，生成一些常用的线程池==
+
+**newCachedThreadPool**可缓存线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程
+
+**newFixedThreadPool** 定长线程池，可控制线程最大并发数，超出的线程会在队列中等待
+
+**newScheduledThreadPool** 定长线程池，支持定时及周期性任务执行
+
+**newSingleThreadExecutor** 单线程化的线程池，它只会用唯一的工作线程来执行任务，保证所有任务按照指定顺序(FIFO, LIFO, 优先级)执行
+
+
+
+
+
+Executor		总接口,只定义了execute()执行线程方法
+
+ExecutorService extends Executor 子接口,定义了shutdown()关闭 submit()等方法
+
+```
+abstract class AbstractExecutorService implements ExecutorService
+```
+
+
+
+class ThreadPoolExecutor extends AbstractExecutorService
+
+```
+void execute(Runnable command){}	//执行Runnable线程,无返回值
+```
+
+
+
+```
+<T>Future<T> submit(Callable<T> task)	//执行Callable线程,有返回值
+```
+
+
+
+```
+Executors工具类(工厂模式),返回不同类型的线程池
+定义了new线程池的方法
+Executors.newFixedThreadPool(10);
+```
+
+
+
+
+
+
+
+Executors创建线程池对象的弊端
+        1）FixedThreadPool和SingleThreadPool:
+  允许的请求队列长度为Integer.MAX_VALUE，可能会**堆积大量的请求**，从而导致OOM。
+        2）CachedThreadPool:
+  允许的创建线程数量为Integer.MAX_VALUE，可能会**创建大量的线程**，从而导致OOM。
+
+
+
+
+
+### Callable + Future
+
+
+
+**Callable用于产生结果，Future用于获取结果**
+
+**Callable接口用泛型去定义它的返回类型**。Executors类提供了一些有用的方法去在线程池中执行Callable内的任务。但Callable任务是并行的，必须等待它返回的结果。Future对象解决了这个问题
+
+
+
+**在线程池提交Callable任务后返回了一个Future对象**，从而知道Callable任务的状态和得到Callable的返回值(Future提供的get())
+
+
+
+
+
+
+
+### FutureTask
+
+
+
+用于异步获取执行结果或取消执行任务的场景。通过传入Runnable或者Callable的任务给FutureTask，直接调用其run方法或者放入线程池执行，之后可以在外部通过FutureTask的get方法异步获取执行结果，因此，FutureTask非常适合用于耗时的计算，主线程可以在完成自己的任务后，再去获取结果。另外，FutureTask还可以确保即使调用了多次run方法，它都只会执行一次Runnable或者Callable任务，或者通过cancel取消FutureTask的执行等。
+
+
+
+
+
+### ThreadPoolExecutor
+
+
+
+```java
+public ThreadPoolExecutor(int corePoolSize,
+                          int maximumPoolSize,
+                          long keepAliveTime,
+                          TimeUnit unit,
+                          BlockingQueue<Runnable> workQueue) {
+    this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue,
+         Executors.defaultThreadFactory(), defaultHandler);
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## ThreadLocal
 
 
+
+允许创建只能被同一个线程读写的变量,即使两个线程同时执行同一代码，也无法访问到对方的ThreadLocal变量
 
 为每个线程**创造资源的副本**,而不是共享资源。隔离每个线程存取数据的行为，给线程特定空间来保管该线程的独享资源
 
@@ -3502,7 +3604,7 @@ class Thread implements Runnable {
  ThreadLocal.ThreadLocalMap threadLocals = null;
 }
    
-
+//设置ThreadLocal变量
 public void set(T value) {
       //当前线程
       Thread t = Thread.currentThread();
@@ -3642,12 +3744,12 @@ threadLocalHashCode是通过原子操作类AtomicInteger的自增确定的
 
 
 
-### get方法
+### get
 
 
 
 ```java
-//ThreadLocal中get方法
+//获取ThreadLocal变量
 public T get() {
     Thread t = Thread.currentThread();
     ThreadLocalMap map = getMap(t);
@@ -3693,6 +3795,44 @@ ThreadLocal和Synchronized都是为了解决多线程中相同变量的访问冲
 - ThreadLocal通过每个线程单独一份存储空间，牺牲空间来解决冲突，**具有线程隔离效果，只有在线程内才能获取到对应的值**
   - 正因为线程隔离特性，当数据是以线程为作用域并且不同线程具有不同的数据副本的时候,就可以考虑采用ThreadLocal
   - 如android中Looper、ActivityThread以及AMS
+
+
+
+
+
+### InheritableThreadLocal
+
+
+
+
+
+InheritableThreadLocal类是ThreadLocal类的子类
+
+**InheritableThreadLocal允许线程以及该线程创建的所有子线程都可以访问ThreadLocal变量**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3780,6 +3920,12 @@ public class TestCallable implements Callable<String> {
 
 
 
+- Object的wait()+notify()唤醒线程
+  - wait()/notify(必须成对出现,并且**顺序不能反**)
+- Condition的await()+signal()方法唤醒线程
+  - await()+signal()必须成对出现,并且**顺序不能反**
+- LockSupport类可以阻塞当前线程以及唤醒指定被阻塞的线程
+
 
 
 
@@ -3789,16 +3935,17 @@ public class TestCallable implements Callable<String> {
 ​	优先级低的也有可能被先调用,全看cpu心情,这将导致性能倒置 :优先级高的一直在等待
 
 * yield()	**暂停但不阻塞**正在执行的线程对象,**转入就绪状态**,cpu有可能再次调度到礼让线程,导致礼让失败
-* sleep()	
-  * **Thread类的静态方法**,转入阻塞转态
-  * ==计时结束自动苏醒,不涉及线程间通信==,监控状态依然保持,==不释放锁==
-  * **sleep()可以在任何地方使用**
-  * 异常抛出InterruptedException
-  * **超时/interrupt()唤醒**
 
-* wait 
-  * Object的方法,==释放对象锁==
-  * **wait()必须在同步控制方法和同步代码块中使用**
+
+
+
+
+* sleep()	**Thread类的静态方法**
+  * ==计时结束自动苏醒,不涉及线程间通信==,监控状态依然保持,==不释放锁==
+  * 可以在任何地方使用,异常抛出InterruptedException
+  * **超时/interrupt()唤醒**
+* wait   Object的方法,==释放对象锁==
+  * 必须在同步控制方法和同步代码块中使用
   * ==notify()/计时结束 苏醒==
 
 
@@ -3812,24 +3959,6 @@ public class TestCallable implements Callable<String> {
 * start()    此时线程处于就绪状态，并没有运行，得到 cpu 时间片**再执行 run()方法** .run()方法只是类的一个普通方法而已，**如果直接调用 run 方法，程序中依然只有主线程**，还是要顺序执行
 * Thread.state / thread.getState()	获取线程状态
 * **线程同时启动**    for 循环，调用 wait()方法，让所有线程等待,再调用 notifyAll(), 同时启动所有线程
-
-
-
-Object
-
-```java
-final void wait() 	等待其它线程通知
-
-void wait(long timeout) 线程等待指定毫秒参数的时间
-
-final void wait(longtimeout,int nanos)线程等待指定毫秒、微妙的时间
-
-final void notify()唤醒一个处于等待状态的线程。注意的是在调用此方法的时候，并不能确切的唤醒某一个等待状态的线程，而是由 JVM 确定唤醒哪个线程，而且不是按优先级。
-
-final void notifyAll()唤醒同一个对象上所有调用 wait()方法的线程，注意并不是给所有唤醒线程一个对象的锁，而是让它们竞争
-```
-
-
 
 
 
@@ -4038,17 +4167,25 @@ synchronized (对象) {
 
 
 
-某一线程从开始访问到结束访问，该数据被其他的线程所修改，表现形式为数据的缺失/不一致
+非原子性地操作共享资源
 
-　　线程安全问题发生的条件：	存在共享资源，非原子性地操作该共享资源
+
+
+==线程安全主要体现在以下3个方面==
+
+* 原子性：互斥访问，同时只能有一个线程进行操作
+* 可见性：线程对主内存的修改可以及时被其他线程观察到
+* 有序性：上下两个互不关联的语句不会被指令重排序
+  * 指令重排序是指处理器为了性能优化，在无关联的代码的执行是可能会和代码顺序不一致
+  * 如果编译器推迟执行一个操作，其他线程可能在这个操作执行完之前都不会看到该操作的结果
 
 
 
 解决思路：
 
-　　　　**尽量不使用共享变量，将不必要的共享变量变成局部变量来使用**
+　　　　**尽量不使用共享变量，将不必要的共享变量变成局部变量**
 
-　　　　**synchronized/Lock**。
+　　　　**synchronized/Lock**
 
 　　　　**ThreadLocal为每一个线程建立一个变量的副本，各个线程间独立操作，互不影响**
 
@@ -4066,33 +4203,46 @@ synchronized (对象) {
 
 解决思路：
 
-　　**利用线程池**，模拟一个池，预先创建有限合理个数的线程放入池中，当需要执行任务时从池中取出空闲的先去执行任务，执行完成后将线程归还到池中，这样就**减少了线程的频繁创建和销毁，节省内存开销**和减小了垃圾回收的压力。同时因为任务到来时本身线程已经存在，减少了创建线程时间，提高了执行效率，而且合理的创建线程池数量还会使各个线程都处于忙碌状态，提高任务执行效率
-
-线程池还提供了拒绝策略，当任务数量到达某一临界区时，线程池将拒绝任务的进入，保持现有任务的顺利执行，减少池的压力
-
-
-
-#### 活跃性问题
+　　**线程池**
 
 
 
 
 
-　
+#### 并发控制
 
-#### **（四）阻塞**
 
-　　阻塞是用来形容多线程的问题，**几个线程之间共享临界区资源，那么当一个线程占用了临界区资源后，所有需要使用该资源的线程都需要进入该临界区等待，等待会导致线程挂起，一直不能工作，这种情况就是阻塞**，**如果某一线程一直都不释放资源，将会导致其他所有等待在这个临界区的线程都不能工作**。当我们使用synchronized或重入锁时，我们得到的就是阻塞线程，如论是synchronized或者重入锁，都会在试图执行代码前，得到临界区的锁，如果得不到锁，线程将会被挂起等待，知道其他线程执行完成并释放锁且拿到锁为止。
 
-　　解决方法：
+对同一份资源操作时,存在资源抢夺问题,需要并发控制
 
-　　**可以通过减少锁持有时间，读写锁分离，减小锁的粒度，锁分离，锁粗化等方式来优化锁的性能**。
+
+
+
+
+
+
+#### 数据不一致
+
+
+
+每个线程在自己的工作内存交互,内存控制不当会造成数据不一致
+
+
+
+#### 阻塞
+
+
+
+
+
+解决方法：
+
+　　**减少锁持有时间，读写锁分离，减小锁的粒度，锁分离，锁粗化**
 
 > 临界区：
 >
 > 　　临界区是用来表示一种公共的资源（共享数据），它可以被多个线程使用，但是在每次只能有一个线程能够使用它，当临界区资源正在被一个线程使用时，其他的线程就只能等待当前线程执行完之后才能使用该临界区资源。
 >
-> 　　比如办公室办公室里有一支笔，它一次只能被一个人使用，假如它正在被甲使用时，其他想要使用这支笔的人只能等甲使用完这支笔之后才能允许另一个人去使用。这就是临界区的概念。
 
 
 
@@ -4100,7 +4250,7 @@ synchronized (对象) {
 
 
 
-## 线程通信
+### 线程通信
 
 
 
@@ -4110,17 +4260,17 @@ wait + notify 解决线程通信
 
 
 
-### 管程法
+#### 管程法
 
 生产者把产品放入**缓冲区**,消费者从缓冲区拿
 
 每次操作时判断缓冲区的容量,满了则生产者不生产,空了消费者不消费
 
-![image-20200909221411140](image.assets/image-20200909221411140.png)
 
 
 
-### 信号灯法
+
+#### 信号灯法
 
 判断**标志位**,如果为真,等待,如果为假,唤醒
 
@@ -4134,7 +4284,7 @@ wait + notify 解决线程通信
 
 
 
-==volatile弱同步，不保证线程安全==	只能用于变量
+==volatile针对变量弱同步，不保证线程安全==
 
 synchronized强同步
 
@@ -4144,8 +4294,7 @@ synchronized强同步
 
 * 写入时，JMM 把工作内存中的**变量值立即刷新到主内存,并通知其他线程**
   * 其他线程的写入/读取,直接工作内存中的副本，重新去主内存获取
-* 有序性,产生==内存屏障==，防止指令重排,必定能够顺序执行
-* 确保指令重排序时不会把其后面的指令排到内存屏障之前/之后
+* 产生==内存屏障==，防止指令重排把后面的指令排到内存屏障前/后,指令顺序执行
 * volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值
 
 
@@ -4156,11 +4305,7 @@ synchronized强同步
 
 把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
 
-1. 重排序时不能把后面的指令重排序到内存屏障之前的位置
 
-2、使得本 CPU 的 Cache 写入内存
-
-3、写入动作也会引起别的 CPU 无效化其 Cache，相当于让新写入的值对别的线程可见
 
 
 
@@ -4174,10 +4319,6 @@ synchronized强同步
 | **只能用于变量**                   | **可以修饰方法以及代码块** |
 | ==主要解决变量在多线程间的可见性== | 多线程间访问资源的同步性   |
 | 不保证数据的原子性                 | 可见+原子性                |
-
-
-
-
 
 
 
@@ -4208,27 +4349,25 @@ volatile修饰的变量具有原子性- >c 具有原子性，但c++不具有 -> 
 
 
 
-
-
 ## synchronized
 
 
 
-**悲观锁**,认为程序中的并发情况严重，所以严防死守
+**悲观锁**
 
-让没有得到锁资源的线程进入BLOCKED状态，而后在争夺到锁资源后恢复为RUNNABLE状态，退出或抛出异常时必须释放锁
+让没有得到锁资源的线程进入BLOCKED状态，而后在争夺到锁资源后恢复为RUNNABLE状态，退出或抛出异常时**自动释放锁**
 
 
 
 用于**对象/方法(实例+静态方法)**,==不能同步变量和类==
 
-- **对于普通同步方法，锁是当前实例对象。**
-- **对于静态同步方法，锁是当前类的Class对象。**
+- **对于普通同步方法，锁是当前实例对象**
+- **对于静态同步方法，锁是当前类的Class对象**
 - **对于同步代码块，锁是synchronized括号里配置的对象**
 
 
 
-**synchronized 同步语句块的实现使用的是 monitorenter 和 monitorexit 指令****
+**synchronized 同步语句块的实现使用的是 monitorenter 和 monitorexit 指令**
 
 monitorenter 指令指向同步代码块的开始位置
 
@@ -4246,13 +4385,11 @@ monitorexit 指令则指明同步代码块的结束位置
 
 
 
+**synchronized的底层实现主要依靠Lock-Free的队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，获得了高吞吐量。在线程冲突较少的情况下，可以获得和CAS类似的性能；而线程冲突严重的情况下，性能远高于CAS**
 
+尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低
 
-尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销
-
-但在最终转变为重量级锁之后，性能仍比较低
-
-面对这种情况们就可以使用“**原子操作类**”
+面对这种情况可以使用“**原子操作类**”
 
 
 
@@ -4289,27 +4426,21 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 
 
 
-
-
-
-
-
-
-
-
 ## Lock 1.5+
 
 
 
 **乐观锁**，认为程序中的并发情况不严重，让线程不断去重试更新
 
+**需要显式指定起始位置lock()和终止位置unlock()**,在finally中unlock()以防死锁
+
+==synchronized自动释放锁，Lock必须手动在finally块释放==
 
 
-**需要显式指定起始位置lock()和终止位置unlock()**,一般会在finally块中写unlock()以防死锁
 
-能完成synchronized的所有功能,有更精确的线程语义和更好的性能
+能完成synchronized的所有功能,更具扩展性,有更精确的线程语义和更好的性能,可以公平锁
 
-==synchronized会自动释放锁，Lock必须手动在finally块释放==
+
 
 
 
@@ -4339,7 +4470,7 @@ Unlock()释放锁
 
 
 
-AbstractQueuedSynchronizer抽象的队列式同步器
+AbstractQueuedSynchronizer抽象的队列式同步器,**没有锁的概念**
 
 除synchronized之外的锁,都基于aqs机制
 
@@ -4353,14 +4484,15 @@ AbstractQueuedSynchronizer抽象的队列式同步器
 
 如果被请求的共享资源被占用，线程阻塞,加入CLH队列,等待合适时机唤醒
 
+CLH是虚拟的FIFO(先进先出)双向队列
 
 
-CLH是一个虚拟的双向队列，不存在队列实例，仅存在节点间的关联关系
+
 **AQS将请求共享资源的线程封装成CLH锁队列的结点，实现锁的分配**，用volatile修饰共享变量state，线程通过CAS去改变state，成功则获取锁成功，失败则进入等待队列，等待被唤醒
 
 **注意：AQS是自旋锁：**在等待唤醒的时候，使用自旋（while(!cas())）的方式，不停地尝试获取锁，直到被其他线程获取成功
 
-**实现了AQS的锁有：自旋锁、互斥锁、读锁写锁、条件产量、信号量、栅栏都是AQS的衍生物**
+**实现了AQS的锁有：自旋/互斥/读写锁、条件产量、信号量、栅栏都是AQS的衍生物**
 
 ![](image.assets/CLH队列.png)
 
@@ -4372,6 +4504,7 @@ getState();setState();compareAndSetState();
 
 
 ```java
+//继承自AbstractOwnableSynchronizer
 public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements java.io.Serializable {
  
     /** AQS类内部维护一个FIFO的双向队列，负责同步状态的管理
@@ -4382,6 +4515,22 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
  
     //lock的占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
     private volatile int state;
+}
+
+
+public abstract class AbstractOwnableSynchronizer  implements java.io.Serializable {
+
+  	//只有一个变量：exclusiveOwnerThread，表示当前占用该锁的线程，并且提供了相应的get，set
+    private transient Thread exclusiveOwnerThread;
+
+    protected final void setExclusiveOwnerThread(Thread thread) {
+        exclusiveOwnerThread = thread;
+    }
+
+    protected final Thread getExclusiveOwnerThread() {
+        return exclusiveOwnerThread;
+    }
+}
 ```
 
 
@@ -4449,9 +4598,15 @@ Node阻塞队列的体现：等待队列，条件队列
 
 
 
-同步器的设计基于==模板方法==模式
+AQS的设计基于==模板方法==模式
 
-AQS定义了独占模式的acquire()和release()方法，共享模式的acquireShared()和releaseShared()方法.还定义了抽象方法tryAcquire()、tryAcquiredShared()、tryRelease()和tryReleaseShared()由子类实现，tryAcquire()和tryAcquiredShared()分别对应独占模式和共享模式下的锁的尝试获取，就是通过这两个方法来实现公平性和非公平性，在尝试获取中，如果新来的线程必须先入队才能获取锁就是公平的，否则就是非公平的。这里可以看出AQS定义整体的同步器框架，具体实现放手交由子类实现
+围绕state提供两种基本操作“获取”和“释放” + 双向队列存放阻塞线程 + 一系列判断和处理方法
+
+独占模式的acquire()和release()
+
+共享模式的acquireShared()和releaseShared()
+
+还定义了抽象方法tryAcquire()、tryAcquiredShared()、tryRelease()和tryReleaseShared()**由子类实现**，tryAcquire()和tryAcquiredShared()分别对应独占模式和共享模式下的锁的尝试获取，通过这两个方法来实现公平性和非公平性，在尝试获取中，如果新来的线程必须先入队才能获取锁就是公平的，否则非公平
 
 
 
@@ -4517,14 +4672,20 @@ Mutex：不可重入互斥锁，锁资源（state）只有两种状态：0：未
 
 重入独占锁,当前持有该锁的线程能够多次获取该锁，无需等待
 
+自旋锁，通过循环调用CAS操作来实现加锁
+
+通过避免线程进入内核态的阻塞状态来提高性能
+
+
+
 
 
 * 可中断
-  * lockInterruptibly（）可以中断争夺锁的操作，抢锁的时候会check是否被中断，中断直接抛出异常，退出抢锁
+  * lockInterruptibly()中断争夺锁的操作，抢锁的时候会check是否被中断，中断直接抛出异常，退出抢锁,避免死锁
   * Synchronized只有抢锁的过程，不可干预
 
 - 快速反馈
-  - trylock（） 和 trylock（tryTimes），不等待或者限定时间等待获取锁，更灵活。避免死锁发生
+  - trylock（） 和 trylock（tryTimes），不等待或者限定时间等待获取锁，更灵活。避免死锁
 - 读写锁
   - ReentrantReadWriteLock类实现了读写锁的功能，类似于Mysql，锁自身维护一个计数器，读锁可以并发的获取，写锁只能独占。
   - synchronized全是独占锁
@@ -4898,6 +5059,11 @@ private void unparkSuccessor(Node node) {
 
 
 
+#### lockInterruptibly
+
+
+
+如果获取了锁定立即返回，如果没有获取锁定，当前线程处于休眠状态，直到或者锁定，或者当前线程被别的线程中断
 
 
 
@@ -4908,20 +5074,28 @@ private void unparkSuccessor(Node node) {
 
 
 
-- 3种让线程等待唤醒的方法
-  - Object的wait()+notify()唤醒线程
-    - wait()/notify(必须成对出现,并且**顺序不能反**)
-  - Condition的await()+signal()方法唤醒线程
-    - await()+signal()必须成对出现,并且**顺序不能反**
-  - LockSupport类可以阻塞当前线程以及唤醒指定被阻塞的线程
 
 
 
-### ReentrantReadWriteLnock
+
+
+
+
+
+
+
+
+### ReentrantReadWriteLock
 
 
 
 读写锁
+
+==只支持写的重入==,读需要再次申请
+
+对于同时占有读/写锁的线程，如果完全释放了写锁，那它就转换成了读锁，以后的写操作无法重入，在写锁未完全释放时可重入
+
+
 
 读锁在同一时刻允许多个线程访问，通过重写int tryAcquireShared(int arg)以及boolean tryReleaseShared(int arg)
 
@@ -5799,7 +5973,59 @@ private LinkedList<Object> buffer;    //生产者容器
 
 
 
+## 同步/并发容器的实现
 
+
+
+### 一、同步容器
+
+主要代表有Vector和Hashtable，以及Collections.synchronizedXxx等。
+
+锁的粒度为当前对象整体。迭代器是及时失败的，即在迭代的过程中发现被修改，就会抛出ConcurrentModificationException。
+
+### 二、并发容器
+
+主要代表有ConcurrentHashMap、CopyOnWriteArrayList、ConcurrentSkipListMap、ConcurrentSkipListSet
+
+锁的粒度是分散的、细粒度的，即读和写是使用不同的锁
+
+迭代器具有弱一致性，即可以容忍并发修改，不会抛出ConcurrentModificationException
+
+
+
+ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一个锁，以达到高效的并发访问
+
+
+
+### 三、阻塞队列
+
+主要代表有LinkedBlockingQueue、ArrayBlockingQueue、PriorityBlockingQueue(Comparable,Comparator)、SynchronousQueue
+
+提供了可阻塞的put和take方法，以及支持定时的offer和poll方法。适用于生产者、消费者模式（线程池和工作队列-Executor），同时也是同步容器
+
+
+
+### 四、双端队列
+
+主要代表有ArrayDeque和LinkedBlockingDeque。意义：正如阻塞队列适用于生产者消费者模式，双端队列同样适用与另一种模式，即工作密取。在生产者-消费者设计中，所有消费者共享一个工作队列，而在工作密取中，每个消费者都有各自的双端队列。如果一个消费者完成了自己双端队列中的全部工作，那么他就可以从其他消费者的双端队列末尾秘密的获取工作。具有更好的可伸缩性，这是因为工作者线程不会在单个共享的任务队列上发生竞争。在大多数时候，他们都只是访问自己的双端队列，从而极大的减少了竞争。当工作者线程需要访问另一个队列时，它会从队列的尾部而不是头部获取工作，因此进一步降低了队列上的竞争。适用于：网页爬虫等任务中
+
+
+
+### 五、比较及适用场景
+
+
+
+如果不需要阻塞队列，优先选择ConcurrentLinkedQueue
+
+如果需要阻塞队列，队列大小固定优先选择ArrayBlockingQueue
+
+队列大小不固定优先选择LinkedBlockingQueue
+
+如果需要对队列进行排序，选择PriorityBlockingQueue
+
+如果需要一个快速交换的队列，选择SynchronousQueue
+
+如果需要对队列中的元素进行延时操作，则选择DelayQueue
 
 
 
@@ -5817,29 +6043,20 @@ private LinkedList<Object> buffer;    //生产者容器
 
 
 
-### 线程池执行流程
+### 执行流程
 
 
 
-任务被提交到线程池，会先判断当前线程数量是否小于corePoolSize，如果小于则创建线程来执行提交的任务，否则将任务放入workQueue队列，如果workQueue满了，则判断当前线程数量是否小于maximumPoolSize,如果小于则创建线程执行任务，否则就会调用handler，以表示线程池拒绝接收任务
+1. 线程数 < corePoolSize时，创建线程执行任务。
+2. 线程数>=corePoolSize && workQueue没满，放入workQueue
+3. 线程数>=corePoolSize && workQueue队满，新任务+新建线程运行，线程总数要 < maximumPoolSize
+4. 当线程总数 = maximumPoolSize && workQueue 队满,执行拒绝策略
 
 
 
 
 
 ### 线程池参数
-
-
-
-
-
- 	
-
-线程空闲时间 
-
-空闲的线程保留的时间 keepAliveTime
-
-阻塞队列大小 
 
 
 
@@ -5865,34 +6082,26 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
-### 几种常见的线程池
+### 常见线程池
 
 
 
 　　可以创建（**Executors.newXXX**）3种类型的ThreadPoolExecutor：**FixedThreadPool**、**SingleThreadExecutor**、**CachedThreadPool**。
 
-- FixedThreadPool
-
-  ：
-
-  可重用固定线程数的线程池
+- FixedThreadPool：可重用固定线程数的线程池
 
   。（适用于负载比较重的服务器）
 
   - **FixedThreadPool使用无界队列LinkedBlockingQueue作为线程池的工作队列**
-  - 该线程池中的线程数量始终不变。当有一个新的任务提交时，线程池中若有空闲线程，则立即执行。若没有，则新的任务会被暂存在一个任务队列中，待有线程空闲时，便处理在任务队列中的任务。
-
-- SingleThreadExecutor
-
-  ：
-
-  只会创建一个线程执行任务。
+- 该线程池中的线程数量始终不变。当有一个新的任务提交时，线程池中若有空闲线程，则立即执行。若没有，则新的任务会被暂存在一个任务队列中，待有线程空闲时，便处理在任务队列中的任务。
+  
+- SingleThreadExecutor：只会创建一个线程执行任务。
 
   （适用于需要保证顺序执行各个任务；并且在任意时间点，没有多线程活动的场景。）
 
   - ***\*SingleThreadExecutorl也使用无界队列LinkedBlockingQueue作为工作队列\****
-  - 若多余一个任务被提交到该线程池，任务会被保存在一个任务队列中，待线程空闲，按先入先出的顺序执行队列中的任务。
-
+- 若多余一个任务被提交到该线程池，任务会被保存在一个任务队列中，待线程空闲，按先入先出的顺序执行队列中的任务。
+  
 - **CachedThreadPool：\**是一个会根据需要调整线程数量的线程池\**。**
 
   （大小无界，适用于执行很多的短期异步任务的小程序，或负载较轻的服务器）
@@ -5904,9 +6113,13 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
+
+
+
+
+
+
 ### 线程池的工作队列
-
-
 
 
 
@@ -5916,91 +6129,209 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
-- **ArrayBlockingQueue**：是一个**基于数组结构的有界阻塞队列**，此队列按FIFO（先进先出）原则对元素进行排序。
-- **LinkedBlockingQueue**：是一个**基于链表结构的阻塞队列**，此队列按FIFO排序元素，吞吐量通常要高于ArrayBlockingQueue。静态工厂方法Executors.newFixedThreadPool()使用了这个队列。
-- **SynchronousQueue**：是一个**不存储元素的阻塞队列**。每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高于Linked-BlockingQueue，静态工厂方法Executors.newCachedThreadPool使用了这个队列。
-- **PriorityBlockingQueue**：一个**具有优先级的无限阻塞队列**。
+
+
+### 阻塞队列
+
+
+
+阻塞队列是一个在队列基础上又支持了两个附加操作的队列。
+
+2个附加操作：
+
+支持阻塞的**插入**方法：队列满时，队列会阻塞插入元素的线程，直到队列不满。支持阻塞的**移除**方法：队列空时，获取元素的线程会等待队列变为非空。
 
 
 
 
 
+7种阻塞队列
+
+
+
+- **ArrayBlockingQueue**：**基于数组 有界**，按FIFO（先进先出）原则对元素进行排序,队满时不保证线程公平的访问(队列外的被阻塞元素将持续阻塞,没有获得锁的机会)
+- **LinkedBlockingQueue**：**基于链表 有界**，按FIFO排序，吞吐量高于ArrayBlockingQueue。静态工厂方法Executors.newFixedThreadPool()使用了这个队列
+- **SynchronousQueue**：**不存储元素**。每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直阻塞，吞吐量高于Linked-BlockingQueue，静态工厂方法Executors.newCachedThreadPool使用了这个队列
+- **PriorityBlockingQueue**：**支持优先级排序 无界**
+- DelayQueue：**支持延时获取元素** 优先级队列 无界
+- LinkedTransferQueue：链表 无界 
+  - transfer()如果当前有消费者正在等待接收元素（take或者待时间限制的poll方法），transfer可以把生产者传入的元素立刻传给消费者。如果没有消费者等待接收元素，则将元素放在队列的tail节点，并等到该元素被消费者消费了才返回
+  - tryTransfer()用来试探生产者传入的元素能否直接传给消费者。，如果没有消费者在等待，则返回false。和上述方法的区别是该方法无论消费者是否接收，方法立即返回。而transfer方法是必须等到消费者消费了才返回
+- LinkedBlockingDeque：双向链表 在入队时，减少一半的竞争
 
 
 
 
 
+#### 阻塞队列与 生产/消费模型
 
 
 
+阻塞队列作为 生产者存放/消费者获取元素的容器
 
 
 
+任何有效的生产者-消费者问题解决方案都是通过控制生产者put()方法（生产资源）和消费者take()方法（消费资源）的调用来实现的，一旦你实现了对方法的阻塞控制，那么你将解决该问题。
 
+Java通过BlockingQueue提供了开箱即用的支持来控制这些方法的调用（一个线程创建资源，另一个消费资源）。java.util.concurrent包下的BlockingQueue接口是一个线程安全的可用于存取对象的队列。
 
+**BlockingQueue是一种数据结构，支持一个线程往里存资源，另一个线程从里取资源。这正是解决生产者消费者问题所需要的，那么让我们开始解决该问题吧。**
 
+**生产者**
 
+以下代码用于生产者线程
 
+```java
+//生产者
+class Producer implements Runnable {
 
+    protected BlockingQueue<Object> queue;
 
+    Producer(BlockingQueue<Object> theQueue) {
+        this.queue = theQueue;
+    }
 
+    public void run() {
+        try {
+            while (true) {
+                Object justProduced = getResource();
+                queue.put(justProduced);
+                System.out.println("生产者资源队列大小= " + queue.size());
+            }
+        } catch (InterruptedException ex) {
+            System.out.println("生产者 中断");
+        }
+    }
 
+    Object getResource() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ex) {
+            System.out.println("生产者 读 中断");
+        }
+        return new Object();
+    }
+}
+```
 
+**消费者**
 
-
-
-Executor		总接口,只定义了execute()执行线程方法
-
-ExecutorService extends Executor 子接口,定义了shutdown()关闭 submit()等方法
+以下代码用于消费者线程
 
 ```
-abstract class AbstractExecutorService implements ExecutorService
-实现了ExecutorService的方法
+//消费者
+class Consumer implements Runnable {
+
+    protected BlockingQueue<Object> queue;
+
+    Consumer(BlockingQueue<Object> theQueue) {
+        this.queue = theQueue;
+    }
+
+    public void run() {
+        try {
+            while (true) {
+                Object obj = queue.take();
+                System.out.println("消费者 资源 队列大小 " + queue.size());
+                take(obj);
+            }
+        } catch (InterruptedException ex) {
+            System.out.println("消费者 中断");
+        }
+    }
+
+    void take(Object obj) {
+        try {
+            Thread.sleep(100); // simulate time passing
+        } catch (InterruptedException ex) {
+            System.out.println("消费者 读 中断");
+        }
+        System.out.println("消费对象 " + obj);
+    }
+}
 ```
 
-
-
-class ThreadPoolExecutor extends AbstractExecutorService
+**测试该解决方案是否运行正常**
 
 ```
-void execute(Runnable command){}	//执行Runnable线程,无返回值
+//测试
+public class ProducerConsumerExample {
+
+    public static void main(String[] args) throws InterruptedException {
+        int numProducers = 4;
+        int numConsumers = 3;
+        BlockingQueue<Object> myQueue = new LinkedBlockingQueue<Object>(5);
+
+        for (int i = 0; i < numProducers; i++) {
+            new Thread(new Producer(myQueue)).start();
+        }
+
+        for (int i = 0; i < numConsumers; i++) {
+            new Thread(new Consumer(myQueue)).start();
+        }
+
+        Thread.sleep(1000);
+        System.exit(0);
+    }
+}
 ```
 
-
-
-```
-<T>Future<T> submit(Callable<T> task)	//执行Callable线程,有返回值
-```
-
-
+**运行结果**
 
 ```
-Executors工具类(工厂模式),返回不同类型的线程池
-定义了new线程池的方法
-Executors.newFixedThreadPool(10);
+生产者资源队列大小= 1
+生产者资源队列大小= 1
+消费者 资源 队列大小 1
+生产者资源队列大小= 1
+消费者 资源 队列大小 1
+消费者 资源 队列大小 1
+生产者资源队列大小= 1
+生产者资源队列大小= 3
+消费对象 java.lang.Object@1e1aa52b
+生产者资源队列大小= 2
+生产者资源队列大小= 5
+消费对象 java.lang.Object@6e740a76
+消费对象 java.lang.Object@697853f6
+......
+消费对象 java.lang.Object@41a10cbc
+消费对象 java.lang.Object@4963c8d1
+消费者 资源 队列大小 5
+生产者资源队列大小= 5
+生产者资源队列大小= 5
+消费者 资源 队列大小 4
+消费对象 java.lang.Object@3e49c35d
+消费者 资源 队列大小 4
+生产者资源队列大小= 5
 ```
 
-
-
-SingleThreadExecutor
-
-FixedThreadPool
-
-WorkStealingPool
-
-CachedThreadPool
-
-ScheduledThreadPool
+**从输出结果中,我们可以发现队列大小永远不会超过5，消费者线程消费了生产者生产的资源**。
 
 
 
-使用Executors去创建，而是通过ThreadPoolExecutor的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。 说明：
 
-Executors创建线程池对象的弊端
-        1）FixedThreadPool和SingleThreadPool:
-  允许的请求队列长度为Integer.MAX_VALUE，可能会**堆积大量的请求**，从而导致OOM。
-        2）CachedThreadPool:
-  允许的创建线程数量为Integer.MAX_VALUE，可能会**创建大量的线程**，从而导致OOM。
+
+### 拒绝策略
+
+
+
+ThreadPoolExecutor默认有四个拒绝策略：
+
+1. `ThreadPoolExecutor.AbortPolicy()` 直接抛出异常RejectedExecutionException
+2. `ThreadPoolExecutor.CallerRunsPolicy()` 直接调用run方法并且阻塞执行
+3. `ThreadPoolExecutor.DiscardPolicy()` 直接丢弃后来的任务
+4. `ThreadPoolExecutor.DiscardOldestPolicy()` 丢弃在队列中队首的任务
+
+当然可以自己继承 RejectedExecutionHandler 来写拒绝策略
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6627,9 +6958,13 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 ### 直接内存
 
-**可通过-XX:MaxDirectMemorySize指定，如果不指定，则默认与Java堆的最大值（-Xmx指定）一样**。
+-XX:MaxDirectMemorySize
 
-- **直接内存（Direct Memory）并不是虚拟机运行时数据区的一部分，也不是Java虚拟机规范中定义的内存区域，但是这部分内存也被频繁地使用，而且也可能导致OutOfMemoryError异常出现**。
+
+
+如果没指定，默认与堆的最大值（-Xmx）一样
+
+**直接内存（Direct Memory）并不是虚拟机运行时数据区的一部分，也不是Java虚拟机规范中定义的内存区域，但是这部分内存也被频繁地使用，而且也可能OOM出现**。
 
 
 
@@ -7005,8 +7340,8 @@ public final native Class getClass() 		获取类结构信息
 protected void finalize() throws Throwable 	垃圾回收前执行的方法
 protected native Object clone() throws CloneNotSupportedException 	克隆
 public final void wait() throws InterruptedException 	多线程等待
-public final native void notify() 			唤醒
-public final native void notifyAll() 		唤醒所有等待线程
+public final native void notify() 			唤醒,由JVM随机唤醒
+public final native void notifyAll() 		唤醒所有等待线程,随后竞争
 ```
 
 
@@ -7047,9 +7382,9 @@ public final native void notifyAll() 		唤醒所有等待线程
 
 
 
-* ==实现 Cloneable 接口==并重写 Object 类中的 clone()方法；
+* ==实现 Cloneable 接口==并重写 Object 类中的 clone()方法
 
-* 实现 Serializable 接口，通过对象的==序列化和反序列化==，可以实现深度克隆,更重要的是支持==泛型限定==
+* 实现 Serializable 接口，通过对象的==序列化和反序列化==，深度克隆,支持泛型
 
 
 
@@ -7540,67 +7875,29 @@ String string = "Hello";
 
 
 
-# 正则
 
 
 
-|     字符     |                             描述                             |
-| :----------: | :----------------------------------------------------------: |
-|      \       | 将下一个字符标记为一个特殊字符、或一个原义字符、或一个向后引用、或一个八进制转义符。例如，“`n`”匹配字符“`n`”。“`\n`”匹配一个换行符。串行“`\\`”匹配“`\`”而“`\(`”则匹配“`(`”。 |
-|      ^       | 匹配输入字符串的开始位置。如果设置了RegExp对象的Multiline属性，^也匹配“`\n`”或“`\r`”之后的位置。 |
-|      $       | 匹配输入字符串的结束位置。如果设置了RegExp对象的Multiline属性，$也匹配“`\n`”或“`\r`”之前的位置。 |
-|      *       | 匹配前面的子表达式零次或多次。例如，zo*能匹配“`z`”以及“`zoo`”。*等价于{0,}。 |
-|      +       | 匹配前面的子表达式一次或多次。例如，“`zo+`”能匹配“`zo`”以及“`zoo`”，但不能匹配“`z`”。+等价于{1,}。 |
-|      ?       | 匹配前面的子表达式零次或一次。例如，“`do(es)?`”可以匹配“`does`”或“`does`”中的“`do`”。?等价于{0,1}。 |
-|    {*n*}     | *n*是一个非负整数。匹配确定的*n*次。例如，“`o{2}`”不能匹配“`Bob`”中的“`o`”，但是能匹配“`food`”中的两个o。 |
-|    {*n*,}    | *n*是一个非负整数。至少匹配*n*次。例如，“`o{2,}`”不能匹配“`Bob`”中的“`o`”，但能匹配“`foooood`”中的所有o。“`o{1,}`”等价于“`o+`”。“`o{0,}`”则等价于“`o*`”。 |
-|  {*n*,*m*}   | *m*和*n*均为非负整数，其中*n*<=*m*。最少匹配*n*次且最多匹配*m*次。例如，“`o{1,3}`”将匹配“`fooooood`”中的前三个o。“`o{0,1}`”等价于“`o?`”。请注意在逗号和两个数之间不能有空格。 |
-|      ?       | 当该字符紧跟在任何一个其他限制符（*,+,?，{*n*}，{*n*,}，{*n*,*m*}）后面时，匹配模式是非贪婪的。非贪婪模式尽可能少的匹配所搜索的字符串，而默认的贪婪模式则尽可能多的匹配所搜索的字符串。例如，对于字符串“`oooo`”，“`o+?`”将匹配单个“`o`”，而“`o+`”将匹配所有“`o`”。 |
-|      .       | 匹配除“`\`*`n`*”之外的任何单个字符。要匹配包括“`\`*`n`*”在内的任何字符，请使用像“`(.|\n)`”的模式。 |
-|  (pattern)   | 匹配pattern并获取这一匹配。所获取的匹配可以从产生的Matches集合得到，在VBScript中使用SubMatches集合，在JScript中则使用$0…$9属性。要匹配圆括号字符，请使用“`\(`”或“`\)`”。 |
-| (?:pattern)  | 匹配pattern但不获取匹配结果，也就是说这是一个非获取匹配，不进行存储供以后使用。这在使用或字符“`(|)`”来组合一个模式的各个部分是很有用。例如“`industr(?:y|ies)`”就是一个比“`industry|industries`”更简略的表达式。 |
-| (?=pattern)  | 正向肯定预查，在任何匹配pattern的字符串开始处匹配查找字符串。这是一个非获取匹配，也就是说，该匹配不需要获取供以后使用。例如，“`Windows(?=95|98|NT|2000)`”能匹配“`Windows2000`”中的“`Windows`”，但不能匹配“`Windows3.1`”中的“`Windows`”。预查不消耗字符，也就是说，在一个匹配发生后，在最后一次匹配之后立即开始下一次匹配的搜索，而不是从包含预查的字符之后开始。 |
-| (?!pattern)  | 正向否定预查，在任何不匹配pattern的字符串开始处匹配查找字符串。这是一个非获取匹配，也就是说，该匹配不需要获取供以后使用。例如“`Windows(?!95|98|NT|2000)`”能匹配“`Windows3.1`”中的“`Windows`”，但不能匹配“`Windows2000`”中的“`Windows`”。预查不消耗字符，也就是说，在一个匹配发生后，在最后一次匹配之后立即开始下一次匹配的搜索，而不是从包含预查的字符之后开始 |
-| (?<=pattern) | 反向肯定预查，与正向肯定预查类拟，只是方向相反。例如，“`(?<=95|98|NT|2000)Windows`”能匹配“`2000Windows`”中的“`Windows`”，但不能匹配“`3.1Windows`”中的“`Windows`”。 |
-| (?<!pattern) | 反向否定预查，与正向否定预查类拟，只是方向相反。例如“`(?<!95|98|NT|2000)Windows`”能匹配“`3.1Windows`”中的“`Windows`”，但不能匹配“`2000Windows`”中的“`Windows`”。 |
-|     x\|y     | 匹配x或y。例如，“`z|food`”能匹配“`z`”或“`food`”。“`(z|f)ood`”则匹配“`zood`”或“`food`”。 |
-|    [xyz]     | 字符集合。匹配所包含的任意一个字符。例如，“`[abc]`”可以匹配“`plain`”中的“`a`”。 |
-|    [^xyz]    | 负值字符集合。匹配未包含的任意字符。例如，“`[^abc]`”可以匹配“`plain`”中的“`p`”。 |
-|    [a-z]     | 字符范围。匹配指定范围内的任意字符。例如，“`[a-z]`”可以匹配“`a`”到“`z`”范围内的任意小写字母字符。 |
-|    [^a-z]    | 负值字符范围。匹配任何不在指定范围内的任意字符。例如，“`[^a-z]`”可以匹配任何不在“`a`”到“`z`”范围内的任意字符。 |
-|      \b      | 匹配一个单词边界，也就是指单词和空格间的位置。例如，“`er\b`”可以匹配“`never`”中的“`er`”，但不能匹配“`verb`”中的“`er`”。 |
-|      \B      | 匹配非单词边界。“`er\B`”能匹配“`verb`”中的“`er`”，但不能匹配“`never`”中的“`er`”。 |
-|     \cx      | 匹配由x指明的控制字符。例如，\cM匹配一个Control-M或回车符。x的值必须为A-Z或a-z之一。否则，将c视为一个原义的“`c`”字符。 |
-|      \d      |               匹配一个数字字符。等价于[0-9]。                |
-|      \D      |              匹配一个非数字字符。等价于[^0-9]。              |
-|      \f      |              匹配一个换页符。等价于\x0c和\cL。               |
-|      \n      |              匹配一个换行符。等价于\x0a和\cJ。               |
-|      \r      |              匹配一个回车符。等价于\x0d和\cM。               |
-|      \s      | 匹配任何空白字符，包括空格、制表符、换页符等等。等价于[ \f\n\r\t\v]。 |
-|      \S      |          匹配任何非空白字符。等价于[^ \f\n\r\t\v]。          |
-|      \t      |              匹配一个制表符。等价于\x09和\cI。               |
-|      \v      |            匹配一个垂直制表符。等价于\x0b和\cK。             |
-|      \w      |    匹配包括下划线的任何单词字符。等价于“`[A-Za-z0-9_]`”。    |
-|      \W      |        匹配任何非单词字符。等价于“`[^A-Za-z0-9_]`”。         |
-|    \x*n*     | 匹配*n*，其中*n*为十六进制转义值。十六进制转义值必须为确定的两个数字长。例如，“`\x41`”匹配“`A`”。“`\x041`”则等价于“`\x04&1`”。正则表达式中可以使用ASCII编码。. |
-|    \*num*    | 匹配*num*，其中*num*是一个正整数。对所获取的匹配的引用。例如，“`(.)\1`”匹配两个连续的相同字符。 |
-|     \*n*     | 标识一个八进制转义值或一个向后引用。如果\*n*之前至少*n*个获取的子表达式，则*n*为向后引用。否则，如果*n*为八进制数字（0-7），则*n*为一个八进制转义值。 |
-|    \*nm*     | 标识一个八进制转义值或一个向后引用。如果\*nm*之前至少有*nm*个获得子表达式，则*nm*为向后引用。如果\*nm*之前至少有*n*个获取，则*n*为一个后跟文字*m*的向后引用。如果前面的条件都不满足，若*n*和*m*均为八进制数字（0-7），则\*nm*将匹配八进制转义值*nm*。 |
-|    \*nml*    | 如果*n*为八进制数字（0-3），且*m和l*均为八进制数字（0-7），则匹配八进制转义值*nm*l。 |
-|    \u*n*     | 匹配*n*，其中*n*是一个用四个十六进制数字表示的Unicode字符。例如，\u00A9匹配版权符号（©）。 |
 
 
 
-|         用户名          | /^[a-z0-9_-]{3,16}$/                                         |
-| :---------------------: | ------------------------------------------------------------ |
-|          密码           | /^[a-z0-9_-]{6,18}$/                                         |
-|       十六进制值        | /^#?([a-f0-9]{6}\|[a-f0-9]{3})$/                             |
-|        电子邮箱         | /^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/ /^[a-z\d]+(\.[a-z\d]+)*@([\da-z](-[\da-z])?)+(\.{1,2}[a-z]+)+$/ |
-|           URL           | /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/ |
-|         IP 地址         | /((2[0-4]\d\|25[0-5]\|[01]?\d\d?)\.){3}(2[0-4]\d\|25[0-5]\|[01]?\d\d?)/ /^(?:(?:25[0-5]\|2[0-4][0-9]\|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]\|2[0-4][0-9]\|[01]?[0-9][0-9]?)$/ |
-|        HTML 标签        | /^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>\|\s+\/>)$/                 |
-|     删除代码\\注释      | (?<!http:\|\S)//.*$                                          |
-| Unicode编码中的汉字范围 | /^[\u2E80-\u9FFF]+$/                                         |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
