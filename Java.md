@@ -1062,7 +1062,45 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
+==List的多态==
+
+List list = new ArrayList() 与 ArrayList list = new ArrayList()
+
+List接口有多个实现类，现在用的是ArrayList，也许哪一天需要换成LinkedList或者Vector等等，这时只需改变一行    
+
+这就是面向接口编程,LinkedList和ArrayList都实现了List接口,在List list时,并不知道实例化了Linked还是Array,但list都是要去add()
+
+这也是多态的体现,父类引用指向子类对象
+
+
+
+==效率==
+
+* ArrayList和Vector中，从指定的位置检索，或在末尾插入、删除都是O(1)
+
+  * 其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
+
+* LinkedList
+  * 插入、删除集合中任何位置都O(1)
+  * 索引时O(i),i下标
+
+
+
+
+
+
+
 ### AbstractList
+
+
+
+==List接口是由AbstractList实现==
+
+接口中全都是抽象的方法，而抽象类中可以有抽象方法，还可以有具体的实现方法
+
+让AbstractList实现List接口中一些通用的方法，而具体的子类去继承AbstractList类，拿到一些通用的方法再实现一些特有的方法
+
+这样一来，让代码更简洁，就继承结构最底层的类中通用的方法都抽取出来，先一起实现了，减少重复代码
 
 
 
@@ -1137,17 +1175,484 @@ class SubList<E> extends AbstractList<E> {
 
 
 
+```java
+//RandomAccess标记性接口，用来快速随机存取，在实现了该接口时普通的for循环性能更高，没有实现该接口的话，Iterator性能更高(linkedList)。这个标记性只是为了让使用者知道应选用什么遍历方式
+//Cloneable接口
+public class ArrayList<E> extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
+		//初始大小10
+  	private static final int DEFAULT_CAPACITY = 10;
+    // 空对象数组
+    private static final Object[] EMPTY_ELEMENTDATA = {};
+    // 缺省空对象数组
+    private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
+    // 元素数组
+    transient Object[] elementData;
+    // 实际元素大小，默认0
+    private int size;
+    // 最大数组容量
+    private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+}
+```
+
+
+
+#### 构造
+
+
+
+```java
+public ArrayList() {　　
+    super();        //调用父类无参构造，父类中的是个空的构造方法
+    this.elementData = EMPTY_ELEMENTDATA;//EMPTY_ELEMENTDATA：空的Object[]
+    }
+
+ public ArrayList(int initialCapacity) {
+        super(); //父类中空的构造方法
+        if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
+        this.elementData = new Object[initialCapacity];
+    }
+
+public ArrayList(Collection<? extends E> c) {
+        elementData = c.toArray();
+        size = elementData.length;
+//每个集合的toarray()的实现方法不一样，如果不是Object[].class，就需要使用ArrayList中的方法去改造一下
+        if (elementData.getClass() != Object[].class) 。
+            elementData = Arrays.copyOf(elementData, size, Object[].class);
+    }　　　
+```
+
+
+
+#### add
+
+
+
+minCapacity = size+1,代表插入操作需要的最小容量
+
+
+
+原数组是空的，add()时数组容量变为10
+
+原数组不为空，扩容1.5倍
+
+
+
+```java
+ public boolean add(E e) {    
+    		//确定内部容量是否够
+        ensureCapacityInternal(size + 1);
+     		//插入，并size++
+        elementData[size++] = e;
+        return true;
+    }
+
+//数组容量检查，不够时则进行扩容，只供类内部使用
+private void ensureCapacityInternal(int minCapacity) {
+        ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
+    }
+
+private static int calculateCapacity(Object[] elementData, int minCapacity) {
+				// 刚初始化时，容量设置为max[10,minCapacity]
+        if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+            return Math.max(DEFAULT_CAPACITY, minCapacity);
+        }
+        return minCapacity;
+    }
+
+		//数组容量检查，不够时则进行扩容，只供类内部使用 
+		// minCapacity 想要的最小容量
+    private void ensureExplicitCapacity(int minCapacity) {
+        modCount++;
+				//最小容量>数组缓冲区当前长度
+        if (minCapacity - elementData.length > 0)
+            grow(minCapacity);//扩容
+    }
+
+private void grow(int minCapacity) {
+        int oldCapacity = elementData.length;
+				// 1.5倍扩容
+        int newCapacity = oldCapacity + (oldCapacity >> 1);
+  
+				//扩容后的容量 < 想要的最小容量		再次扩容为想要的最小容量
+        if (newCapacity - minCapacity < 0)   newCapacity = minCapacity;
+				//扩容后大于临界值，进行大容量分配
+        if (newCapacity - MAX_ARRAY_SIZE > 0)    newCapacity = hugeCapacity(minCapacity);
+
+        //copyof(原数组，新的数组长度)
+        elementData = Arrays.copyOf(elementData, newCapacity);
+    }
+
+//大容量分配
+private static int hugeCapacity(int minCapacity) {
+		//如果minCapacity<0，抛出异常
+      if (minCapacity < 0)   throw new OutOfMemoryError();
+  //扩容后的容量 > 分配给ArrayList的容量，判断需要的容量是否比分派的容量大，是就把Integer.MAX_VALUE:2147483647赋值给minCapacity，否就用MAX_ARRAY_SIZE：2147483639
+      return (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE :MAX_ARRAY_SIZE;
+    }
+```
+
+
+
+```java
+ public void add(int index, E element) {
+				//越界检查
+        rangeCheckForAdd(index);
+        ensureCapacityInternal(size + 1);
+				// 对数组进行复制处理，目的是空出index的位置插入element，并将index后的所有元素后移一个位置
+				//arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，复制数量)
+   			//复制的时只是复制容器里的引用，只在写的时候会创建新对象添加到新容器里，而旧容器的对象还在使用
+        System.arraycopy(elementData, index, elementData, index + 1,size - index);
+ 				//将指定的index位置赋值为element
+        elementData[index] = element;
+				//实际容量+1
+        size++;
+    }
+
+private void rangeCheckForAdd(int index) {
+    if (index > size || index < 0)   throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+    }
+```
+
+
+
+#### remove
+
+
+
+1. 越界检查
+2. modCount++
+3. 通过索引找到要删除的元素
+4. 计算要移动的位数
+5. 移动元素（复制数组）
+6. 将–size上的位置赋值为null，让gc(垃圾回收机制)更快的回收它。
+7. 返回被删除的元素
+
+
+
+根据下标删除
+
+```java
+public E remove(int index) {
+        rangeCheck(index);
+        modCount++;
+		//记录索引处的元素
+        E oldValue = elementData(index);
+		// 删除指定元素后，需要左移的元素个数
+        int numMoved = size - index - 1;
+		//如果有需要左移的元素，就移动（移动后，该删除的元素就已经被覆盖了）
+        if (numMoved > 0)
+            System.arraycopy(elementData, index+1, elementData, index,
+                             numMoved);
+	 	// size-1处的元素置为null,help GC
+	 	elementData[--size] = null;
+        return oldValue;
+    }
+```
+
+
+
+根据对象删除
+
+```java
+//根据参数删除索引最低的元素
+public boolean remove(Object o) {
+        if (o == null) {
+            for (int index = 0; index < size; index++)
+                if (elementData[index] == null) {
+                    fastRemove(index);
+                    return true;
+                }
+        } else {
+            for (int index = 0; index < size; index++)
+                if (o.equals(elementData[index])) {
+                    fastRemove(index);
+                    return true;
+                }
+        }
+        return false;
+    }
+
+    //快速删除，省去了边界检查，并且不返回已删除的值
+    private void fastRemove(int index) {
+        modCount++;
+        int numMoved = size - index - 1;
+        if (numMoved > 0)
+            System.arraycopy(elementData, index+1, elementData, index,
+                             numMoved);
+        elementData[--size] = null; // help GC
+    }
+```
+
+
+
+范围删除
+
+```java
+[fromIndex,toIndex)	不包含右边界
+protected void removeRange(int fromIndex, int toIndex) {
+        modCount++;
+        int numMoved = size - toIndex;//被删除的索引后面的个数
+        System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
+
+        int newSize = size - (toIndex-fromIndex);
+        for (int i = newSize; i < size; i++) {
+            elementData[i] = null;
+        }
+        size = newSize;
+    }
+```
+
+
+
+
+
+#### retainAll
+
+
+
+```java
+//检测两个集合是否有交集
+//如果集合list中的元素都在集合list2中则list中的元素不做移除操作，反之如果只要有一个不在list2中则会进行移除操作
+//即：list进行移除操作返回值为：true，反之返回值则为false
+public boolean retainAll(Collection<?> c) {
+  return batchRemove(c, true, 0, size);
+}
+
+boolean batchRemove(Collection<?> c, boolean complement, final int from, final int end) {
+  Objects.requireNonNull(c);//非空检查
+  final Object[] es = elementData;//原集合
+  int r;
+  // Optimize for initial run of survivors
+  for (r = from;; r++) {//from等于0，end等于size
+    if (r == end)
+      return false;
+    //判断集合c中是否包含原集合中的当前元素
+    if (c.contains(es[r]) != complement)
+      //如果包含则跳出循环
+      break;
+  }
+  int w = r++;//w等于0
+  try {
+    for (Object e; r < end; r++)//r等于1
+      //判断集合c中是否包含原集合中的当前元素
+      if (c.contains(e = es[r]) == complement)
+        //如果包含则直接保存
+        es[w++] = e;
+  } catch (Throwable ex) {// 如果 c.contains() 抛出异常
+    // Preserve behavioral compatibility with AbstractCollection,even if c.contains() throws.
+    // 复制剩余的元素，将剩下的元素都赋值给原集合
+    System.arraycopy(es, r, es, w, end - r);
+    //w为当前集合的length
+    w += end - r;
+    throw ex;
+  } finally {
+    modCount += end - w;
+    //这里有两个用途，在removeAll()时，w一直为0，就直接跟clear一样，全是为null。		//retainAll()：没有一个交集返回true，有交集但不全交也返回true，而两个集合相等的时候，返回false，所以不能根据返回值来确认两个集合是否有交集，而是通过原集合的大小是否发生改变来判断，如果原集合中还有元素，则代表有交集，而元集合没有元素了，说明两个集合没有交集。	
+    shiftTailOverGap(es, w, end);
+  }
+  return true;
+}
+
+public boolean contains(Object o) {
+  return indexOf(o) >= 0;
+}
+
+public int indexOf(Object o) {
+  return indexOfRange(o, 0, size);
+}
+
+int indexOfRange(Object o, int start, int end) {
+  //一开始start为0，end等于size
+  Object[] es = elementData;
+  if (o == null) {
+    for (int i = start; i < end; i++) {
+      if (es[i] == null) {
+        return i;
+      }
+    }
+  } else {
+    for (int i = start; i < end; i++) {
+      if (o.equals(es[i])) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+//移除元素的核心操作 
+private void shiftTailOverGap(Object[] es, int lo, int hi) {
+  //arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，要复制的数组元素的数量)
+  System.arraycopy(es, hi, es, lo, size - hi);
+  for (int to = size, i = (size -= hi - lo); i < to; i++)
+    es[i] = null;
+}
+```
+
+
+
+
+
+#### indexOf()/lastIndexOf()
+
+
+
+不存在时返回-1
+
+```java
+public int indexOf(Object o) {
+  if (o == null) {
+    for (int i = 0; i < size; i++)
+      if (elementData[i]==null)   return i;
+  // 查找的元素不为空
+  } else {
+    for (int i = 0; i < size; i++)
+      if (o.equals(elementData[i])) return i;
+  }
+  return -1;
+}
+public int lastIndexOf(Object o) {
+  if (o == null) {
+    for (int i = size-1; i >= 0; i--)
+      if (elementData[i]==null)    return i;
+  } else {
+    for (int i = size-1; i >= 0; i--)
+      if (o.equals(elementData[i]))  return i;
+  }
+  return -1;
+}
+```
+
+
+
+#### clear
+
+
+
+```java
+public void clear() {
+        modCount++;
+        for (int i = 0; i < size; i++)
+            elementData[i] = null;	//help GC
+        size = 0;		//重置size
+    }
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ### CopyOnWriteArrayList
 
 
 
-底层维护了transient(序列化) volatile(可见)的数组
+适用于**读多写少**的场景
+
+比如白名单，黑名单，商品类目的访问
+
+
+
+
+
+减少扩容次数
+
+==使用批量添加==,每次添加都会进行复制，应当减少添加次数
+
+
+
+**内存占用问题**。在写操作时，内存里同时存在两个对象的内存，旧的对象和新写入的对象,可能造成频繁GC
+
+可以压缩元素来减少大对象的内存消耗，比如，10进制压缩成36进制或64进制
+
+或者不使用CopyOnWrite容器，而使用其他的并发容器，如ConcurrentHashMap
+
+
+
+**数据一致性问题**。CopyOnWrite容器只保证最终一致性，不保证实时一致性
+
+
 
 ```java
-private transient volatile Object[] array;
+public class CopyOnWriteArrayList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
+
+    final transient ReentrantLock lock = new ReentrantLock();
+
+    //维护了transient(序列化) volatile(可见)的数组
+    private transient volatile Object[] array;
 ```
+
+
+
+#### add
+
+
+
+add()需要加锁，否则会Copy出N个副本
+
+```java
+public boolean add(E e) {
+    final ReentrantLock lock = this.lock;
+    lock.lock();
+    try {
+        Object[] elements = getArray();
+        int len = elements.length;
+        Object[] newElements = Arrays.copyOf(elements, len + 1);
+        newElements[len] = e;
+        setArray(newElements);
+        return true;
+    } finally {
+        lock.unlock();
+    }
+}
+```
+
+
+
+#### get
+
+
+
+读的时候不需要加锁
+
+```java
+public E get(int index) {
+    return get(getArray(), index);
+}
+```
+
+
+
+#### CopyOnWriteArrayList VS Vector
+
+
+
+Vector是增删改查方法都加了synchronized，保证同步，但是每个方法执行的时候都要去获得锁，性能低
+
+CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读方面的性能就好于Vector，CopyOnWriteArrayList支持读多写少的并发情况
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1185,17 +1690,6 @@ private transient volatile Object[] array;
 
 
 
-### 检索、插入、删除效率
-
-
-
-* ArrayList和Vector中，从指定的位置检索，或在末尾插入、删除都是O(1)
-
-  * 其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
-
-* LinkedList
-  * 插入、删除集合中任何位置都O(1)
-  * 索引时O(i),i下标
 
 
 
@@ -1203,55 +1697,10 @@ private transient volatile Object[] array;
 
 
 
-### List的多态
-
-
-
-List list = new ArrayList() 与 ArrayList alist = new ArrayList()
-
-List接口有多个实现类，现在你用的是ArrayList，也许哪一天需要换成LinkedList或者Vector等等，这时你只要改变一行就行      
-
-这就是面向接口编程,LinkedList和ArrayList都实现了List接口
-
-在List list时,并不知道实例化了Linked还是Array,但是这个list都是要去add()的
-
-这也是多态的体现,父类引用指向子类对象
 
 
 
 
-
-
-
-### Arrays.asList
-
-
-
-**不建议使用于基本数据类型的数组**
-
-该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
-
-
-
-==得到的List长度不可变==,不支持add()、remove()、clear()等,会抛出java.lang.UnsupportedOperationException
-
-```java
-public static <T> List<T> asList(T... a) {
-        return new ArrayList<>(a);	//是Arrays的内部类ArrayList(继承自AbstractList),没有实现add()、remove(),调用将直接抛出异常
-    }
-
-==体现的是适配器模式，只是转换接口，后台的数据仍是数组==
-private static class ArrayList<E> extends AbstractList<E>implements RandomAccess, java.io.Serializable{
-        private final E[] a;
-
-        ArrayList(E[] array) { a = Objects.requireNonNull(array); }
-```
-
-
-
-转化列表后只是用来遍历，用Arrays.asList()
-
-List还要添加或删除元素，new java.util.ArrayList，然后循环添加元素
 
 
 
@@ -2448,9 +2897,23 @@ Collections工具类的sort方法有两种重载的形式，
 
 
 
+### 为何Map接口不继承Collection接口
 
 
-## Comparable(函数式接口)
+
+  尽管Map接口和它的实现也是集合框架的一部分，但Map不是集合，集合也不是Map。因此，Map继承Collection毫无意义，反之亦然
+
+  如果Map继承Collection接口，那么元素去哪儿？Map包含key-value对，它提供抽取key或value列表集合的方法，但是它不适合“一组对象”规范
+
+
+
+
+
+## 排序
+
+
+
+### Comparable(函数式接口)
 
 
 
@@ -2468,7 +2931,7 @@ public interface Comparable<T> {
 
 
 
-## Comparator(内部比较器)
+### Comparator(内部比较器)
 
 
 
@@ -2483,6 +2946,8 @@ public interface Comparable<T> {
 ## Iterator
 
 
+
+所有集合类都实现了Iterator接口
 
 ==Iterator只能单向移动==
 
@@ -2548,9 +3013,9 @@ foreach是通过iterator实现的遍历
 
 
 
-在迭代时对该集合进行修改，迭代器抛出 ConcurrentModificationException(检测到对象的并发修改)
+在迭代时对该集合进行修改，迭代器抛出 ConcurrentModificationException(并发修改)
 
-该异常不会始终指出对象已经由不同线程并发修改，如果**单线程违反了规则，同样也有可能会抛出该异常**
+如果**单线程违反了规则，也会抛出该异常**
 
 迭代器的快速失败行为无法得到保证，它不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常
 
@@ -2649,7 +3114,41 @@ public void clear() {
 
 
 
+## Arrays
 
+
+
+
+
+### asList
+
+
+
+**不建议使用于基本数据类型的数组**
+
+该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
+
+
+
+==得到的List长度不可变==,不支持add()、remove()、clear()等,会抛出java.lang.UnsupportedOperationException
+
+```java
+public static <T> List<T> asList(T... a) {
+        return new ArrayList<>(a);	//是Arrays的内部类ArrayList(继承自AbstractList),没有实现add()、remove(),调用将直接抛出异常
+    }
+
+体现的是适配器模式，只转换接口，后台的数据仍是数组
+private static class ArrayList<E> extends AbstractList<E>implements RandomAccess, java.io.Serializable{
+        private final E[] a;
+
+        ArrayList(E[] array) { a = Objects.requireNonNull(array); }
+```
+
+
+
+转化列表后只是用来遍历，用Arrays.asList()
+
+List还要添加或删除元素，new java.util.ArrayList，然后循环添加元素
 
 
 
@@ -2662,8 +3161,6 @@ public void clear() {
 
 
 专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
-
-
 
 
 
@@ -2685,10 +3182,6 @@ public <T> T[] toArray(T[] a) {
         return a;
     }
 ```
-
-
-
-
 
 
 
@@ -3233,6 +3726,42 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 
 
+## COW
+
+
+
+CopyOnWrite
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## JUC 1.5+
 
 
@@ -3262,6 +3791,32 @@ AQS的实现模式:
 
 
 ![](image.assets/concurrent包的实现.png)
+
+
+
+### fail-safe机制
+
+
+
+基于遍历容器的克隆,因此，对容器内容的修改不影响遍历
+
+JUC的容器都是安全失败的,可以在多线程下并发使用,并发修改
+
+
+
+先复制原有集合内容，在拷贝的集合上进行遍历
+
+由于迭代时是对原集合的拷贝进行遍历，在遍历过程中对原集合所作的修改不能被迭代器检测到，**不会触发Concurrent Modification Exception**
+
+
+
+缺点：迭代器并不能访问到修改后的内容(遍历期间原集合的修改无法得知)
+
+
+
+
+
+
 
 
 
@@ -5095,11 +5650,19 @@ private void unparkSuccessor(Node node) {
 
 对于同时占有读/写锁的线程，如果完全释放了写锁，那它就转换成了读锁，以后的写操作无法重入，在写锁未完全释放时可重入
 
+**读读共享、写写互斥、读写互斥**
 
 
-读锁在同一时刻允许多个线程访问，通过重写int tryAcquireShared(int arg)以及boolean tryReleaseShared(int arg)
 
-写锁为独占锁，通过重写boolean tryAcquire(int arg)以及boolean tryRelease(int arg)
+适用场景:写多读少
+
+缺点:在写少读多时,将阻塞过多的读操作
+
+
+
+读锁	tryAcquireShared(int arg) tryReleaseShared(int arg)
+
+写锁为独占锁	tryAcquire(int arg) tryRelease(int arg)
 
 
 
@@ -7350,29 +7913,29 @@ public final native void notifyAll() 		唤醒所有等待线程,随后竞争
 
 
 
-(1)对象相同（equals 方法返回 true），则hashCode相同
+equals():true -> 对象相同 -> hashCode相同
 
-(2)hashCode 相同，并不一定相同
+hashCode相同，equals()不一定true
 
 
 
 **==是关系运算符，equals()是方法**
 
-* ==    
+* ==
   * 基本类型，比较值
   * 引用类型，比较地址
   * ==不能比较没有父子关系的两个对象==
 
 * equals() 
   * 重写equals()，比较内容
-  * Object == equals 都比较地址
+  * Object的equals 比较地址
 
 * hashCode()
-  * 如果equals()相等，hashCode相等
-  * 从某一应用程序的一次执行到同一应用程序的另一次执行，hashCode()无需保持一致。
+  * equals():true -> hashCode相等
+  * 从某一应用程序的一次执行到同一应用程序的另一次执行，hashCode()无需保持一致
   * 以下情况不是必需的
     * equals()不相等，hashCode()必定不相等,但hashCode()必定不相等可以提高哈希表的性能
-    * equals()被重写时，有必要重写 hashCode 方法，以维护 hashCode 方法的常规协定
+    * equals()被重写时，有必要重写 hashCode 方法
 
 
 
