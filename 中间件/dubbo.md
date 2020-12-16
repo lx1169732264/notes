@@ -490,6 +490,8 @@ public class StubUserServiceImpl implements UserService {
 
 # Hystrix服务熔断
 
+
+
 **回退机制**和**断路器功能**的线程和信号隔离，请求缓存和请求打包，以及监控和配置等功能
 
 
@@ -868,7 +870,7 @@ Dubbo 使用的是 **RPC 通信**，而 Spring Cloud 使用的是**HTTP** RESTFu
 
 
 
-**6、Dubbo内置了哪几种服务容器？**
+**Dubbo内置了哪几种服务容器？**
 
 · Spring Container
 

@@ -932,7 +932,7 @@ list.stream().collect(Collectors.toList());
 
 
 
-# 集合/数组
+# 集合/Map/数组
 
 
 
@@ -1007,8 +1007,6 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 | 重复(重复存储多个对象索引) | 不重复,add()返回boolean  | key不重复,value重复 |
 | 有序                       | 无序，只能以Iterator遍历 |                     |
 |                            |                          |                     |
-|                            |                          |                     |
-|                            |                          |                     |
 
 
 
@@ -1022,13 +1020,13 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 
 
-哈希表的查询快，O（1）
+哈希表的查询快，O(1)
 
 **自定义类放入hash类集合，必须重写hashcode**
 
 
 
-==向哈希Set中添加数据的原理==
+==向HashSet中add的原理==
 
 * 计算hashCode得到位置
   * 该位置没有对象，直接插入
@@ -1066,7 +1064,7 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
 
 List list = new ArrayList() 与 ArrayList list = new ArrayList()
 
-List接口有多个实现类，现在用的是ArrayList，也许哪一天需要换成LinkedList或者Vector等等，这时只需改变一行    
+List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变一行    
 
 这就是面向接口编程,LinkedList和ArrayList都实现了List接口,在List list时,并不知道实例化了Linked还是Array,但list都是要去add()
 
@@ -1178,8 +1176,7 @@ class SubList<E> extends AbstractList<E> {
 ```java
 //RandomAccess标记性接口，用来快速随机存取，在实现了该接口时普通的for循环性能更高，没有实现该接口的话，Iterator性能更高(linkedList)。这个标记性只是为了让使用者知道应选用什么遍历方式
 //Cloneable接口
-public class ArrayList<E> extends AbstractList<E>
-        implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
+public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
 		//初始大小10
   	private static final int DEFAULT_CAPACITY = 10;
     // 空对象数组
@@ -1228,7 +1225,7 @@ public ArrayList(Collection<? extends E> c) {
 
 
 
-minCapacity = size+1,代表插入操作需要的最小容量
+minCapacity = size+1,代表插入操作所需要的最小容量
 
 
 
@@ -1336,14 +1333,12 @@ private void rangeCheckForAdd(int index) {
 public E remove(int index) {
         rangeCheck(index);
         modCount++;
-		//记录索引处的元素
+				//记录索引处的元素
         E oldValue = elementData(index);
-		// 删除指定元素后，需要左移的元素个数
+				// 删除指定元素后，需要左移的元素个数
         int numMoved = size - index - 1;
-		//如果有需要左移的元素，就移动（移动后，该删除的元素就已经被覆盖了）
-        if (numMoved > 0)
-            System.arraycopy(elementData, index+1, elementData, index,
-                             numMoved);
+				//如果有需要左移的元素，就移动（原地复制）
+        if (numMoved > 0)  System.arraycopy(elementData, index+1, elementData, index,numMoved);
 	 	// size-1处的元素置为null,help GC
 	 	elementData[--size] = null;
         return oldValue;
@@ -1377,9 +1372,7 @@ public boolean remove(Object o) {
     private void fastRemove(int index) {
         modCount++;
         int numMoved = size - index - 1;
-        if (numMoved > 0)
-            System.arraycopy(elementData, index+1, elementData, index,
-                             numMoved);
+        if (numMoved > 0)   System.arraycopy(elementData, index+1, elementData, index,numMoved);
         elementData[--size] = null; // help GC
     }
 ```
@@ -1427,10 +1420,8 @@ boolean batchRemove(Collection<?> c, boolean complement, final int from, final i
   for (r = from;; r++) {//from等于0，end等于size
     if (r == end)
       return false;
-    //判断集合c中是否包含原集合中的当前元素
-    if (c.contains(es[r]) != complement)
-      //如果包含则跳出循环
-      break;
+    //判断集合c中是否包含原集合中的当前元素,包含则跳出循环
+    if (c.contains(es[r]) != complement)  break;
   }
   int w = r++;//w等于0
   try {
@@ -1550,29 +1541,21 @@ public void clear() {
 
 
 
-
-
-
-
 ### CopyOnWriteArrayList
 
 
 
-适用于**读多写少**的场景
-
-比如白名单，黑名单，商品类目的访问
-
-
+适用于**读多写少**的场景,比如白名单，黑名单，商品类目的访问
 
 
 
 减少扩容次数
 
-==使用批量添加==,每次添加都会进行复制，应当减少添加次数
+==使用批量添加==,减少添加次数,每次添加都会进行复制，损耗性能
 
 
 
-**内存占用问题**。在写操作时，内存里同时存在两个对象的内存，旧的对象和新写入的对象,可能造成频繁GC
+**内存占用问题**。在写操作时，内存里同时存在新旧两个对象，可能造成频繁GC
 
 可以压缩元素来减少大对象的内存消耗，比如，10进制压缩成36进制或64进制
 
@@ -1860,10 +1843,10 @@ public V get(Object key) {
     }
 
 final Node<K,V> getNode(int hash, Object key) {
-  //first存放对应下标链表的第一个元素
+  			//first存放对应下标链表的第一个元素
         Node<K,V>[] tab; Node<K,V> first, e; 
   			int n; K k;
-  //复制table到tab,判空
+  			//复制table到tab,判空
         if ((tab = table) != null && (n = tab.length) > 0 &&(first = tab[(n - 1) & hash]) != null) {
           
           //下标第一个元素的key就是要找的key
@@ -1877,8 +1860,7 @@ final Node<K,V> getNode(int hash, Object key) {
               //遍历链表,直到下个节点不存在  
               do {
                 //寻找对应key的位置
-                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
-                        return e;
+                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))    return e;
                 } while ((e = e.next) != null);
             }
         }
@@ -2069,11 +2051,76 @@ Node<K,V> hiHead = null, hiTail = null;
 
 
 
+##### putIfAbsent
+
+
+
+put()	如果key重复，会覆盖之前的数据,否则直接插入,返回null
+
+putIfAbsent()	如果key重复，不插入,返回null
+
+
+
+```java
+//onlyIfAbsent:true	不需要改变已存在的值
+public V putIfAbsent(K key, V value) {
+        return putVal(hash(key), key, value, true, true);
+}
+```
 
 
 
 
 
+##### computeIfAbsent
+
+
+
+在map不含有k对应的value时,才进行value的计算，提高性能
+
+
+
+* 查询key是否存在
+  * key不存在,计算得出value,插入并返回value (计算value时异常,不插入)
+  * key存在
+    * value==null,计算得出value,插入并返回value (计算value时异常,不插入)
+    * value!=null,不做任何操作,返回null
+
+
+
+在计算过程中，无法修改map,否则ConcurrentModificationException
+
+
+
+##### merge
+
+
+
+三个参数，**key**：map中的键，**value**：使用者传入的值，**remappingFunction** 执行自定义功能并返回最终值
+
+
+
+* 不存在key，将传入的value作为key put(value,newValue)
+* key存在
+  * 执行remappingFunction计算key的旧值和传入的value,得到newValue，put(key,newValue)
+
+
+
+```java
+//BiFunction接口接收两个值，执行自定义功能并返回最终值
+default V merge(K key, V value,BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        Objects.requireNonNull(remappingFunction);
+        Objects.requireNonNull(value);
+        V oldValue = get(key);
+        V newValue = (oldValue == null) ? value : remappingFunction.apply(oldValue, value);
+        if(newValue == null) {
+            remove(key);
+        } else {
+            put(key, newValue);
+        }
+        return newValue;
+    }
+```
 
 
 
@@ -2876,34 +2923,6 @@ public int compare(Entry<String, String> o1, Entry<String, String> o2) {
 
 
 
-
-
-
-### TreeMap 和 TreeSet 在排序时如何比较元素？Collections.sort（）方法如何比较元素？
-
-
-
-TreeSet	实现Comparable接口，该接口提供了比较元素的**compareTo()方法**，当插入元素时会**回调**该方法比较元素的大小
-
-TreeMap	实现Comparable接口,根据键对元素进行排序
-
-Collections工具类的sort方法有两种重载的形式，
-
-第一种要求实现Comparable 接口以实现元素的比较
-
-第二种要求传入第二个参数，参数是 Comparator 接口的子类型（重写compare方法），其实就是是通过接口注入算法，也是对回调模式的应用
-
-
-
-
-
-### 为何Map接口不继承Collection接口
-
-
-
-  尽管Map接口和它的实现也是集合框架的一部分，但Map不是集合，集合也不是Map。因此，Map继承Collection毫无意义，反之亦然
-
-  如果Map继承Collection接口，那么元素去哪儿？Map包含key-value对，它提供抽取key或value列表集合的方法，但是它不适合“一组对象”规范
 
 
 
@@ -5316,8 +5335,6 @@ final boolean nonfairTryAcquire(int acquires) {
 
 
 
-
-
 ```java
 //ReentrantLock
 static final class FairSync extends Sync {
@@ -6230,7 +6247,7 @@ protected final boolean tryRelease(int releases) {
 
 | 类别         | synchronized                                   | Lock                                          |
 | :----------- | :--------------------------------------------- | :-------------------------------------------- |
-| 存在层次     | 关键字，在jvm层面上                            | 是一个接口                                    |
+|              | 关键字，在jvm层面上                            | 接口                                          |
 | 锁的释放     | 执行结束/**发生异常**，jvm**自动**让线程释放锁 | 必须在finally中**手动释放**，容易死锁         |
 | 等待/通知    | wait()+notify()                                | Condition+signalAll()                         |
 | 获取锁的状态 | 无法判断                                       | 可以判断(tryLock)                             |
@@ -7306,16 +7323,13 @@ public void testAnnotation() {
 * 虚拟机和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
 * 执行时输入字节码文件,进行字节码解析,可能通过解释器执行,也可能通过执行编译器产生本地代码执行
 * 虚拟机栈==分配的内存大小确定==
-  
+
   * ==对象引用,基本类型,指令地址==
   * ==局部变量表==(大小固定,运行期间不变)
-  * 存放**对象引用和局部变量**
+  * ==对象引用和局部变量==
     * 32位变量槽（Slot），Slot至少能存放一个boolean、byte、char、short、int、float、reference类型的数据
     * **局部变量必须手动赋值**，不会被被赋初值,不像类变量那样有加载过程中有准备阶段
   * ==操作数栈==(工作空间)
-  * 后入先出，最大深度在编译时确定。每32位对应栈容量1
-    * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
-    * Jvm的解释执行引擎就是基于操作数栈的执行引擎
   * ==动态连接==
     * **每个栈帧都包含一个指向运行时常量池中该栈帧所属方法的引用**,从而支持方法调用过程中的动态连接
     * class文件的常量池中有大量的符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
@@ -7323,14 +7337,15 @@ public void testAnnotation() {
   * 只有正常/异常完成能退出方法
       * 正常出口：执行引擎遇到返回的字节码指令，读取栈帧中的方法返回地址，将返回值传递给上层的方法调用者
       * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，上层调用者不会得到任何返回值
-    
   * ==方法退出:把当前栈帧出栈。恢复上层方法的局部变量表和操作数栈，把返回值压入调用者栈帧的操作数栈中，调整PC计数器,执行下一条指令==
     * 一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
+  * 后入先出，最大深度在编译时确定。每32位对应栈容量1
+      * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
+      * Jvm的解释执行引擎就是基于操作数栈的执行引擎
   * 线程私有，生命周期与线程相同,方法调用进栈,结束出栈
   * 效率高.由操作系统自动分配,有专门的寄存器存放栈的地址，压栈出栈有专门指令
   * 按先后定义的顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
-  * **如果线程请求的深度大于虚拟机所允许的深度，StackOverflowError**
-  * **如果虚拟机栈动态扩展，而扩展时无法申请到足够的内存，OutOfMemoryError**
+  * **线程请求的栈深度大于虚拟机所允许的深度，StackOverflowError**
 * 本地方法栈
   
   * 为虚拟机使用到本地方法服务（native）
@@ -7346,7 +7361,7 @@ public void testAnnotation() {
 
 
 * 只有1个,被所有线程共享,虚拟机启动时创建
-* 存储==对象和对象的class信息(操作指令)==
+* 存储==对象和class对象(操作指令)==
 * ==堆是gc的主要区域==
   * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
   * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下一次GC，Eden和使用区里都存在需要回收的对象,从而导致碎片
@@ -7497,19 +7512,11 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-
-
-
-
-
-
-
-
 ==方法区中的类型信息跟在堆中的class对象不同==
 
-* 方法区中class类型信息只有唯一的实例（各个线程共享)
+* 方法区中class类型信息唯一（各个线程共享)
 
-* 堆中可以有多个该class对象
+* 堆中有多个class对象
 
 * ==通过堆中的class对象访问到方法区中类信息(反射)==
 
@@ -7924,10 +7931,10 @@ hashCode相同，equals()不一定true
 * ==
   * 基本类型，比较值
   * 引用类型，比较地址
-  * ==不能比较没有父子关系的两个对象==
+  * ==不能比较没有继承关系的对象==
 
 * equals() 
-  * 重写equals()，比较内容
+  * 重写后比较内容
   * Object的equals 比较地址
 
 * hashCode()
