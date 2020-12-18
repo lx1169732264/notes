@@ -1200,23 +1200,23 @@ public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAcce
 
 ```java
 public ArrayList() {　　
-    super();        //调用父类无参构造，父类中的是个空的构造方法
-    this.elementData = EMPTY_ELEMENTDATA;//EMPTY_ELEMENTDATA：空的Object[]
-    }
+  super();        //调用父类无参构造，父类中的是个空的构造方法
+  this.elementData = EMPTY_ELEMENTDATA;//EMPTY_ELEMENTDATA：空的Object[]
+}
 
- public ArrayList(int initialCapacity) {
-        super(); //父类中空的构造方法
-        if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
-        this.elementData = new Object[initialCapacity];
-    }
+public ArrayList(int initialCapacity) {
+  super(); //父类中空的构造方法
+  if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
+  this.elementData = new Object[initialCapacity];
+}
 
 public ArrayList(Collection<? extends E> c) {
-        elementData = c.toArray();
-        size = elementData.length;
-//每个集合的toarray()的实现方法不一样，如果不是Object[].class，就需要使用ArrayList中的方法去改造一下
-        if (elementData.getClass() != Object[].class) 。
-            elementData = Arrays.copyOf(elementData, size, Object[].class);
-    }　　　
+  elementData = c.toArray();
+  size = elementData.length;
+  //每个集合的toarray()的实现方法不一样，如果不是Object[].class，就需要使用ArrayList中的方法去改造一下
+  if (elementData.getClass() != Object[].class) 。
+    elementData = Arrays.copyOf(elementData, size, Object[].class);
+}
 ```
 
 
@@ -1236,79 +1236,79 @@ minCapacity = size+1,代表插入操作所需要的最小容量
 
 
 ```java
- public boolean add(E e) {    
-    		//确定内部容量是否够
-        ensureCapacityInternal(size + 1);
-     		//插入，并size++
-        elementData[size++] = e;
-        return true;
-    }
+public boolean add(E e) {    
+  //确定内部容量是否够
+  ensureCapacityInternal(size + 1);
+  //插入，并size++
+  elementData[size++] = e;
+  return true;
+}
 
-//数组容量检查，不够时则进行扩容，只供类内部使用
+//数组容量检查，不够则进行扩容，只供类内部使用
 private void ensureCapacityInternal(int minCapacity) {
-        ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
-    }
+  ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
+}
 
 private static int calculateCapacity(Object[] elementData, int minCapacity) {
-				// 刚初始化时，容量设置为max[10,minCapacity]
-        if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
-            return Math.max(DEFAULT_CAPACITY, minCapacity);
-        }
-        return minCapacity;
-    }
+  // 刚初始化时，容量设置为max[10,minCapacity]
+  if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+    return Math.max(DEFAULT_CAPACITY, minCapacity);
+  }
+  return minCapacity;
+}
 
-		//数组容量检查，不够时则进行扩容，只供类内部使用 
-		// minCapacity 想要的最小容量
-    private void ensureExplicitCapacity(int minCapacity) {
-        modCount++;
-				//最小容量>数组缓冲区当前长度
-        if (minCapacity - elementData.length > 0)
-            grow(minCapacity);//扩容
-    }
+//数组容量检查，不够时则进行扩容，只供类内部使用 
+// minCapacity 想要的最小容量
+private void ensureExplicitCapacity(int minCapacity) {
+  modCount++;
+  //最小容量>数组缓冲区当前长度
+  if (minCapacity - elementData.length > 0)
+    grow(minCapacity);//扩容
+}
 
 private void grow(int minCapacity) {
-        int oldCapacity = elementData.length;
-				// 1.5倍扩容
-        int newCapacity = oldCapacity + (oldCapacity >> 1);
-  
-				//扩容后的容量 < 想要的最小容量		再次扩容为想要的最小容量
-        if (newCapacity - minCapacity < 0)   newCapacity = minCapacity;
-				//扩容后大于临界值，进行大容量分配
-        if (newCapacity - MAX_ARRAY_SIZE > 0)    newCapacity = hugeCapacity(minCapacity);
+  int oldCapacity = elementData.length;
+  // 1.5倍扩容
+  int newCapacity = oldCapacity + (oldCapacity >> 1);
 
-        //copyof(原数组，新的数组长度)
-        elementData = Arrays.copyOf(elementData, newCapacity);
-    }
+  //扩容后的容量 < 想要的最小容量		再次扩容为想要的最小容量
+  if (newCapacity - minCapacity < 0)   newCapacity = minCapacity;
+  //扩容后大于临界值，进行大容量分配
+  if (newCapacity - MAX_ARRAY_SIZE > 0)    newCapacity = hugeCapacity(minCapacity);
+
+  //copyof(原数组，新的数组长度)
+  elementData = Arrays.copyOf(elementData, newCapacity);
+}
 
 //大容量分配
 private static int hugeCapacity(int minCapacity) {
-		//如果minCapacity<0，抛出异常
-      if (minCapacity < 0)   throw new OutOfMemoryError();
+  //如果minCapacity<0，抛出异常
+  if (minCapacity < 0)   throw new OutOfMemoryError();
   //扩容后的容量 > 分配给ArrayList的容量，判断需要的容量是否比分派的容量大，是就把Integer.MAX_VALUE:2147483647赋值给minCapacity，否就用MAX_ARRAY_SIZE：2147483639
-      return (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE :MAX_ARRAY_SIZE;
-    }
+  return (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE :MAX_ARRAY_SIZE;
+}
 ```
 
 
 
 ```java
- public void add(int index, E element) {
-				//越界检查
-        rangeCheckForAdd(index);
-        ensureCapacityInternal(size + 1);
-				// 对数组进行复制处理，目的是空出index的位置插入element，并将index后的所有元素后移一个位置
-				//arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，复制数量)
-   			//复制的时只是复制容器里的引用，只在写的时候会创建新对象添加到新容器里，而旧容器的对象还在使用
-        System.arraycopy(elementData, index, elementData, index + 1,size - index);
- 				//将指定的index位置赋值为element
-        elementData[index] = element;
-				//实际容量+1
-        size++;
-    }
+public void add(int index, E element) {
+  //越界检查
+  rangeCheckForAdd(index);
+  ensureCapacityInternal(size + 1);
+  // 对数组进行复制处理，目的是空出index的位置插入element，并将index后的所有元素后移一个位置
+  //arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，复制数量)
+  //复制的时只是复制容器里的引用，只在写的时候会创建新对象添加到新容器里，而旧容器的对象还在使用
+  System.arraycopy(elementData, index, elementData, index + 1,size - index);
+  //将指定的index位置赋值为element
+  elementData[index] = element;
+  //实际容量+1
+  size++;
+}
 
 private void rangeCheckForAdd(int index) {
-    if (index > size || index < 0)   throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
-    }
+  if (index > size || index < 0)   throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+}
 ```
 
 
@@ -1322,7 +1322,7 @@ private void rangeCheckForAdd(int index) {
 3. 通过索引找到要删除的元素
 4. 计算要移动的位数
 5. 移动元素（复制数组）
-6. 将–size上的位置赋值为null，让gc(垃圾回收机制)更快的回收它。
+6. 将 —-size上的位置赋值为null，help gc
 7. 返回被删除的元素
 
 
@@ -1331,18 +1331,18 @@ private void rangeCheckForAdd(int index) {
 
 ```java
 public E remove(int index) {
-        rangeCheck(index);
-        modCount++;
-				//记录索引处的元素
-        E oldValue = elementData(index);
-				// 删除指定元素后，需要左移的元素个数
-        int numMoved = size - index - 1;
-				//如果有需要左移的元素，就移动（原地复制）
-        if (numMoved > 0)  System.arraycopy(elementData, index+1, elementData, index,numMoved);
-	 	// size-1处的元素置为null,help GC
-	 	elementData[--size] = null;
-        return oldValue;
-    }
+  rangeCheck(index);
+  modCount++;
+  //记录索引处的元素
+  E oldValue = elementData(index);
+  // 删除指定元素后，需要左移的元素个数
+  int numMoved = size - index - 1;
+  //如果有需要左移的元素，就移动（原地复制）
+  if (numMoved > 0)  System.arraycopy(elementData, index+1, elementData, index,numMoved);
+  // size-1处的元素置为null,help GC
+  elementData[--size] = null;
+  return oldValue;
+}
 ```
 
 
@@ -1352,29 +1352,29 @@ public E remove(int index) {
 ```java
 //根据参数删除索引最低的元素
 public boolean remove(Object o) {
-        if (o == null) {
-            for (int index = 0; index < size; index++)
-                if (elementData[index] == null) {
-                    fastRemove(index);
-                    return true;
-                }
-        } else {
-            for (int index = 0; index < size; index++)
-                if (o.equals(elementData[index])) {
-                    fastRemove(index);
-                    return true;
-                }
-        }
-        return false;
-    }
+  if (o == null) {
+    for (int index = 0; index < size; index++)
+      if (elementData[index] == null) {
+        fastRemove(index);
+        return true;
+      }
+  } else {
+    for (int index = 0; index < size; index++)
+      if (o.equals(elementData[index])) {
+        fastRemove(index);
+        return true;
+      }
+  }
+  return false;
+}
 
-    //快速删除，省去了边界检查，并且不返回已删除的值
-    private void fastRemove(int index) {
-        modCount++;
-        int numMoved = size - index - 1;
-        if (numMoved > 0)   System.arraycopy(elementData, index+1, elementData, index,numMoved);
-        elementData[--size] = null; // help GC
-    }
+//快速删除，省去了边界检查，并且不返回已删除的值
+private void fastRemove(int index) {
+  modCount++;
+  int numMoved = size - index - 1;
+  if (numMoved > 0)   System.arraycopy(elementData, index+1, elementData, index,numMoved);
+  elementData[--size] = null; // help GC
+}
 ```
 
 
@@ -1383,17 +1383,17 @@ public boolean remove(Object o) {
 
 ```java
 [fromIndex,toIndex)	不包含右边界
-protected void removeRange(int fromIndex, int toIndex) {
-        modCount++;
-        int numMoved = size - toIndex;//被删除的索引后面的个数
-        System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
+ protected void removeRange(int fromIndex, int toIndex) {
+   modCount++;
+   int numMoved = size - toIndex;//被删除的索引后面的个数
+   System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
 
-        int newSize = size - (toIndex-fromIndex);
-        for (int i = newSize; i < size; i++) {
-            elementData[i] = null;
-        }
-        size = newSize;
-    }
+   int newSize = size - (toIndex-fromIndex);
+   for (int i = newSize; i < size; i++) {
+     elementData[i] = null;
+   }
+   size = newSize;
+ }
 ```
 
 
@@ -1522,11 +1522,11 @@ public int lastIndexOf(Object o) {
 
 ```java
 public void clear() {
-        modCount++;
-        for (int i = 0; i < size; i++)
-            elementData[i] = null;	//help GC
-        size = 0;		//重置size
-    }
+  modCount++;
+  for (int i = 0; i < size; i++)
+    elementData[i] = null;	//help GC
+  size = 0;		//重置size
+}
 ```
 
 
@@ -1782,52 +1782,52 @@ public HashMap() {	this.loadFactor = DEFAULT_LOAD_FACTOR; }
 public HashMap(int initialCapacity) {   this(initialCapacity, DEFAULT_LOAD_FACTOR);}
 
 public HashMap(int initialCapacity, float loadFactor) {
-      if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
-      if (initialCapacity > MAXIMUM_CAPACITY)  initialCapacity = MAXIMUM_CAPACITY;
-//Float.isNaN()判断非法值,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
-      if (loadFactor <= 0 || Float.isNaN(loadFactor)) throw new IllegalArgumentException("Illegal load factor:" +loadFactor);
-        this.loadFactor = loadFactor;
-  			//tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
-        this.threshold = tableSizeFor(initialCapacity);
-    }
+  if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
+  if (initialCapacity > MAXIMUM_CAPACITY)  initialCapacity = MAXIMUM_CAPACITY;
+  //Float.isNaN()判断非法值,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
+  if (loadFactor <= 0 || Float.isNaN(loadFactor)) throw new IllegalArgumentException("Illegal load factor:" +loadFactor);
+  this.loadFactor = loadFactor;
+  //tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
+  this.threshold = tableSizeFor(initialCapacity);
+}
 
-		//修正容量为2^n
-    static final int tableSizeFor(int cap) {
-      //-1为了防止cap已经是2^n
-        int n = cap - 1;
-        n |= n >>> 1;
-        n |= n >>> 2;
-        n |= n >>> 4;
-        n |= n >>> 8;
-        n |= n >>> 16;
-        return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
-    }
+//修正容量为2^n
+static final int tableSizeFor(int cap) {
+  //-1为了防止cap已经是2^n
+  int n = cap - 1;
+  n |= n >>> 1;
+  n |= n >>> 2;
+  n |= n >>> 4;
+  n |= n >>> 8;
+  n |= n >>> 16;
+  return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+}
 
 
 //参数为Map的构造
 public HashMap(Map<? extends K, ? extends V> m) {
-        this.loadFactor = DEFAULT_LOAD_FACTOR;
-        putMapEntries(m, false);
-    }
+  this.loadFactor = DEFAULT_LOAD_FACTOR;
+  putMapEntries(m, false);
+}
 
-    final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
-        int s = m.size();//获取map元素个数
-        if (s > 0) {
-            if (table == null) {
-              //+1.0F 让计算出的size向上取整,获得更大的容量,避免resize(可能刚创建,元素就均匀分布到每个数组,触发扩容)
-                float ft = ((float)s / loadFactor) + 1.0F;
-                int t = ((ft < (float)MAXIMUM_CAPACITY) ?(int)ft : MAXIMUM_CAPACITY);
-              //得到的t大于阈值->更新阈值
-                if (t > threshold)   threshold = tableSizeFor(t);
-            }
-          	//已初始化,元素个数>阈值->扩容
-            else if (s > threshold)    resize();
-          
-          //遍历放入新map
-            for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
-                K key = e.getKey();
-                V value = e.getValue();
-                putVal(hash(key), key, value, false, evict);
+final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
+  int s = m.size();//获取map元素个数
+  if (s > 0) {
+    if (table == null) {
+      //+1.0F 让计算出的size向上取整,获得更大的容量,避免resize(可能刚创建,元素就均匀分布到每个数组,触发扩容)
+      float ft = ((float)s / loadFactor) + 1.0F;
+      int t = ((ft < (float)MAXIMUM_CAPACITY) ?(int)ft : MAXIMUM_CAPACITY);
+      //得到的t大于阈值->更新阈值
+      if (t > threshold)   threshold = tableSizeFor(t);
+    }
+    //已初始化,元素个数>阈值 -> 扩容
+    else if (s > threshold)    resize();
+
+    //遍历放入新map
+    for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
+      K key = e.getKey();
+      V value = e.getValue();
+      putVal(hash(key), key, value, false, evict);
 ```
 
 
@@ -1838,33 +1838,33 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 ```java
 public V get(Object key) {
-        Node<K,V> e;
-        return (e = getNode(hash(key), key)) == null ? null : e.value;
-    }
+  Node<K,V> e;
+  return (e = getNode(hash(key), key)) == null ? null : e.value;
+}
 
 final Node<K,V> getNode(int hash, Object key) {
-  			//first存放对应下标链表的第一个元素
-        Node<K,V>[] tab; Node<K,V> first, e; 
-  			int n; K k;
-  			//复制table到tab,判空
-        if ((tab = table) != null && (n = tab.length) > 0 &&(first = tab[(n - 1) & hash]) != null) {
-          
-          //下标第一个元素的key就是要找的key
-            if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
-                return first;
-          
-          //下标第一个元素不是,寻找下一个并赋值给e
-            if ((e = first.next) != null) {
-              	//红黑树的方法
-                if (first instanceof TreeNode)		 return ((TreeNode<K,V>)first).getTreeNode(hash, key);
-              //遍历链表,直到下个节点不存在  
-              do {
-                //寻找对应key的位置
-                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))    return e;
-                } while ((e = e.next) != null);
-            }
-        }
-        return null;
+  //first存放对应下标链表的第一个元素
+  Node<K,V>[] tab; Node<K,V> first, e; 
+  int n; K k;
+  //复制table到tab,判空
+  if ((tab = table) != null && (n = tab.length) > 0 &&(first = tab[(n - 1) & hash]) != null) {
+
+    //下标第一个元素的key就是要找的key
+    if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
+      return first;
+
+    //下标第一个元素不是,寻找下一个并赋值给e
+    if ((e = first.next) != null) {
+      //红黑树的方法
+      if (first instanceof TreeNode)		 return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+      //遍历链表,直到下个节点不存在  
+      do {
+        //寻找对应key的位置
+        if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))    return e;
+      } while ((e = e.next) != null);
+    }
+  }
+  return null;
 ```
 
 
@@ -1874,13 +1874,13 @@ final Node<K,V> getNode(int hash, Object key) {
 
 
 ```java
-    static final int hash(Object key) {
-        int h;
-//null==key -> 返回0		null不能调用hashCode(),所以给了默认值0		->		hashMap支持Null的Key
-//hashCode()与hashCode()右移16的异或运算(相同为0,否则1)	->	高16位与低16位都参与异或,减少碰撞概率
-//当length很小 -> 高位全0,低位不同	->	容易碰撞
-        return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
-    }
+static final int hash(Object key) {
+  int h;
+  //null==key -> 返回0		null不能调用hashCode(),所以给了默认值0		->		hashMap支持Null的Key
+  //hashCode()与hashCode()右移16的异或运算(相同为0,否则1)	->	高16位与低16位都参与异或,减少碰撞概率
+  //当length很小 -> 高位全0,低位不同	->	容易碰撞
+  return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
 ```
 
 
@@ -1893,19 +1893,18 @@ final Node<K,V> getNode(int hash, Object key) {
 
 #对于(length - 1) & hash		假设length 16
 0000 0000 0000 0000 0000 0000 0000 1111 // 15 length-1
-1111 1111 1111 1111 0000 1111 0001 0101
+1111 1111 1111 1111 0000 1111 0001 0101	// hash
 0000 0000 0000 0000 0000 0000 0000 0101 // 5
 
 
 #假设不进行16位右移操作
-1111 1111 1111 1111 1111 0000 1110 1010 //key.hashCode()结果
+1111 1111 1111 1111 1111 0000 1110 1010 // key.hashCode()结果
 0000 0000 0000 0000 0000 0000 0000 1111 // 15
 0000 0000 0000 0000 0000 0000 0000 1010 // 10
 
-1010 0110 0011 1111 1111 0000 1110 1010	//高位不同,低位相同
+1010 0110 0011 1111 1111 0000 1110 1010	// 高位不同,低位相同的key.hashCode()
 0000 0000 0000 0000 0000 0000 0000 1111 // 15
-0000 0000 0000 0000 0000 0000 0000 1010 // 10
-#容易碰撞
+0000 0000 0000 0000 0000 0000 0000 1010 // 10,出现了碰撞
 ```
 
 
@@ -1941,62 +1940,62 @@ public V put(K key, V value) {  return putVal(hash(key), key, value, false, true
 
 //onlyIfAbsent=true,不改变现有的值		evict=false,table为新建状态
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
-        Node<K,V>[] tab; Node<K,V> p; 
-  			//n数组长度		i key的hash值
-  			int n, i;
-  
-  			//table为空/长度为0	->	resize()实例化一个数组,赋值给tab		tab.length赋值给n
-        if ((tab = table) == null || (n = tab.length) == 0)        n = (tab = resize()).length;
-  
-  		//hash&(length-1)计算当前key的下标		获取当前下标的Node,赋值给p
-  		//p==null -> 当前数组下标位置没有存储值 -> 创建新Node,插入数组
-        if ((p = tab[i = (n - 1) & hash]) == null)       tab[i] = newNode(hash, key, value, null);
-        else {
-            Node<K,V> e; K k;
-          
-          //寻找键值对所在node的位置
-          //元素的hash==传入的hash,并且key相等			将node赋值给e(更新旧值)
-            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))	  e = p;
-            else if (p instanceof TreeNode)   e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-            
-          	//key不相等,并且不是treeNode
-          	else {
-              	//binCount记录循环次数,判断是否需要树化
-                for (int binCount = 0; ; ++binCount) {
-                  
-                  	//到达链表末尾
-                    if ((e = p.next) == null) {
-                      	//将数据插入表尾.next
-                        p.next = newNode(hash, key, value, null);
-                      
-                      	//循环次数>=树化边界值-1	->	树化
-                        if (binCount >= TREEIFY_THRESHOLD - 1)  	treeifyBin(tab, hash);
-                        break;
-                    }
-                  
-                  	//当前位置的key与要put的key相同,跳出循环
-                    if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
-                        break;
-                    p = e;
-                }
-            }
-          
-          //e不为空,则之前找到了键值对的Node
-            if (e != null) {
-                V oldValue = e.value;
-              
-              	//onlyIfAbsent=false,需要改变现有的值,将传入参数value赋值给e,返回e的旧值
-                if (!onlyIfAbsent || oldValue == null)       e.value = value;
-                afterNodeAccess(e);
-                return oldValue;
-            }
+  Node<K,V>[] tab; Node<K,V> p; 
+  //n数组长度		i key的hash值
+  int n, i;
+
+  //table为空/长度为0	->	resize()实例化一个数组,赋值给tab		tab.length赋值给n
+  if ((tab = table) == null || (n = tab.length) == 0)        n = (tab = resize()).length;
+
+  //hash&(length-1)计算当前key的下标		获取当前下标的Node,赋值给p
+  //p==null -> 当前数组下标位置没有存储值 -> 创建新Node,插入数组
+  if ((p = tab[i = (n - 1) & hash]) == null)       tab[i] = newNode(hash, key, value, null);
+  else {
+    Node<K,V> e; K k;
+
+    //寻找键值对所在node的位置
+    //元素的hash==传入的hash,并且key相等			将node赋值给e(更新旧值)
+    if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))	  e = p;
+    else if (p instanceof TreeNode)   e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+
+    //key不相等,并且不是treeNode
+    else {
+      //binCount记录循环次数,判断是否需要树化
+      for (int binCount = 0; ; ++binCount) {
+
+        //到达链表末尾
+        if ((e = p.next) == null) {
+          //将数据插入表尾.next
+          p.next = newNode(hash, key, value, null);
+
+          //循环次数>=树化边界值-1	->	树化
+          if (binCount >= TREEIFY_THRESHOLD - 1)  	treeifyBin(tab, hash);
+          break;
         }
-  
-  			//更新修改次数
-        ++modCount;
-        if (++size > threshold)     resize();
-        afterNodeInsertion(evict);
-        return null;
+
+        //当前位置的key与要put的key相同,跳出循环
+        if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
+          break;
+        p = e;
+      }
+    }
+
+    //e不为空,则之前找到了键值对的Node
+    if (e != null) {
+      V oldValue = e.value;
+
+      //onlyIfAbsent=false,需要改变现有的值,将传入参数value赋值给e,返回e的旧值
+      if (!onlyIfAbsent || oldValue == null)       e.value = value;
+      afterNodeAccess(e);
+      return oldValue;
+    }
+  }
+
+  //更新修改次数
+  ++modCount;
+  if (++size > threshold)     resize();
+  afterNodeInsertion(evict);
+  return null;
 ```
 
 
@@ -2190,7 +2189,7 @@ final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValu
 
 ==forEach是Map接口新增的default方法==
 
-```
+```java
 map.forEach((key, value) -> {
         System.out.println(key + ":" + value);
     });
@@ -2205,7 +2204,7 @@ map.forEach((key, value) -> {
 * 泛型约束为Object类型
   * map.put(1, “Java”)，实际上是将1进行了自动装箱操作,变为了 Integer类型
 
-* 引用数据类型重写了HashCode()和 equals()两个方法，能==保证key的唯一性==
+* 引用数据类型重写了HashCode()和 equals()两个方法，能==保证key的唯一==
 
 
 
@@ -2217,15 +2216,15 @@ map.forEach((key, value) -> {
 
 
 
-CAS+同步锁+Node+红黑树
+CAS + 同步锁 + Node + 红黑树
 
-对桶进行分段，每个分段用锁保护,**锁只加在数组头节点**，让锁的粒度小，并发性能高
+对桶进行分段，每个分段用锁保护,**锁只加在数组头节点**，锁粒度小，并发性能高
 
 ==不接受空key/value==
 
 
 
-
+![](image.assets/ConcurrentHashMap.png)
 
 
 
@@ -2233,82 +2232,13 @@ CAS+同步锁+Node+红黑树
 
 
 
-在ConcurrentHashMap中，很多的操作都会依靠CAS算法完成
-
-```java
-  // Unsafe mechanics  CAS保障了哪些成员变量操作是原子性的
-    private static final sun.misc.Unsafe U;
-    private static final long LOCKSTATE;
-      static {
-                U = sun.misc.Unsafe.getUnsafe();
-                Class<?> k = TreeBin.class; //操作TreeBin,后面会介绍这个类
-             LOCKSTATE = U.objectFieldOffset(k.getDeclaredField("lockState"));
---------------------------------------------------------------------------------------
-    private static final sun.misc.Unsafe U;
-    private static final long SIZECTL;
-    private static final long TRANSFERINDEX;
-    private static final long BASECOUNT;
-    private static final long CELLSBUSY;
-    private static final long CELLVALUE;
-    private static final long ABASE;
-    private static final int ASHIFT;
-
-//3个原子性操作方法：
-    static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
-        return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
-    }
-
-    static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,Node<K,V> c, Node<K,V> v) {
-        return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v); }
-
-    static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
-        U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);}
-```
-
 
 
 1.7- 的ConcurrentHashMap中是锁定了Segment
 
-jdk1.8+ 锁定的是一个Node头节点，减小了锁的粒度，性能和冲突都会减少
+jdk1.8+ 锁定的是Node头节点，减小了锁的粒度，性能和冲突都会减少
 
-```java
-//这段代码其实是在扩容阶段对头节点的锁定，其实还有很多地方不一一列举。
-               synchronized (f) {
-                    if (tabAt(tab, i) == f) {
-                        Node<K,V> ln, hn;
-                        if (fh >= 0) {
-                            int runBit = fh & n;
-                            Node<K,V> lastRun = f;
-                            for (Node<K,V> p = f.next; p != null; p = p.next) {
-                                int b = p.hash & n;
-                                if (b != runBit) {
-                                    runBit = b;
-                                    lastRun = p;
-                                }
-                            }
-                            if (runBit == 0) {
-                                ln = lastRun;
-                                hn = null;
-                            }
-                            else {
-                                hn = lastRun;
-                                ln = null;
-                            }
-                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
-                                int ph = p.hash; K pk = p.key; V pv = p.val;
-                                if ((ph & n) == 0)
-                                    ln = new Node<K,V>(ph, pk, pv, ln);
-                                else
-                                    hn = new Node<K,V>(ph, pk, pv, hn);
-                            }
-                            setTabAt(nextTab, i, ln);
-                            setTabAt(nextTab, i + n, hn);
-                            setTabAt(tab, i, fwd);
-                            advance = true;
-                        }
-                        else if (f instanceof TreeBin) {
-                        .....  }    }
-```
+
 
 
 
@@ -2321,21 +2251,31 @@ jdk1.8+ 锁定的是一个Node头节点，减小了锁的粒度，性能和冲�
 ConcurrentHashMap的并发度就是segment的大小，默认为16，这意味着最多同时可以有16条线程操作ConcurrentHashMap，这也是ConcurrentHashMap对Hashtable的最大优势
 
 ```java
-		//
-		private static int RESIZE_STAMP_BITS = 16;
+//
+private static int RESIZE_STAMP_BITS = 16;
 
-    private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
+private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
 
-    private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
+private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
 
-//判断当前状态	MOVED代表该节点是个forwarding Node，表示有线程处理过了
-    static final int MOVED     = -1;
-    static final int TREEBIN   = -2;
+// 可用处理器数量
+static final int NCPU = Runtime.getRuntime().availableProcessors();
+
+//MOVED代表该节点是forwarding Node，已被其他线程处理过了
+static final int MOVED   = -1;
+static final int TREEBIN = -2;
 
 //sizeCtl标志控制符
-//-N	正在进行初始化或扩容操作
-//N		hash表还没有被初始化，这个数值表示初始化或下一次进行扩容的大小,始终是当前容量的0.75倍
-		private transient volatile int sizeCtl;
+//未初始化:	 0  未指定初始容量		> 0  初始容量的最近的2次幂
+//初始化中： -1  正在初始化			-N  高15位是指定容量标识，低16为并行扩容线程数+1 (见resizeStamp())
+//初始化完成：table.length * 0.75  0.75的扩容阈值
+private transient volatile int sizeCtl;
+
+//3种Node: TreeBin		ForwardingNode 扩容时存放的结点		Node 普通结点，表示链表头结点
+transient volatile Node<K,V>[] table;
+
+//扩容时用于存放数据的变量，扩容完成后置为null
+private transient volatile Node<K,V>[] nextTable;
 ```
 
 
@@ -2348,15 +2288,14 @@ Node
 
 ```java
 static class Node<K,V> implements Map.Entry<K,V> {
-        final int hash;
-        final K key;
-//用volatile修饰value/next，使得value和next具有可见性和有序性，保证线程安全
-  同时大家仔细看过代码就会发现同时它还错了一个find的方法，该方法主要是用户寻找某一个节点。
-        volatile V val;
-        volatile Node<K,V> next;
-  
-//setValue（）方法直接抛出异常，禁止用该方法设置value
-public final V setValue(V value) {   throw new UnsupportedOperationException();  }
+  final int hash;
+  final K key;
+  //用volatile修饰value/next，使得value和next具有可见性和有序性，保证线程安全
+  volatile V val;
+  volatile Node<K,V> next;
+
+  //setValue（）方法直接抛出异常，禁止用该方法设置value
+  public final V setValue(V value) {   throw new UnsupportedOperationException();  }
 ```
 
 
@@ -2366,65 +2305,169 @@ TreeNode
 ```java
 //TreeNode继承自Node,附带next指针
 static final class TreeNode<K,V> extends Node<K,V> {
-        TreeNode<K,V> parent;  // red-black tree links
-        TreeNode<K,V> left;
-        TreeNode<K,V> right;
-        TreeNode<K,V> prev;    // needed to unlink next upon deletion
-        boolean red;
-   
-//TreeBin内部封装了TreeNode,树的根节点为TreeBin,子结点为TreeNode
-//TreeNode的next指针可以在TreeBin中寻找下一个TreeNode，这也是与HashMap的区别
-static final class TreeBin<K,V> extends Node<K,V> {
-        TreeNode<K,V> root;
-        volatile TreeNode<K,V> first;
-        volatile Thread waiter;
-        volatile int lockState;
-        // values for lockState
-        static final int WRITER = 1; // set while holding write lock
-        static final int WAITER = 2; // set when waiting for write lock
-        static final int READER = 4; // increment value for setting read lock
+  TreeNode<K,V> parent;  // red-black tree links
+  TreeNode<K,V> left;
+  TreeNode<K,V> right;
+  TreeNode<K,V> prev;    // needed to unlink next upon deletion
+  boolean red;
+
+  //TreeBin内部封装了TreeNode,树的根节点为TreeBin,子结点为TreeNode
+  //TreeNode的next指针可以在TreeBin中寻找下一个TreeNode，这也是与HashMap的区别
+  static final class TreeBin<K,V> extends Node<K,V> {
+    TreeNode<K,V> root;
+    volatile TreeNode<K,V> first;
+    volatile Thread waiter;
+    volatile int lockState;
+    // values for lockState
+    static final int WRITER = 1; // set while holding write lock
+    static final int WAITER = 2; // set when waiting for write lock
+    static final int READER = 4; // increment value for setting read lock
 ```
 
 
 
-ForwordingNode
+ForwordingNode(扩容阶段用到)
 
 ```java
-//主要是在扩容阶段，链接两个table的节点类，nextTable用于指向下一个table，但并不是说有2个table，而是在扩容的时,线程读取到为空或者处理完的节点设置为forwordingNode，别的线程发现这个forwordingNode会继续向后执行遍历，解决了多线程安全的问题
+//在扩容时,线程读取到为空或者处理完的节点,设置为forwordingNode,指向下一个table，别的线程发现这个forwordingNode会继续向后执行遍历，解决了多线程安全问题
 //处理节点时会对节点上锁,保证线程安全
 static final class ForwardingNode<K,V> extends Node<K,V> {
-        final Node<K,V>[] nextTable;
-        ForwardingNode(Node<K,V>[] tab) {
-            super(MOVED, null, null, null);
-            this.nextTable = tab;
-        }
+  final Node<K,V>[] nextTable;
+  ForwardingNode(Node<K,V>[] tab) {
+    super(MOVED, null, null, null);
+    this.nextTable = tab;
+  }
 
-        Node<K,V> find(int h, Object k) {
-            // loop to avoid arbitrarily deep recursion on forwarding nodes
-            outer: for (Node<K,V>[] tab = nextTable;;) {
-                Node<K,V> e; int n;
-                if (k == null || tab == null || (n = tab.length) == 0 ||
-                    (e = tabAt(tab, (n - 1) & h)) == null)
-                    return null;
-                for (;;) {
-                    int eh; K ek;
-                    if ((eh = e.hash) == h &&
-                        ((ek = e.key) == k || (ek != null && k.equals(ek))))
-                        return e;
-                    if (eh < 0) {
-                        if (e instanceof ForwardingNode) {
-                            tab = ((ForwardingNode<K,V>)e).nextTable;
-                            continue outer;
-                        }
-                        else
-                            return e.find(h, k);        }
-                    if ((e = e.next) == null)
-                        return null;    } }   }}
+  Node<K,V> find(int h, Object k) {
+    // loop to avoid arbitrarily deep recursion on forwarding nodes
+    outer: for (Node<K,V>[] tab = nextTable;;) {
+      Node<K,V> e; int n;
+      if (k == null || tab == null || (n = tab.length) == 0 ||
+          (e = tabAt(tab, (n - 1) & h)) == null)
+        return null;
+      for (;;) {
+        int eh; K ek;
+        if ((eh = e.hash) == h &&
+            ((ek = e.key) == k || (ek != null && k.equals(ek))))
+          return e;
+        if (eh < 0) {
+          if (e instanceof ForwardingNode) {
+            tab = ((ForwardingNode<K,V>)e).nextTable;
+            continue outer;
+          }
+          else
+            return e.find(h, k);        }
+        if ((e = e.next) == null)
+          return null;    } }   }}
 ```
 
 
 
 
+
+#### initTable
+
+
+
+==在链表初始化中没有加锁==
+
+```java
+private final Node<K,V>[] initTable() {
+    Node<K,V>[] tab; int sc;
+    while ((tab = table) == null || tab.length == 0) {
+      	//sizeCtl<0代表当前table正在被其他线程初始化,当前线程yield礼让
+        if ((sc = sizeCtl) < 0)    Thread.yield();
+      
+      	//初始化前,CAS将sizeCtl置为-1,让其他线程让出cpu
+        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+            try {
+                if ((tab = table) == null || tab.length == 0) {
+                  	//DEFAULT_CAPACITY:16
+                    int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
+                    Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+                    table = tab = nt;
+                  	//扩容阈值0.75
+                    sc = n - (n >>> 2);
+                }
+            } finally {
+              	//扩容保护
+                sizeCtl = sc;
+            }
+            break;
+        }
+    }
+    return tab;
+}
+```
+
+
+
+#### 3个原子操作
+
+
+
+用于对指定位置的节点进行操作,CAS保证了线程安全
+
+
+
+ABASE表示table中首个元素的内存偏移地址，所以((long)i << ASHIFT) + ABASE为table[i]的内存偏移地址
+
+```java
+static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+    return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
+}
+
+static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,Node<K,V> c, Node<K,V> v) {
+    return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
+}
+
+static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
+    U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
+}
+```
+
+
+#### spread
+
+
+
+```java
+static final int HASH_BITS = 0x7fffffff;//01111111_11111111_11111111_11111111
+
+static final int spread(int h) {
+    //无符号右移加入高位影响，与HASH_BITS做与操作保留对hash有用的比特位，有让hash>0的意思
+    return (h ^ (h >>> 16)) & HASH_BITS;
+}
+```
+
+
+
+
+#### get
+
+
+
+```java
+public V get(Object key) {
+  Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
+    int h = spread(key.hashCode());
+  	//如果tab不空并且bin里面的节点不为空
+    if ((tab = table) != null && (n = tab.length) > 0 && (e = tabAt(tab, (n - 1) & h)) != null) {
+      // 如果bin里面的头节点就是需要查询的value
+      if ((eh = e.hash) == h) {
+        if ((ek = e.key) == key || (ek != null && key.equals(ek)))
+          return e.val;
+      }
+      // eh < 0 说明是MOVED(-1)或TREEBIN(-2)
+      else if (eh < 0) 		 return (p = e.find(h, key)) != null ? p.val : null;
+      while ((e = e.next) != null) { // 链表
+        if (e.hash == h &&((ek = e.key) == key || (ek != null && key.equals(ek))))
+          return e.val;
+      }
+    }
+  return null;
+}
+```
 
 
 
@@ -2432,7 +2475,15 @@ static final class ForwardingNode<K,V> extends Node<K,V> {
 
 
 
-在数组扩容时,**有且只能由一个线程构建一个nextTable**，然后把原table复制到nextTable中，复制可以多线程共同操作。在复制过程中有一定的规律和算法操控
+1. 单线程新建nextTable，新容量一般为原table容量的两倍。
+2. 每个线程想增/删元素时，如果访问的桶是ForwardingNode节点，则表明当前正处于扩容状态，协助一起扩容完成后再完成相应的数据更改操作
+3. 扩容时将原table的所有桶倒序分配，每个线程每次最小分配16个桶，防止资源竞争导致的效率下降。单个桶内元素的迁移是加锁的，但桶范围处理分配可以多线程，在没有迁移完成所有桶之前每个线程需要重复获取迁移桶范围，直至所有桶迁移完成
+4. 一个旧桶内的数据迁移完成但不是所有桶都迁移完成时，查询数据委托给ForwardingNode结点查询nextTable完成
+5. 迁移过程中sizeCtl用于记录参与扩容线程的数量，全部迁移完成后sizeCtl更新为新table容量的0.75倍。
+
+
+
+在数组扩容时,**只能由一个线程构建一个nextTable**，然后把原table复制到nextTable中，复制时可以多线程共同操作
 
 
 
@@ -2440,167 +2491,198 @@ static final class ForwardingNode<K,V> extends Node<K,V> {
 
 1. 数组中某个值为空，放置**forwordingNode**
 2. 不为空，是链表头结点，就拆分为两个链表，存储到nextTable对应的两个位置
-3. 不为空，是TreeBin头结点，此处存储着红黑树，先判断需不需要把树转链表，做完一系列的处理，然后把对应的结果存储在nextTable的对应两个位置
+3. 不为空，是TreeBin头结点，先判断需不需要把树转链表，再把对应的结果存储在nextTable的对应两个位置
 
 
 
-==拆分为两个链表的原因==
+==拆分为两个链表的原因==:由hash()和扩容策略决定
 
-* 由hash()和扩容策略决定
+在原先数组中，下标的计算是(lenth-1) & hash()，哈希值相同的都会在同一个链表中，而且lenth都是2的倍数
 
-* 在原先数组中，下标的计算是(lenth-1) & hash())，哈希值相同的都会在同一个链表中，而且lenth都是2的倍数
+扩容会扩大原先数组的两倍，如容量8（0111）二进制，扩大一倍(1111)，只有1个高位不一样
 
-* 扩容会扩大原先数组的两倍，如容量8（0111）二进制，扩大一倍(1111)，按位与得到前三位一致，只有第四位不一样
-
-* 9&7=1，1&7=1,扩容后，9&15=9，1&15=1，只有第四位不一样，原先在1位置的元素重新hash之后，只能得到1或则9(1+length)的位置，是对称的
+9&7=1，1&7=1,扩容后，9&15=9，1&15=1，只有第四位不一样，原先在1位置的元素重新hash之后，只能得到1或则9(1+length)的位置，是对称的
 
 
 
 ```java
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
-        int n = tab.length, stride; //stride 主要和CPU相关
-        //主要是判断CPU处理的量，如果小于16则直接赋值16
-        if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
-            stride = MIN_TRANSFER_STRIDE; // subdivide range
-        if (nextTab == null) {            // initiating只能有一个线程进行构造nextTable，如果别的线程进入发现不为空就不用构造nextTable了
-            try {
-                @SuppressWarnings("unchecked")
-                Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1]; //把新的数组变为原来的两倍，这里的n<<1就是向左移动一位，也就是乘2
-                nextTab = nt;
-            } catch (Throwable ex) {      // try to cope with OOME
-                sizeCtl = Integer.MAX_VALUE;
-                return;
+  //stride每个线程处理桶的最小数目
+  int n = tab.length, stride;
+  //判断CPU数量，如果cpu<16则stride直接赋值16
+  if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+    stride = MIN_TRANSFER_STRIDE;
+  if (nextTab == null) {            // initiating只能有一个线程进行构造nextTable，如果别的线程进入发现不为空就不用构造nextTable了
+    try {
+      //扩容2倍
+      Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
+      nextTab = nt;
+    } catch (Throwable ex) {
+      //扩容保护
+      sizeCtl = Integer.MAX_VALUE;
+      return;
+    }
+    nextTable = nextTab;
+    transferIndex = n; //原先扩容大小
+  }
+  int nextn = nextTab.length;
+  //构造ForwardingNode处理多线程间的共同扩容情况
+  ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+   //当前线程是否需要继续寻找下一个可处理的节点
+  boolean advance = true;
+  //所有桶是否都已迁移完成
+  boolean finishing = false;
+
+  for (int i = 0, bound = 0;;) {
+    Node<K,V> f; int fh;
+    //此循环的作用是确定当前线程要迁移的桶的范围或通过更新i的值确定当前范围内下一个要处理的节点。
+    while (advance) {
+      int nextIndex, nextBound;
+      if (--i >= bound || finishing)
+        advance = false;
+      //迁移总进度<=0，表示所有桶都迁移完成
+      else if ((nextIndex = transferIndex) <= 0) {
+        i = -1;
+        advance = false;
+      }
+      //下面就是一个CAS计算
+      else if (U.compareAndSwapInt(this, TRANSFERINDEX, nextIndex,nextBound = (nextIndex > stride ? nextIndex - stride : 0))) {
+        //确定当前线程每次分配的待迁移桶的范围为[bound, nextIndex)
+        bound = nextBound;
+        i = nextIndex - 1;
+        advance = false;
+      }
+    }
+    //当前线程自己的活已经做完或所有线程的活都已做完，第二与第三个条件应该是下面让"i = n"后，再次进入循环时要做的边界检查
+    if (i < 0 || i >= n || i + n >= nextn) {
+      int sc;
+      //原table复制结束
+      if (finishing) {
+        nextTable = null; //help GC
+        table = nextTab;
+        //修改阈值为0.75倍
+        sizeCtl = (n << 1) - (n >>> 1);
+        return;
+      }
+      //当前线程已结束扩容,CAS更新sizeCtl，sizeCtl-1表示参与扩容线程数-1
+      if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+        //相等时说明没有线程在参与扩容了，置finishing=advance=true，为保险让i=n再检查一次
+        if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
+          return;
+        finishing = advance = true;
+        i = n;
+      }
+    }
+    //获取数组的节点，为空就设为forwordingNode
+    else if ((f = tabAt(tab, i)) == null)  advance = casTabAt(tab, i, null, fwd);
+    //节点的hash值是MOVED，说明是已经被处理过的forwordingNode，直接跳过
+    else if ((fh = f.hash) == MOVED)  advance = true;
+    else {
+      //对头节点进行加锁，禁止别的线程进入
+      synchronized (f) {
+        //CAS校验这个节点是否在table对应的i处
+        if (tabAt(tab, i) == f) {
+          Node<K,V> ln, hn;
+          //如果这个节点的确是链表节点
+          //把链表拆分成两个小列表并存储到nextTable对应的两个位置
+          if (fh >= 0) {
+            int runBit = fh & n;
+            Node<K,V> lastRun = f;
+            for (Node<K,V> p = f.next; p != null; p = p.next) {
+              int b = p.hash & n;
+              if (b != runBit) {
+                runBit = b;
+                lastRun = p;
+              }
             }
-            nextTable = nextTab;
-            transferIndex = n; //原先扩容大小
-        }
-        int nextn = nextTab.length;
-        //构造一个ForwardingNode用于多线程之间的共同扩容情况
-        ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
-        boolean advance = true; //遍历的确认标志
-        boolean finishing = false; // to ensure sweep before committing nextTab
-        //遍历每个节点
-        for (int i = 0, bound = 0;;) {
-            Node<K,V> f; int fh; //定义一个节点和一个节点状态判断标志fh
-            while (advance) {
-                int nextIndex, nextBound;
-                if (--i >= bound || finishing)
-                    advance = false;
-                else if ((nextIndex = transferIndex) <= 0) {
-                    i = -1;
-                    advance = false;
-                }
-                //下面就是一个CAS计算
-                else if (U.compareAndSwapInt
-                         (this, TRANSFERINDEX, nextIndex,
-                          nextBound = (nextIndex > stride ?
-                                       nextIndex - stride : 0))) {
-                    bound = nextBound;
-                    i = nextIndex - 1;
-                    advance = false;
-                }
+            if (runBit == 0) {
+              ln = lastRun;
+              hn = null;
             }
-            if (i < 0 || i >= n || i + n >= nextn) {
-                int sc;
-                //如果原table已经复制结束
-                if (finishing) {
-                    nextTable = null; //可以看出在扩容的时候nextTable只是类似于一个temp用完会丢掉
-                    table = nextTab;
-                    sizeCtl = (n << 1) - (n >>> 1); //修改扩容后的阀值，应该是现在容量的0.75倍
-                    return;//结束循环
-                }
-                //采用CAS算法更新SizeCtl。
-                if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
-                    if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
-                        return;
-                    finishing = advance = true;
-                    i = n; // recheck before commit
-                }
-            }
-            //CAS算法获取某一个数组的节点，为空就设为forwordingNode
-            else if ((f = tabAt(tab, i)) == null)
-                advance = casTabAt(tab, i, null, fwd);
-           //如果这个节点的hash值是MOVED，就表示这个节点是forwordingNode节点，就表示这个节点已经被处理过了，直接跳过
-            else if ((fh = f.hash) == MOVED)
-                advance = true; // already processed
             else {
-            //对头节点进行加锁，禁止别的线程进入
-                synchronized (f) {
-                //CAS校验这个节点是否在table对应的i处
-                    if (tabAt(tab, i) == f) {
-                        Node<K,V> ln, hn;
-                        //如果这个节点的确是链表节点
-                        //把链表拆分成两个小列表并存储到nextTable对应的两个位置
-                        if (fh >= 0) {
-                            int runBit = fh & n;
-                            Node<K,V> lastRun = f;
-                            for (Node<K,V> p = f.next; p != null; p = p.next) {
-                                int b = p.hash & n;
-                                if (b != runBit) {
-                                    runBit = b;
-                                    lastRun = p;
-                                }
-                            }
-                            if (runBit == 0) {
-                                ln = lastRun;
-                                hn = null;
-                            }
-                            else {
-                                hn = lastRun;
-                                ln = null;
-                            }
-                            for (Node<K,V> p = f; p != lastRun; p = p.next) {
-                                int ph = p.hash; K pk = p.key; V pv = p.val;
-                                if ((ph & n) == 0)
-                                    ln = new Node<K,V>(ph, pk, pv, ln);
-                                else
-                                    hn = new Node<K,V>(ph, pk, pv, hn);
-                            }
-                            //CAS存储在nextTable的i位置上
-                            setTabAt(nextTab, i, ln);
-                            //CAS存储在nextTable的i+n位置上
-                            setTabAt(nextTab, i + n, hn);
-                            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
-                            setTabAt(tab, i, fwd);
-                            advance = true;
-                        }
-                        //如果这个节点是红黑树
-                        else if (f instanceof TreeBin) {
-                            TreeBin<K,V> t = (TreeBin<K,V>)f;
-                            TreeNode<K,V> lo = null, loTail = null;
-                            TreeNode<K,V> hi = null, hiTail = null;
-                            int lc = 0, hc = 0;
-                            for (Node<K,V> e = t.first; e != null; e = e.next) {
-                                int h = e.hash;
-                                TreeNode<K,V> p = new TreeNode<K,V>
-                                    (h, e.key, e.val, null, null);
-                                if ((h & n) == 0) {
-                                    if ((p.prev = loTail) == null)
-                                        lo = p;
-                                    else
-                                        loTail.next = p;
-                                    loTail = p;
-                                    ++lc;  }
-                                else {
-                                    if ((p.prev = hiTail) == null)
-                                        hi = p;
-                                    else
-                                        hiTail.next = p;
-                                    hiTail = p;
-                                    ++hc;   }          }
-                            //如果拆分后的树的节点数量已经少于6个就需要重新转化为链表
-                            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
-                                (hc != 0) ? new TreeBin<K,V>(lo) : t;
-                            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
-                                (lc != 0) ? new TreeBin<K,V>(hi) : t;
-                                //CAS存储在nextTable的i位置上
-                            setTabAt(nextTab, i, ln);
-                              //CAS存储在nextTable的i+n位置上
-                            setTabAt(nextTab, i + n, hn);
-                            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
-                            setTabAt(tab, i, fwd);
-                            advance = true; 
+              hn = lastRun;
+              ln = null;
+            }
+            for (Node<K,V> p = f; p != lastRun; p = p.next) {
+              int ph = p.hash; K pk = p.key; V pv = p.val;
+              if ((ph & n) == 0)
+                ln = new Node<K,V>(ph, pk, pv, ln);
+              else
+                hn = new Node<K,V>(ph, pk, pv, hn);
+            }
+            //CAS存储在nextTable的i位置上
+            setTabAt(nextTab, i, ln);
+            //CAS存储在nextTable的i+n位置上
+            setTabAt(nextTab, i + n, hn);
+            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
+            setTabAt(tab, i, fwd);
+            advance = true;
+          }
+          //如果这个节点是红黑树
+          else if (f instanceof TreeBin) {
+            TreeBin<K,V> t = (TreeBin<K,V>)f;
+            TreeNode<K,V> lo = null, loTail = null;
+            TreeNode<K,V> hi = null, hiTail = null;
+            int lc = 0, hc = 0;
+            for (Node<K,V> e = t.first; e != null; e = e.next) {
+              int h = e.hash;
+              TreeNode<K,V> p = new TreeNode<K,V>
+                (h, e.key, e.val, null, null);
+              if ((h & n) == 0) {
+                if ((p.prev = loTail) == null)
+                  lo = p;
+                else
+                  loTail.next = p;
+                loTail = p;
+                ++lc;  }
+              else {
+                if ((p.prev = hiTail) == null)   hi = p;
+                else
+                  hiTail.next = p;
+                hiTail = p;
+                ++hc;   }          }
+            //如果拆分后的树的节点数量已经少于6个就需要重新转化为链表
+            ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
+            (hc != 0) ? new TreeBin<K,V>(lo) : t;
+            hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
+            (lc != 0) ? new TreeBin<K,V>(hi) : t;
+            //CAS存储在nextTable的i位置上
+            setTabAt(nextTab, i, ln);
+            //CAS存储在nextTable的i+n位置上
+            setTabAt(nextTab, i + n, hn);
+            //CAS在原table的i处设置forwordingNode节点，表示这个这个节点已经处理完毕
+            setTabAt(tab, i, fwd);
+            advance = true;
+          }
+        }
+   
+//添加、删除节点之处都会检测到table的第i个桶是ForwardingNode的话会调用helpTransfer()方法。
+final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
+        Node<K,V>[] nextTab; int sc;
+        if (tab != null && (f instanceof ForwardingNode) &&
+            (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
+            int rs = resizeStamp(tab.length);
+            while (nextTab == nextTable && table == tab &&
+                   (sc = sizeCtl) < 0) {
+                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                    sc == rs + MAX_RESIZERS || transferIndex <= 0)
+                    break;
+                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
+                    transfer(tab, nextTab);
+                    break;
+                }
+            }
+            return nextTab;
+        }
+        return table;
+    }
 ```
+
+
+
+
+
+
 
 
 
@@ -2630,46 +2712,84 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 
 
 
-##### addCount
+![](image.assets/ConcurrentHashMap的Put.png)
+
+
 
 
 
 ```java
-    private final void addCount(long x, int check) {
-        CounterCell[] as; long b, s;
-        if ((as = counterCells) != null ||
-            !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
-            CounterCell a; long v; int m;
-            boolean uncontended = true;
-            if (as == null || (m = as.length - 1) < 0 ||
-                (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
-                !(uncontended =U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
-                fullAddCount(x, uncontended);
-                return;
+public V put(K key, V value) {
+  return putVal(key, value, false);
+}
+
+final V putVal(K key, V value, boolean onlyIfAbsent) {
+  if (key == null || value == null) throw new NullPointerException();
+  int hash = spread(key.hashCode());
+  //结点数,检查是否要转为树
+  int binCount = 0;
+  //CAS经典写法，不成功无限重试，再次循环进行相应操作
+  for (Node<K,V>[] tab = table;;) {
+    Node<K,V> f; int n, i, fh;
+    //检查是否需要初始化
+    if (tab == null || (n = tab.length) == 0)   tab = initTable();
+    //table对应下标处为null
+    else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
+      //创建Node对象做为链表首结点
+      if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))
+        break;
+    }
+    //当前结点正在扩容(MOVED状态)
+    else if ((fh = f.hash) == MOVED)
+      //helpTransfer()协助扩容，扩容完毕后tab指向新table
+      tab = helpTransfer(tab, f); 
+    else {
+      V oldVal = null;
+      synchronized (f) {
+        //双重检查i处结点未变化
+        if (tabAt(tab, i) == f) {
+          //fh为f的hash值,hash>=0即spread()方法计算而来
+          if (fh >= 0) {
+            binCount = 1;
+            for (Node<K,V> e = f;; ++binCount) {
+              K ek;
+              if (e.hash == hash &&((ek = e.key) == key ||
+                   (ek != null && key.equals(ek)))) {
+                oldVal = e.val;
+                //onlyIfAbsent表示是新元素才加入，旧值不替换，默认fase
+                if (!onlyIfAbsent)    e.val = value;
+                break;
+              }
+              Node<K,V> pred = e;
+              if ((e = e.next) == null) {
+                //把新结点加入链表尾部，next由volatile修饰
+                pred.next = new Node<K,V>(hash, key,value, null);
+                break;
+              }
             }
-            if (check <= 1)
-                return;
-            s = sumCount();
+          }
+          //红黑树结点类型
+          else if (f instanceof TreeBin) {
+            Node<K,V> p;
+            binCount = 2;
+            if ((p = ((TreeBin<K,V>)f).putTreeVal(hash, key,value)) != null) {
+              oldVal = p.val;
+              if (!onlyIfAbsent)  p.val = value;
+            }
+          }
         }
-        //是否需要进行扩容操作
-        if (check >= 0) {
-            Node<K,V>[] tab, nt; int n, sc;
-            while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
-                   (n = tab.length) < MAXIMUM_CAPACITY) {
-                int rs = resizeStamp(n);
-                //如果小于0就说明已经再扩容或者已经在初始化
-                if (sc < 0) {
-                    if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                        sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||transferIndex <= 0)
-                        break;
-                        //如果是正在扩容就协助扩容
-                    if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
-                        transfer(tab, nt);
-                }
-                //如果正在初始化就首次发起扩容
-                else if (U.compareAndSwapInt(this, SIZECTL, sc,(rs << RESIZE_STAMP_SHIFT) + 2))
-                    transfer(tab, null);
-                s = sumCount();
+      }
+      if (binCount != 0) {
+        //默认桶中结点数超过8个数据结构会转为红黑树
+        if (binCount >= TREEIFY_THRESHOLD)   treeifyBin(tab, i);
+        if (oldVal != null)  return oldVal;
+        break;
+      }
+    }
+  }
+  addCount(1L, binCount);  //更新size，检测扩容
+  return null;
+}
 ```
 
 
@@ -2679,6 +2799,136 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 
 
 
+
+#### addCount
+
+
+
+```java
+private final void addCount(long x, int check) {
+  CounterCell[] as; long b, s;
+  if ((as = counterCells) != null ||
+      !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
+    CounterCell a; long v; int m;
+    boolean uncontended = true;
+    if (as == null || (m = as.length - 1) < 0 ||
+        (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
+        !(uncontended =U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
+      fullAddCount(x, uncontended);
+      return;
+    }
+    if (check <= 1)
+      return;
+    s = sumCount();
+  }  
+  //是否需要扩容	check结点数量
+  if (check >= 0) {
+    Node<K,V>[] tab, nt; int n, sc;
+    //s:插入元素后的容量		s>=扩容阈值 && s<最大扩容值时,才扩容，如果tab=null说明正在初始化，死循环等待初始化完成
+    while (s >= (long)(sc = sizeCtl) && (tab = table) != null && (n = tab.length) < MAXIMUM_CAPACITY) {
+      //rs的高16位置0，第16位为1，低15位存放n		rs与RESIZE_STAMP_SHIFT配合可以求出新的sizeCtl的值
+      int rs = resizeStamp(n);
+      //正在扩容/初始化,将sizeCtl+1并调用transfer()让当前线程参与扩容
+      if (sc < 0) {
+        if ((sc >>> RESIZE_STAMP_SHIFT) != rs || 	//条件1：检查是对容量n的扩容，保证sizeCtl与n是一块修改好的
+            sc == rs + 1 ||sc == rs + MAX_RESIZERS ||		//条件2/3：sc的最小值或最大值判断
+            (nt = nextTable) == null ||transferIndex <= 0)	//条件4/5: 确保tranfer()中的nextTable相关初始化逻辑已走完
+          break;
+        //transfer()协助扩容,sizeCtl++
+        if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))  transfer(tab, nt);
+      }
+      //没有线程在扩容，将sizeCtl的值改为(rs << RESIZE_STAMP_SHIFT) + 2)
+      else if (U.compareAndSwapInt(this, SIZECTL, sc,(rs << RESIZE_STAMP_SHIFT) + 2))
+        transfer(tab, null);
+      s = sumCount();
+    } 
+  }
+}
+
+//计算n转换成二进制后前面有几个0	返回 高16位置0，第16位为1，低15位存放n，表示是对n的扩容
+static final int resizeStamp(int n) {
+  //(1 << (RESIZE_STAMP_BITS - 1) -> 1<<15 -> 高16位为0，第16位为1
+  return Integer.numberOfLeadingZeros(n) | (1 << (RESIZE_STAMP_BITS - 1));
+}
+```
+
+
+
+rs即resizeStamp(n)，如当前容量为8时sc(sizeCtl)的计算过程如下：
+
+```java
+//容量n=8
+0000 0000 0000 0000 0000 0000 0000 1000
+//Integer.numberOfLeadingZeros(8)=28，二进制表示如下：
+0000 0000 0000 0000 0000 0000 0001 1100
+//rs
+0000 0000 0000 0000 1000 0000 0001 1100
+//temp = rs << RESIZE_STAMP_SHIFT，即 temp = rs << 16，左移16后temp最高位为1，所以temp成了一个负数。
+1000 0000 0001 1100 0000 0000 0000 0000
+//第一个线程要扩容时，sc = (rs << RESIZE_STAMP_SHIFT) + 2)
+1000 0000 0001 1100 0000 0000 0000 0010
+12345678910
+```
+
+那么在扩容时sizeCtl值的意义便如下图所示：
+
+| 高15位        | 低16位           |
+| ------------- | ---------------- |
+| 容量n扩容标识 | 并行扩容线程数+1 |
+
+
+
+
+
+#### tryPresize
+
+
+
+```java
+private final void tryPresize(int size) {
+        //根据传入的size计算出真正的新容量，新容量需要是2的幂次方。
+        int c = (size >= (MAXIMUM_CAPACITY >>> 1)) ? MAXIMUM_CAPACITY :
+            tableSizeFor(size + (size >>> 1) + 1);
+        int sc;
+        while ((sc = sizeCtl) >= 0) {
+            Node<K,V>[] tab = table; int n;
+            if (tab == null || (n = tab.length) == 0) {
+                n = (sc > c) ? sc : c;   //table未初始化则给一个初始容量
+                //后面相似代码不再讲解
+                if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+                    try {
+                        if (table == tab) {
+                            @SuppressWarnings("unchecked")
+                            Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+                            table = nt;
+                            sc = n - (n >>> 2);
+                        }
+                    } finally {
+                        sizeCtl = sc;
+                    }
+                }
+            }
+            else if (c <= sc || n >= MAXIMUM_CAPACITY)
+                break;
+            else if (tab == table) {
+                int rs = resizeStamp(n);
+                if (sc < 0) {
+                    Node<K,V>[] nt;
+                    if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                        sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
+                        transferIndex <= 0)
+                        break;
+                    if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
+                        //传入指定容量
+                        transfer(tab, nt);
+                }
+                else if (U.compareAndSwapInt(this, SIZECTL, sc,
+                                             (rs << RESIZE_STAMP_SHIFT) + 2))
+                    transfer(tab, null);
+            }
+        }
+    }
+```
 
 
 
@@ -2743,14 +2993,14 @@ final boolean accessOrder;
 
 ```java
 public LinkedHashMap() {
-        super();
-        accessOrder = false; }
+  super();
+  accessOrder = false; }
 
 //map参数
 public LinkedHashMap(Map<? extends K, ? extends V> m) {
-    super();
-    accessOrder = false;
-    putMapEntries(m, false);}
+  super();
+  accessOrder = false;
+  putMapEntries(m, false);}
 ```
 
 
@@ -2758,10 +3008,10 @@ public LinkedHashMap(Map<? extends K, ? extends V> m) {
 Entry
 ```java
 static class Entry<K,V> extends HashMap.Node<K,V> {
-  	//维护Entry的先后顺序
-    Entry<K,V> before, after;
-  	//kv,next,hash都继承自HashMap
-    Entry(int hash, K key, V value, Node<K,V> next) { super(hash, key, value, next);    }}
+  //维护Entry的先后顺序
+  Entry<K,V> before, after;
+  //kv,next,hash都继承自HashMap
+  Entry(int hash, K key, V value, Node<K,V> next) { super(hash, key, value, next);    }}
 ```
 
 ![](image.assets/image-20201113235444857.png)
@@ -3381,8 +3631,6 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
-
-
 * buffer	标记当前的position
 
 * capacity	最大容量
@@ -3453,6 +3701,8 @@ JDK1.7中NIO.2的File工具类提供newByteChannel()方法
 
 ## 直接/非直接缓冲区
 
+
+
 非直接	allocate()分配缓冲区,缓冲区在**jvm**
 
 直接	allocateDirect(),在**物理内存**
@@ -3471,7 +3721,7 @@ jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读�
 
 
 
-![image-20200809141028612](.\image.assets\image-20200809141028612.png)
+
 
 对于直接缓冲区,应用程序通过物理内存映射文件直接与物理磁盘交换数据 省略了copy的步骤
 
@@ -3480,11 +3730,13 @@ jvm对于直接缓冲区,会尽量避免使用中间缓冲区进行数据的读�
   * 直接缓冲区的建立与销毁是成本高,只适合长时间的连接,大文件的传输
   * ==直接缓冲区只能用ByteBuffer==
 
-
+![](.\image.assets\image-20200809141028612.png)
 
 
 
 ## 关闭
+
+
 
 使用IO流往往需要多次使用try/catch
 
@@ -3624,9 +3876,7 @@ outChannel.close();
 
 
 
-每个线程都有一个独立的工作内存，用于存储线程私有的数据
-
-Java内存模型规定主内存是共享内存区域，所有线程都可以访问
+线程有独立的工作内存，用于存储私有数据	主内存是共享内存区域
 
 线程**对变量的操作在工作内存中进行**（线程安全问题的根本原因）
 
@@ -3634,7 +3884,7 @@ Java内存模型规定主内存是共享内存区域，所有线程都可以访�
 
 * 然后对变量进行操作，再将变量写回主内存
 
-* **因此不同的线程间无法访问对方的工作内存**，==线程间的通信(传值)必须通过主内存来完成==,多线程对共享变量进行修改时，都是对自己工作内存的副本进行操作，相互不可见。主内存中共享变量的结果是不可预知的
+* **线程间无法访问对方的工作内存**，==线程通信(传值)必须通过主内存完成==,多线程对共享变量进行修改时，工作内存的副本进行操作，相互不可见。主内存中共享变量的结果是不可预知的
 
 
 
@@ -3675,7 +3925,7 @@ Compare And Swap，比较与交换
 
 CAS不通过JVM,直接利用 JNI（Java Native Interface本地调用）,直接调用CPU 的cmpxchg汇编指令
 
-JUC都是建立在CAS之上的，因此对于synchronized性能更高
+JUC建立在CAS之上，相对于synchronized性能更高
 
 ==读/改/写都是原子性操作==
 
@@ -3817,7 +4067,7 @@ AQS的实现模式:
 
 
 
-基于遍历容器的克隆,因此，对容器内容的修改不影响遍历
+基于遍历容器的克隆,因此对容器内容的修改不影响遍历
 
 JUC的容器都是安全失败的,可以在多线程下并发使用,并发修改
 
@@ -3829,7 +4079,7 @@ JUC的容器都是安全失败的,可以在多线程下并发使用,并发修改
 
 
 
-缺点：迭代器并不能访问到修改后的内容(遍历期间原集合的修改无法得知)
+缺点：迭代器不能访问到修改后的内容(遍历期间原集合的修改无法得知)
 
 
 
@@ -3868,18 +4118,18 @@ JUC的容器都是安全失败的,可以在多线程下并发使用,并发修改
 ```java
 //需求:要求6个线程都执行完了,mian线程最后执行
 public class CountDownLatchDemo {
-    public static void main(String[] args) throws Exception{
+  public static void main(String[] args) throws Exception{
 
-        CountDownLatch countDownLatch=new CountDownLatch(6);
-        for (int i = 1; i <=6; i++) {
-            new Thread(()->{
-                System.out.println(Thread.currentThread().getName()+"\t");
-                countDownLatch.countDown();
-            },i+"").start();
-        }
-        countDownLatch.await();
-        System.out.println(Thread.currentThread().getName()+"\t班长关门走人，main线程是班长");
+    CountDownLatch countDownLatch=new CountDownLatch(6);
+    for (int i = 1; i <=6; i++) {
+      new Thread(()->{
+        System.out.println(Thread.currentThread().getName()+"\t");
+        countDownLatch.countDown();
+      },i+"").start();
     }
+    countDownLatch.await();
+    System.out.println(Thread.currentThread().getName()+"\t班长关门走人，main线程是班长");
+  }
 }
 ```
 
@@ -3898,29 +4148,28 @@ public class CountDownLatchDemo {
 
 
 ```java
-    //集齐7颗龙珠就能召唤神龙
-	public class CyclicBarrierDemo {
-	    public static void main(String[] args) {
-	        // public CyclicBarrier(int parties, Runnable barrierAction) {}
-	        CyclicBarrier cyclicBarrier=new CyclicBarrier(7,()->{
-	            System.out.println("召唤龙珠");
-	        });
-	        for (int i = 1; i <=7; i++) {
-	            final int temp=i;
-	            new Thread(()->{
-	                System.out.println(Thread.currentThread().getName()+"\t收集到了第"+temp+"颗龙珠");
-	                try {
-	                    cyclicBarrier.await();
-	                } catch (InterruptedException e) {
-	                    e.printStackTrace();
-	                } catch (BrokenBarrierException e) {
-	                    e.printStackTrace();
-	                }
-	            }).start();
-	        }
-	
-	    }
-	}
+//集齐7颗龙珠就能召唤神龙
+public class CyclicBarrierDemo {
+  public static void main(String[] args) {
+    // public CyclicBarrier(int parties, Runnable barrierAction) {}
+    CyclicBarrier cyclicBarrier=new CyclicBarrier(7,()->{
+      System.out.println("召唤龙珠");
+    });
+    for (int i = 1; i <=7; i++) {
+      final int temp=i;
+      new Thread(()->{
+        System.out.println(Thread.currentThread().getName()+"\t收集到了第"+temp+"颗龙珠");
+        try {
+          cyclicBarrier.await();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+          e.printStackTrace();
+        }
+      }).start();
+    }
+  }
+}
 ```
 
 
@@ -3931,35 +4180,34 @@ public class CountDownLatchDemo {
 
 
 
-限制代码块的并发数
+适用场景:多个共享资源的互斥使用 / 并发线程数的控制
 
 
 
 - acquire（获取） 成功获取,信号量–
 - release（释放）信号量++，然后唤醒等待的线程
-- 信号量主要用于两个目的，一个是用于多个共享资源的互斥使用，另一个用于并发线程数的控制
 
 
 
 ```java
 public class SemaphoreDemo {
-	    public static void main(String[] args) {
-	        Semaphore semaphore=new Semaphore(3);
-	        for (int i = 1; i <=6; i++) {
-	            new Thread(()->{
-	                try {
-	                    System.out.println(Thread.currentThread().getName()+"\t抢占了车位");
-	                    semaphore.acquire();
-	                    System.out.println(Thread.currentThread().getName()+"\t离开了车位");
-	                } catch (InterruptedException e) {
-	                    e.printStackTrace();
-	                }finally {
-	                    semaphore.release();
-	                }
-	            },String.valueOf(i)).start();
-	        }
-	    }
-	}
+  public static void main(String[] args) {
+    Semaphore semaphore=new Semaphore(3);
+    for (int i = 1; i <=6; i++) {
+      new Thread(()->{
+        try {
+          System.out.println(Thread.currentThread().getName()+"\t抢占了车位");
+          semaphore.acquire();
+          System.out.println(Thread.currentThread().getName()+"\t离开了车位");
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }finally {
+          semaphore.release();
+        }
+      },String.valueOf(i)).start();
+    }
+  }
+}
 ```
 
 
@@ -3968,19 +4216,15 @@ public class SemaphoreDemo {
 
 
 
- 
-
-
-
 ### 原子操作类
 
 
 
-juc.atomic包	AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
+juc.atomic包	底层用到了“CAS机制”
+
+AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
 
 
-
-Atomic操作类的底层用到了“CAS机制”
 
 
 
@@ -3988,22 +4232,22 @@ AtomicInteger
 
 ```java
 public class AtomicInteger extends Number implements java.io.Serializable {
-    // setup to use Unsafe.compareAndSwapInt for updates
-    private static final Unsafe unsafe = Unsafe.getUnsafe();
-    private static final long valueOffset;
- 
-    static {
-        try {
-            valueOffset = unsafe.objectFieldOffset(AtomicInteger.class.getDeclaredField("value"));
-        } catch (Exception ex) { throw new Error(ex); }
-    }
- 
-    private volatile int value;
- 
-    public final int incrementAndGet() {
-      //this对象本身	valueOffset记录value在主内存的地址
-        return unsafe.getAndAddInt(this, valueOffset, 1) + 1;
-    }
+  // setup to use Unsafe.compareAndSwapInt for updates
+  private static final Unsafe unsafe = Unsafe.getUnsafe();
+  private static final long valueOffset;
+
+  static {
+    try {
+      valueOffset = unsafe.objectFieldOffset(AtomicInteger.class.getDeclaredField("value"));
+    } catch (Exception ex) { throw new Error(ex); }
+  }
+
+  private volatile int value;
+
+  public final int incrementAndGet() {
+    //this对象本身	valueOffset记录value在主内存的地址
+    return unsafe.getAndAddInt(this, valueOffset, 1) + 1;
+  }
 }
 ```
 
@@ -4047,7 +4291,7 @@ Executor根据一组执行策略来调度，执行和控制的异步任务
 
 ==Executors类里面提供了一些静态工厂，生成一些常用的线程池==
 
-**newCachedThreadPool**可缓存线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程
+**newCachedThreadPool** 可缓存线程池，如果线程池长度超过处理需要，可灵活回收空闲线程，若无可回收，则新建线程
 
 **newFixedThreadPool** 定长线程池，可控制线程最大并发数，超出的线程会在队列中等待
 
@@ -4096,10 +4340,10 @@ Executors.newFixedThreadPool(10);
 
 
 Executors创建线程池对象的弊端
-        1）FixedThreadPool和SingleThreadPool:
-  允许的请求队列长度为Integer.MAX_VALUE，可能会**堆积大量的请求**，从而导致OOM。
-        2）CachedThreadPool:
-  允许的创建线程数量为Integer.MAX_VALUE，可能会**创建大量的线程**，从而导致OOM。
+1）FixedThreadPool和SingleThreadPool:
+  允许的请求队列长度为Integer.MAX_VALUE，可能会**堆积大量的请求**，从而导致OOM
+2）CachedThreadPool:
+  允许的创建线程数量为Integer.MAX_VALUE，可能会**创建大量的线程**，从而导致OOM
 
 
 
@@ -4864,18 +5108,18 @@ synchronized强同步
 
 
 
-一、volatile 的内存语义是：
+volatile 内存语义
 
 * 写入时，JMM 把工作内存中的**变量值立即刷新到主内存,并通知其他线程**
-  * 其他线程的写入/读取,直接工作内存中的副本，重新去主内存获取
+  * 其他线程的读写,放弃工作内存中的副本，重新去主内存获取
 * 产生==内存屏障==，防止指令重排把后面的指令排到内存屏障前/后,指令顺序执行
-* volatile 变量不会被缓存在寄存器或者对其他处理器不可见的地方，因此在读取 volatile 类型的变量时总会返回最新写入的值
+* volatile 变量不会被缓存在寄存器 或 处理器不可见的地方，因此在读 volatile 变量时总会返回最新的值
 
 
 
 
 
-二、volatile 底层的实现机制
+实现机制
 
 把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
 
@@ -4887,12 +5131,12 @@ synchronized强同步
 
 
 
-| volatile                           | synchronized               |
-| ---------------------------------- | -------------------------- |
-| 线程同步的轻量级实现,性能高        |                            |
-| **只能用于变量**                   | **可以修饰方法以及代码块** |
-| ==主要解决变量在多线程间的可见性== | 多线程间访问资源的同步性   |
-| 不保证数据的原子性                 | 可见+原子性                |
+| volatile                    | synchronized               |
+| --------------------------- | -------------------------- |
+| 线程同步的轻量级实现,性能高 |                            |
+| **只能用于变量**            | **可以修饰方法以及代码块** |
+| ==变量在多线程间的可见性==  | 访问资源的同步性           |
+| 不保证原子性                | 可见+原子性                |
 
 
 
@@ -4914,7 +5158,7 @@ public static volatile int c = 0;
         Thread.sleep(5000);
     }
 
-volatile修饰的变量具有原子性- >c 具有原子性，但c++不具有 -> c = c + 1，已经存在了多步操作。所以c具有原子性，但是c++这个操作不具有原子性
+volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1，已经存在了多步操作。所以c具有原子性，但是c++不具有原子性
 ```
 
 
@@ -4929,11 +5173,11 @@ volatile修饰的变量具有原子性- >c 具有原子性，但c++不具有 -> 
 
 **悲观锁**
 
-让没有得到锁资源的线程进入BLOCKED状态，而后在争夺到锁资源后恢复为RUNNABLE状态，退出或抛出异常时**自动释放锁**
+让没有得到锁资源的线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，退出或异常时**自动释放锁**
 
 
 
-用于**对象/方法(实例+静态方法)**,==不能同步变量和类==
+用于**对象/方法(实例+静态方法)**,==不能同步变量==
 
 - **对于普通同步方法，锁是当前实例对象**
 - **对于静态同步方法，锁是当前类的Class对象**
@@ -4959,7 +5203,7 @@ monitorexit 指令则指明同步代码块的结束位置
 
 
 
-**synchronized的底层实现主要依靠Lock-Free的队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，获得了高吞吐量。在线程冲突较少的情况下，可以获得和CAS类似的性能；而线程冲突严重的情况下，性能远高于CAS**
+**synchronized的底层实现主要依靠无锁队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，并发高。在线程冲突较少的情况下，可以获得和CAS类似的性能；而线程冲突严重的情况下，性能远高于CAS**
 
 尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低
 
@@ -4967,7 +5211,7 @@ monitorexit 指令则指明同步代码块的结束位置
 
 
 
-**锁主要存在四种状态，依次是：无锁状态、偏向锁状态、轻量级锁状态、重量级锁状态**，他们会随着竞争的激烈而逐渐升级
+**锁有四种状态，依次是：无锁状态、偏向锁状态、轻量级锁状态、重量级锁状态**，他们会随着竞争的激烈而逐渐升级
 
 ==锁不可降级==，锁的升级策略提高获得锁和释放锁的效率
 
@@ -4977,7 +5221,7 @@ monitorexit 指令则指明同步代码块的结束位置
 
 
 
-synchronized控制对象的访问,每个对象对应一把锁,必须获得该方法的对象的锁才能执行方法,否则会线程阻塞
+synchronized控制对象的访问,每个对象对应一把锁,必须获得该方法的对象的锁才能执行方法,否则线程阻塞
 
 方法执行完毕,才会释放锁,让下一个线程拿到锁
 
@@ -5004,7 +5248,7 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 
 
 
-**乐观锁**，认为程序中的并发情况不严重，让线程不断去重试更新
+**乐观锁**，认为并发不严重，让线程不断去重试更新
 
 **需要显式指定起始位置lock()和终止位置unlock()**,在finally中unlock()以防死锁
 
@@ -5016,12 +5260,10 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 
 
 
-
-
 ```java
 lock()	以阻塞方式来获取锁，如果获取到了锁，立即返回；如果别的线程持有锁，则当前线程等待，直到获取锁后返回
 
-tryLock()以非阻塞的方式获取锁。只是尝试性的去获取一下锁，如果获取到锁，立即返回true
+tryLock()以非阻塞的方式获取锁。尝试性的去获取，获取到了立即返回true
 
 tryLock(longtimeout,TimeUnit unit)。如果获取到了锁，立即返回true，否则会等待参数给定的时间单元，在等待的过程中，如果获取到了锁，就立即返回true。如果等待超时，返回false。
 
@@ -5080,30 +5322,25 @@ getState();setState();compareAndSetState();
 ```java
 //继承自AbstractOwnableSynchronizer
 public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchronizer implements java.io.Serializable {
- 
-    /** AQS类内部维护一个FIFO的双向队列，负责同步状态的管理
+
+  /** AQS类内部维护FIFO的双向队列，负责同步状态的管理
     当前线程获取同步状态失败时，同步器会将当前线程以及等待状态等构造成一个节点Node并加入同步队列；
     当同步状态释放时，会把首节点中线程唤醒，使其再次尝试同步状态 */
-    private transient volatile Node head;
-    private transient volatile Node tail;
- 
-    //lock的占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
-    private volatile int state;
-}
+  private transient volatile Node head;
+  private transient volatile Node tail;
 
+  //lock的占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
+  private volatile int state;
+}
 
 public abstract class AbstractOwnableSynchronizer  implements java.io.Serializable {
 
-  	//只有一个变量：exclusiveOwnerThread，表示当前占用该锁的线程，并且提供了相应的get，set
-    private transient Thread exclusiveOwnerThread;
+  //只有一个变量：exclusiveOwnerThread，表示当前占用该锁的线程，并且提供了相应的get，set
+  private transient Thread exclusiveOwnerThread;
 
-    protected final void setExclusiveOwnerThread(Thread thread) {
-        exclusiveOwnerThread = thread;
-    }
+  protected final void setExclusiveOwnerThread(Thread thread) {  exclusiveOwnerThread = thread;}
 
-    protected final Thread getExclusiveOwnerThread() {
-        return exclusiveOwnerThread;
-    }
+  protected final Thread getExclusiveOwnerThread() { return exclusiveOwnerThread;}
 }
 ```
 
@@ -5112,34 +5349,31 @@ public abstract class AbstractOwnableSynchronizer  implements java.io.Serializab
 ```java
 //AbstractQueuedSynchronizer内部类Node
 static final class Node {
-      	//两种资源共享方式
-        //Share共享模式，可以被多个线程获取，比如读写锁中的读锁,Semaphore、CountDownLatch、ReadWriteLock，CyclicBarrier
-        static final Node SHARED = new Node();
-        //Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
-        static final Node EXCLUSIVE = null;
- 
-        //等待超时/被中断，获取锁的请求被取消,需要从同步队列中移除
-        static final int CANCELLED =  1;
+  //两种资源共享方式
+  //Share共享模式，可以被多个线程获取，比如读写锁中的读锁,Semaphore、CountDownLatch、ReadWriteLock，CyclicBarrier
+  static final Node SHARED = new Node();
+  //Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
+  static final Node EXCLUSIVE = null;
 
-        //当前节点如果释放了同步状态或者被取消，将会通知后继节点，使后继节点的线程得以运行
-        static final int SIGNAL    = -1;
+  //等待超时/被中断，获取锁的请求被取消,需要从同步队列中移除
+  static final int CANCELLED =  1;
 
-        //节点在等待队列中，节点的线程等待在Condition上，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
-        static final int CONDITION = -2;
+  //当前节点如果释放了同步状态或者被取消，将会通知后继节点，使后继节点的线程得以运行
+  static final int SIGNAL    = -1;
 
-        //表示下一次共享式同步状态获取将会被无条件地传播下去
-        static final int PROPAGATE = -3;
+  //节点在等待队列中，节点的线程等待在Condition上，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
+  static final int CONDITION = -2;
 
-        /**
-         * 当前节点的信号量状态 (1,0,-1,-2,-3)5种状态
-         * 使用CAS更改状态，volatile保证线程可见性，高并发场景下，即被一个线程修改后，状态会立马让其他线程可见。
-         */
-        volatile int waitStatus;
-      
-        volatile Node prev;
-        volatile Node next;
-        volatile Thread thread;
-    }
+  //表示下一次共享式同步状态获取将会被无条件地传播下去
+  static final int PROPAGATE = -3;
+
+  //当前节点的信号量(1,0,-1,-2,-3)5种状态,使用CAS更改状态，volatile保证可见性
+  volatile int waitStatus;
+
+  volatile Node prev;
+  volatile Node next;
+  volatile Thread thread;
+}
 ```
 
 
@@ -5174,13 +5408,13 @@ Node阻塞队列的体现：等待队列，条件队列
 
 AQS的设计基于==模板方法==模式
 
-围绕state提供两种基本操作“获取”和“释放” + 双向队列存放阻塞线程 + 一系列判断和处理方法
+围绕state提供两种基本操作get/set + 双向队列存放阻塞线程 + 一系列判断和处理方法
 
 独占模式的acquire()和release()
 
 共享模式的acquireShared()和releaseShared()
 
-还定义了抽象方法tryAcquire()、tryAcquiredShared()、tryRelease()和tryReleaseShared()**由子类实现**，tryAcquire()和tryAcquiredShared()分别对应独占模式和共享模式下的锁的尝试获取，通过这两个方法来实现公平性和非公平性，在尝试获取中，如果新来的线程必须先入队才能获取锁就是公平的，否则非公平
+还定义了抽象方法tryAcquire()、tryAcquiredShared()、tryRelease()和tryReleaseShared()**由子类实现**，分别对应独占/共享模式下的锁的尝试获取，实现公平性和非公平性，在尝试获取中，如果新来的线程必须先入队才能获取,就是公平锁，否则非公平
 
 
 
@@ -5210,8 +5444,13 @@ ReentrantLock为例：
 
 state初始化0，表示未锁定
 
-A线程lock()时，会调用tryAcquire()独占锁并将state+1.之后其他线程再想tryAcquire的时候就会失败，直到A线程unlock（）到state=0为止，其他线程才有机会获取该锁。A释放锁之前，自己也是可以重复获取此锁（state累加），这就是可重入的概念。
-注意：获取多少次锁就要释放多少次锁，保证state是能回到0
+A线程lock()时，会调用tryAcquire()独占锁并将state+1
+
+之后其他线程tryAcquire时就失败，直到A线程unlock（）->state=0，其他线程才有机会获取该锁
+
+**A释放锁之前，自己也是可以重复获取此锁（state累加），这就是可重入的概念**
+
+注意：**获取多少次锁就要释放多少次锁，保证state能回到0**
 
 
 
@@ -5252,8 +5491,6 @@ Mutex：不可重入互斥锁，锁资源（state）只有两种状态：0：未
 
 
 
-
-
 * 可中断
   * lockInterruptibly()中断争夺锁的操作，抢锁的时候会check是否被中断，中断直接抛出异常，退出抢锁,避免死锁
   * Synchronized只有抢锁的过程，不可干预
@@ -5264,39 +5501,23 @@ Mutex：不可重入互斥锁，锁资源（state）只有两种状态：0：未
   - ReentrantReadWriteLock类实现了读写锁的功能，类似于Mysql，锁自身维护一个计数器，读锁可以并发的获取，写锁只能独占。
   - synchronized全是独占锁
 - Condition
-  - ReentrantLock提供了比Sync更精准的线程调度工具，Condition，一个lock可以有多个Condition，比如在生产消费的业务下，一个锁通过控制生产Condition和消费Condition精准控制。
+  - Condition是比Sync更精准的线程调度工具，一个lock可以有多个Condition，比如在生产消费的业务下，一个锁通过控制生产Condition和消费Condition精准控制
 
 
 
 ```java
 public ReentrantLock() {
-  			//默认非公平锁，可以避免大量的线程切换，提高性能
-        sync = new NonfairSync();
-    }
+  //默认非公平锁，可以避免大量的线程切换，提高性能
+  sync = new NonfairSync();
+}
 
 //构造时传入boolean来决定是不是公平/非公平锁
 public ReentrantLock(boolean fair) {
-        sync = fair ? new FairSync() : new NonfairSync();
-    }
+  sync = fair ? new FairSync() : new NonfairSync();
+}
 ```
 
 
-
-
-
-```java
-//获得锁3种方式
-lock(),	如果获取了锁立即返回，如果别的线程持有锁，当前线程则一直处于休眠状态，直到获取锁
-tryLock(),	如果获取了锁立即返回true，如果别的线程正持有锁，立即返回false 
-tryLock(long timeout,TimeUnit unit)	如果获取了锁定立即返回true，如果别的线程正持有锁，会等待参数给定的时间，在等待的过程中，如果获取了锁定，就返回true，如果等待超时返回false
-  
-  private final ReentrantLock lock = new ReentrantLock();
-        lock.lock();					//在try外面加锁
-        try {
-            ...
-        } finally {
-            lock.unlock();}		//在finally解锁
-```
 
 
 
@@ -5306,29 +5527,29 @@ tryLock(long timeout,TimeUnit unit)	如果获取了锁定立即返回true，如�
 
 ```java
 protected final boolean tryAcquire(int acquires) {
-            return nonfairTryAcquire(acquires);
-        }
-        
-        
+  return nonfairTryAcquire(acquires);
+}
+
+
 final boolean nonfairTryAcquire(int acquires) {
-            final Thread current = Thread.currentThread();
-            //0表示没有线程占用锁,可以拿锁
-  					int c = getState();
-            if (c == 0) {
-                if (compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-            }
-            else if (current == getExclusiveOwnerThread()) {
-                int nextc = c + acquires;
-                if (nextc < 0) // overflow
-                    throw new Error("Maximum lock count exceeded");
-                setState(nextc);
-                return true;
-            }
-            return false;
-        }
+  final Thread current = Thread.currentThread();
+  //0表示没有线程占用锁,可以拿锁
+  int c = getState();
+  if (c == 0) {
+    if (compareAndSetState(0, acquires)) {
+      setExclusiveOwnerThread(current);
+      return true;
+    }
+  }
+  else if (current == getExclusiveOwnerThread()) {
+    int nextc = c + acquires;
+    if (nextc < 0) // overflow
+      throw new Error("Maximum lock count exceeded");
+    setState(nextc);
+    return true;
+  }
+  return false;
+}
 ```
 
 
@@ -5338,30 +5559,29 @@ final boolean nonfairTryAcquire(int acquires) {
 ```java
 //ReentrantLock
 static final class FairSync extends Sync {
+  //加锁
+  final void lock() {  acquire(1);  }
 
-  			//加锁
-        final void lock() {  acquire(1);  }
-
-  			//获得独占公平锁
-        protected final boolean tryAcquire(int acquires) {
-            final Thread current = Thread.currentThread();
-          //0表示没有线程占用锁,可以拿锁
-            int c = getState();
-            if (c == 0) {
-                //队列里面没有线程在等待,才能抢锁(公平的体现)			cas算法原子操作改变state值，state值又被volitale修饰，保证并发下修改state的安全性
-                if (!hasQueuedPredecessors() && compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-            }
-            else if (current == getExclusiveOwnerThread()) {
-                int nextc = c + acquires;
-                if (nextc < 0)   throw new Error("Maximum lock count exceeded");
-                setState(nextc);
-                return true;
-            }
-            return false;
-        }
+  //获得独占公平锁
+  protected final boolean tryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    //0表示没有线程占用锁,可以拿锁
+    int c = getState();
+    if (c == 0) {
+      //队列里面没有线程在等待,才能抢锁(公平的体现)			cas算法原子操作改变state值，state值又被volitale修饰，保证并发下修改state的安全性
+      if (!hasQueuedPredecessors() && compareAndSetState(0, acquires)) {
+        setExclusiveOwnerThread(current);
+        return true;
+      }
+    }
+    else if (current == getExclusiveOwnerThread()) {
+      int nextc = c + acquires;
+      if (nextc < 0)   throw new Error("Maximum lock count exceeded");
+      setState(nextc);
+      return true;
+    }
+    return false;
+  }
 }
 
 
@@ -5369,51 +5589,51 @@ static final class FairSync extends Sync {
 //AbstractQueuedSynchronizer
 //加锁
 public final void acquire(int arg) {
-  			//加锁失败
-        if (!tryAcquire(arg) &&
-            //addWaiter()独占方式加入CLH等待队列
-            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-            selfInterrupt();
-    }
+  //加锁失败
+  if (!tryAcquire(arg) &&
+      //addWaiter()独占方式加入CLH等待队列
+      acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+    selfInterrupt();
+}
 
 private Node addWaiter(Node mode) {
-  			//将当前线程封装为Node
-        Node node = new Node(Thread.currentThread(), mode);
-  
-  			//将当前节点插入队尾(CAS)
-        Node pred = tail;
-        if (pred != null) {
-            node.prev = pred;
-          	//CAS
-            if (compareAndSetTail(pred, node)) {
-                pred.next = node;
-                return node;
-            }
-        }
-  			//tail不为null 或 CAS失败,enq()
-        enq(node);
-        return node;
+  //将当前线程封装为Node
+  Node node = new Node(Thread.currentThread(), mode);
+
+  //将当前节点插入队尾(CAS)
+  Node pred = tail;
+  if (pred != null) {
+    node.prev = pred;
+    //CAS
+    if (compareAndSetTail(pred, node)) {
+      pred.next = node;
+      return node;
+    }
+  }
+  //tail不为null 或 CAS失败,enq()
+  enq(node);
+  return node;
 }
 
 
 private Node enq(final Node node) {
-  	//死循环,不断尝试CAS
-    for (;;) {
-        Node t = tail;
-      	//队列为空
-        if (t == null) {
-            //初始化，创建空的head,指向tail
-            if (compareAndSetHead(new Node()))   tail = head;
-          
-        } else {
-            node.prev = t;
-            //当前节点set为tail
-            if (compareAndSetTail(t, node)) {
-                t.next = node;
-                return t;
-            }
-        }
+  //死循环,不断尝试CAS
+  for (;;) {
+    Node t = tail;
+    //队列为空
+    if (t == null) {
+      //初始化，创建空的head,指向tail
+      if (compareAndSetHead(new Node()))   tail = head;
+
+    } else {
+      node.prev = t;
+      //当前节点set为tail
+      if (compareAndSetTail(t, node)) {
+        t.next = node;
+        return t;
+      }
     }
+  }
 }
 ```
 
@@ -5427,39 +5647,38 @@ AQS里面的线程唤醒不会唤醒所有的等待线程，只唤醒head的next
 
 ```java
 public final void acquire(int arg) {
-    if (!tryAcquire(arg) &&
-        //acquireQueued()唤醒线程
-        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-        selfInterrupt();
+  if (!tryAcquire(arg) &&
+      //acquireQueued()唤醒线程
+      acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+    selfInterrupt();
 }
 
 final boolean acquireQueued(final Node node, int arg) {
-    boolean failed = true;
-    try {
-        boolean interrupted = false;
-        for (;;) {
-          	//当前结点的前驱结点
-            final Node p = node.predecessor();
-          	//当前驱结点是head，才tryAcquire()尝试获取锁，成功后顶替head		保证等待时间最长的节点head.next能最先获得锁(公平)
-            if (p == head && tryAcquire(arg)) {
-              	//获取同步状态成功，将当前结点设置为头结点
-                setHead(node);
-                p.next = null; // help GC
-                failed = false;
-                return interrupted;
-            }
-            /**
-             * 如果前驱节点不是Head，通过shouldParkAfterFailedAcquire判断是否应该阻塞
-             通过park(this)阻塞当前线程,避免无意义的自旋，
-             * 前驱节点信号量为-1，当前线程可以安全被阻塞
+  boolean failed = true;
+  try {
+    boolean interrupted = false;
+    for (;;) {
+      //当前结点的前驱结点
+      final Node p = node.predecessor();
+      //当前驱结点是head，才tryAcquire()尝试获取锁，成功后顶替head		保证等待时间最长的节点head.next能最先获得锁(公平)
+      if (p == head && tryAcquire(arg)) {
+        //获取同步状态成功，将当前结点设置为头结点
+        setHead(node);
+        p.next = null; // help GC
+        failed = false;
+        return interrupted;
+      }
+      /**如果前驱节点不是Head，通过shouldParkAfterFailedAcquire判断是否应该阻塞
+         通过park(this)阻塞当前线程,避免无意义的自旋，
+          前驱节点信号量为-1，当前线程可以安全被阻塞
              */
-            if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
-                interrupted = true;
-        }
-    } finally {
-        if (failed)
-            cancelAcquire(node);
+      if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt())
+        interrupted = true;
     }
+  } finally {
+    if (failed)
+      cancelAcquire(node);
+  }
 }
 ```
 
@@ -5479,28 +5698,28 @@ final boolean acquireQueued(final Node node, int arg) {
 
 ```java
 private ReentrantLock lock = new ReentrantLock(false);
-    private Thread[] threads = new Thread[3];
+private Thread[] threads = new Thread[3];
 
-    public Test() {
-        for (int i = 0; i < 3; i++) {
-            threads[i] = new Thread(() -> {
-                for (int i1 = 0; i1 < 2; i1++) {
-                    try {
-                        lock.lock();
-                        Thread.sleep(100);
-                        System.out.println(Thread.currentThread().getName());
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } finally {
-                        lock.unlock();
-                    }
-                }
-            });
+public Test() {
+  for (int i = 0; i < 3; i++) {
+    threads[i] = new Thread(() -> {
+      for (int i1 = 0; i1 < 2; i1++) {
+        try {
+          lock.lock();
+          Thread.sleep(100);
+          System.out.println(Thread.currentThread().getName());
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        } finally {
+          lock.unlock();
         }
-        for (Thread thread : threads) {
-            thread.start();
-        }
-    }
+      }
+    });
+  }
+  for (Thread thread : threads) {
+    thread.start();
+  }
+}
 运行结果0-0-1-1-2-2
 ```
 
@@ -5508,7 +5727,7 @@ private ReentrantLock lock = new ReentrantLock(false);
 
 这段代码每个线程2次获取锁/释放锁
 
-Thread0先获取锁，之后sleep 100ms，那么等待获取锁的同步队列为：
+Thread0先获取锁，之后sleep 100ms，那么等待获取锁的同步队列为
 
 head -> thread1 -> thread2 -> thread0 -> thread1 -> thread2
 
@@ -5516,7 +5735,7 @@ head -> thread1 -> thread2 -> thread0 -> thread1 -> thread2
 
 
 
-==非公平锁获取锁最大的不一样的地方在于：线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁 **(锁对象是同一个)**==
+==非公平锁获取锁最大的不同点：线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁 **(锁对象是同一个)**==
 
 所以以上程序的同步队列应该为:
 
@@ -5529,50 +5748,43 @@ head -> thread1 -> thread2
 ```java
 //公平
 final void lock() {
-            acquire(1);
-        }
+  acquire(1);
+}
 
 public final void acquire(int arg) {
-        if (!tryAcquire(arg) &&
-            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-            selfInterrupt();
-    }
+  if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+    selfInterrupt();
+}
 
 protected final boolean tryAcquire(int acquires) {
-        ...
-            if (c == 0) {
-              //队列里面没有线程在等待,才能抢锁(公平的体现)
-                if (!hasQueuedPredecessors() &&
-                    compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-           ...
-        }
+  ...
+    if (c == 0) {
+      //队列里面没有线程在等待,才能抢锁(公平的体现)
+      if (!hasQueuedPredecessors() &&  compareAndSetState(0, acquires)) {
+        setExclusiveOwnerThread(current);
+        return true;
+      }
 
 
 //非公平
-final void lock() {
-  					//直接尝试获取锁，无视同步队列
-            if (compareAndSetState(0, 1))
-                setExclusiveOwnerThread(Thread.currentThread());
-  					//直接获取失败时,才考虑同步队列
-            else
-                acquire(1);
-        }
+  final void lock() {
+    //直接尝试获取锁，无视同步队列
+    if (compareAndSetState(0, 1))   setExclusiveOwnerThread(Thread.currentThread());
+    //直接获取失败时,才考虑同步队列
+    else	 acquire(1);
+  }
 
-final boolean nonfairTryAcquire(int acquires) {
-         ...
-            if (c == 0) {
-              //缺少了hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中
-                if (compareAndSetState(0, acquires)) {
-                    setExclusiveOwnerThread(current);
-                    return true;
-                }
-            }
-         ...
+  final boolean nonfairTryAcquire(int acquires) {
+    ...
+      if (c == 0) {
+        //缺少了hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中
+        if (compareAndSetState(0, acquires)) {
+          setExclusiveOwnerThread(current);
+          return true;
         }
-
+      }
+    ...
+  }
 ```
 
 
@@ -5589,44 +5801,44 @@ final boolean nonfairTryAcquire(int acquires) {
 
 ```java
 public void unlock() {
-    sync.release(1);
+  sync.release(1);
 }
 
 public final boolean release(int arg) {
-        if (tryRelease(arg)) {
-            Node h = head;
-            if (h != null && h.waitStatus != 0)
-                unparkSuccessor(h);
-            return true;
-        }
-        return false;
-    }
+  if (tryRelease(arg)) {
+    Node h = head;
+    if (h != null && h.waitStatus != 0)
+      unparkSuccessor(h);
+    return true;
+  }
+  return false;
+}
 
 protected final boolean tryRelease(int releases) {
-            int c = getState() - releases;//1-1=0
-            if (Thread.currentThread() != getExclusiveOwnerThread())    throw new IllegalMonitorStateException();
-            boolean free = false;
-            if (c == 0) {
-                free = true;
-                setExclusiveOwnerThread(null);//当前线程设置为null
-            }
-            setState(c);//当前状态设置为0
-            return free;
-        }
+  int c = getState() - releases;//1-1=0
+  if (Thread.currentThread() != getExclusiveOwnerThread())    throw new IllegalMonitorStateException();
+  boolean free = false;
+  if (c == 0) {
+    free = true;
+    setExclusiveOwnerThread(null);//当前线程设置为null
+  }
+  setState(c);//当前状态设置为0
+  return free;
+}
 
 private void unparkSuccessor(Node node) {
 
-        int ws = node.waitStatus;
-        if (ws < 0)     compareAndSetWaitStatus(node, ws, 0);
+  int ws = node.waitStatus;
+  if (ws < 0)     compareAndSetWaitStatus(node, ws, 0);
 
-        Node s = node.next;
-        if (s == null || s.waitStatus > 0) {
-            s = null;
-            for (Node t = tail; t != null && t != node; t = t.prev)
-                if (t.waitStatus <= 0)   s = t;
-        }
-        if (s != null)  LockSupport.unpark(s.thread);
-    }
+  Node s = node.next;
+  if (s == null || s.waitStatus > 0) {
+    s = null;
+    for (Node t = tail; t != null && t != node; t = t.prev)
+      if (t.waitStatus <= 0)   s = t;
+  }
+  if (s != null)  LockSupport.unpark(s.thread);
+}
 ```
 
 
@@ -5636,10 +5848,6 @@ private void unparkSuccessor(Node node) {
 
 
 如果获取了锁定立即返回，如果没有获取锁定，当前线程处于休眠状态，直到或者锁定，或者当前线程被别的线程中断
-
-
-
-
 
 
 
@@ -5823,102 +6031,102 @@ final boolean apparentlyFirstQueuedIsExclusive() {
 
 （2）写锁空闲 且  公平策略决定 读线程应当被阻塞，除了重入获取，其他获取读锁失败
 
-（3）读锁数量达到最多，抛出异常
+（3）读锁数量max，抛出异常
 
 除了以上三种情况，该线程会循环尝试获取读锁直到成功
 
 ```java
 public final void acquireShared(int arg){
-    if(tryAcquireShared(arg) < 0){  // 调用子类, 获取共享 lock  返回 < 0, 表示失败
-        doAcquireShared(arg);       // 调用 doAcquireShared 当前 线程加入 Sync Queue 里面, 等待获取 lock
-    }
+  if(tryAcquireShared(arg) < 0){  // 调用子类, 获取共享 lock  返回 < 0, 表示失败
+    doAcquireShared(arg);       // 调用 doAcquireShared 当前 线程加入 Sync Queue 里面, 等待获取 lock
+  }
 }
 
 protected final int tryAcquireShared(int unused) {
-            Thread current = Thread.currentThread();
-            int c = getState();
-  					//有线程持有写锁，且该线程不是当前线程，获取锁失败
-            if (exclusiveCount(c) != 0 && getExclusiveOwnerThread() != current)    return -1;
-  
-  					//获取读锁计数
-            int r = sharedCount(c);
-  					//不应该阻塞 && 读锁数<MAX_COUNT && 设置state成功 -> 获取锁成功
-            if (!readerShouldBlock() &&   r < MAX_COUNT && compareAndSetState(c, c + SHARED_UNIT)) {
-              	if (r == 0) {
-                  //下面对firstReader的处理：firstReader是不会放到readHolds里的，这样，在读锁只有一个的情况下，就避免了查找readHolds
-                    firstReader = current;
-                    firstReaderHoldCount = 1;
-                } else if (firstReader == current) {
-                    firstReaderHoldCount++;
-                  
-                  ///非 firstReader 读锁重入计数更新
-                } else {
-                    HoldCounter rh = cachedHoldCounter;
-                    if (rh == null || rh.tid != current.getId())
-                        cachedHoldCounter = rh = readHolds.get();
-                    else if (rh.count == 0)
-                        readHolds.set(rh);
-                    rh.count++;
-                }
-                return 1;
-            }
-            //获取读锁失败，放入循环重试
-            return fullTryAcquireShared(current);
-        }
+  Thread current = Thread.currentThread();
+  int c = getState();
+  //有线程持有写锁，且该线程不是当前线程，获取锁失败
+  if (exclusiveCount(c) != 0 && getExclusiveOwnerThread() != current)    return -1;
+
+  //获取读锁计数
+  int r = sharedCount(c);
+  //不应该阻塞 && 读锁数<MAX_COUNT && 设置state成功 -> 获取锁成功
+  if (!readerShouldBlock() &&   r < MAX_COUNT && compareAndSetState(c, c + SHARED_UNIT)) {
+    if (r == 0) {
+      //下面对firstReader的处理：firstReader是不会放到readHolds里的，这样，在读锁只有一个的情况下，就避免了查找readHolds
+      firstReader = current;
+      firstReaderHoldCount = 1;
+    } else if (firstReader == current) {
+      firstReaderHoldCount++;
+
+      ///非 firstReader 读锁重入计数更新
+    } else {
+      HoldCounter rh = cachedHoldCounter;
+      if (rh == null || rh.tid != current.getId())
+        cachedHoldCounter = rh = readHolds.get();
+      else if (rh.count == 0)
+        readHolds.set(rh);
+      rh.count++;
+    }
+    return 1;
+  }
+  //获取读锁失败，放入循环重试
+  return fullTryAcquireShared(current);
+}
 
 
 final int fullTryAcquireShared(Thread current) {
-            HoldCounter rh = null;
-            for (;;) {
-                int c = getState();
-                if (exclusiveCount(c) != 0) {
-                    if (getExclusiveOwnerThread() != current)
-                        return -1;     //1.有线程持有写锁，且该线程不是当前线程，获取锁失败
-                    //2.有线程持有写锁，且该线程是当前线程，则应该放行让其重入获取锁，否则会造成死锁。
-                } else if (readerShouldBlock()) {
-                    //3.写锁空闲  且  公平策略决定 读线程应当被阻塞
-                      // 下面的处理是说，如果是已获取读锁的线程重入读锁时，
-                      // 即使公平策略指示应当阻塞也不会阻塞。
-                      // 否则，这也会导致死锁的。
-                    if (firstReader == current) {
-                        // assert firstReaderHoldCount > 0;
-                    } else {
-                        if (rh == null) {
-                            rh = cachedHoldCounter;
-                            if (rh == null || rh.tid != current.getId()) {
-                                rh = readHolds.get();
-                                if (rh.count == 0)
-                                    readHolds.remove();
-                            }
-                        }
-                        //4.需要阻塞且是非重入(还未获取读锁的)，获取失败。
-                        if (rh.count == 0)
-                            return -1;
-                    }
- 
-                }
-                //5.写锁空闲  且  公平策略决定线程可以获取读锁
-                if (sharedCount(c) == MAX_COUNT)//6.读锁数量达到最多
-                    throw new Error("Maximum lock count exceeded");
-                //7. 申请读锁成功，下面的处理跟tryAcquireShared是类似的。
-                if (compareAndSetState(c, c + SHARED_UNIT)) {
-                    if (sharedCount(c) == 0) {
-                        firstReader = current;
-                        firstReaderHoldCount = 1;
-                    } else if (firstReader == current) {
-                        firstReaderHoldCount++;
-                    } else {
-                        if (rh == null)
-                            rh = cachedHoldCounter;
-                        if (rh == null || rh.tid != current.getId())
-                            rh = readHolds.get();
-                        else if (rh.count == 0)
-                            readHolds.set(rh);
-                        rh.count++;
-                        cachedHoldCounter = rh; // cache for release
-                    }
-                    return 1;
-                }
+  HoldCounter rh = null;
+  for (;;) {
+    int c = getState();
+    if (exclusiveCount(c) != 0) {
+      if (getExclusiveOwnerThread() != current)
+        return -1;     //1.有线程持有写锁，且该线程不是当前线程，获取锁失败
+      //2.有线程持有写锁，且该线程是当前线程，则应该放行让其重入获取锁，否则会造成死锁。
+    } else if (readerShouldBlock()) {
+      //3.写锁空闲  且  公平策略决定 读线程应当被阻塞
+      // 下面的处理是说，如果是已获取读锁的线程重入读锁时，
+      // 即使公平策略指示应当阻塞也不会阻塞。
+      // 否则，这也会导致死锁的。
+      if (firstReader == current) {
+        // assert firstReaderHoldCount > 0;
+      } else {
+        if (rh == null) {
+          rh = cachedHoldCounter;
+          if (rh == null || rh.tid != current.getId()) {
+            rh = readHolds.get();
+            if (rh.count == 0)
+              readHolds.remove();
+          }
+        }
+        //4.需要阻塞且是非重入(还未获取读锁的)，获取失败。
+        if (rh.count == 0)
+          return -1;
+      }
+
+    }
+    //5.写锁空闲  且  公平策略决定线程可以获取读锁
+    if (sharedCount(c) == MAX_COUNT)//6.读锁数量达到最多
+      throw new Error("Maximum lock count exceeded");
+    //7. 申请读锁成功，下面的处理跟tryAcquireShared是类似的。
+    if (compareAndSetState(c, c + SHARED_UNIT)) {
+      if (sharedCount(c) == 0) {
+        firstReader = current;
+        firstReaderHoldCount = 1;
+      } else if (firstReader == current) {
+        firstReaderHoldCount++;
+      } else {
+        if (rh == null)
+          rh = cachedHoldCounter;
+        if (rh == null || rh.tid != current.getId())
+          rh = readHolds.get();
+        else if (rh.count == 0)
+          readHolds.set(rh);
+        rh.count++;
+        cachedHoldCounter = rh; // cache for release
+      }
+      return 1;
+    }
 ```
 
 
@@ -5931,36 +6139,35 @@ final int fullTryAcquireShared(Thread current) {
 
 ```java
 private void doAcquireShared(int arg){
-    final Node node = addWaiter(Node.SHARED);       // 1. 将当前的线程封装成 Node 加入到 Sync Queue 里面
-    boolean failed = true;
- 
-    try {
-        boolean interrupted = false;
-        for(;;){
-            final Node p = node.predecessor();      // 2. 获取当前节点的前继节点 (当一个n在 Sync Queue 里面, 并且没有获取 lock 的 node 的前继节点不可能是 null)
-            if(p == head){
-                int r = tryAcquireShared(arg);      // 3. 判断前继节点是否是head节点(前继节点是head, 存在两种情况 (1) 前继节点现在占用 lock (2)前继节点是个空节点, 已经释放 lock, node 现在有机会获取 lock); 则再次调用 tryAcquireShared 尝试获取一下
-                if(r >= 0){
-                    setHeadAndPropagate(node, r);   // 4. 获取 lock 成功, 设置新的 head, 并唤醒后继获取  readLock 的节点
-                    p.next = null; // help GC
-                    if(interrupted){               // 5. 在获取 lock 时, 被中断过, 则自己再自我中断一下(外面的函数可能需要这个参数)
-                        selfInterrupt();
-                    }
-                    failed = false;
-                    return;
-                }
-            }
- 
-            if(shouldParkAfterFailedAcquire(p, node) && // 6. 调用 shouldParkAfterFailedAcquire 判断是否需要中断(这里可能会一开始 返回 false, 但在此进去后直接返回 true(主要和前继节点的状态是否是 signal))
-                    parkAndCheckInterrupt()){           // 7. 现在lock还是被其他线程占用 那就睡一会, 返回值判断是否这次线程的唤醒是被中断唤醒
-                interrupted = true;
-            }
-        }
-    }finally {
-        if(failed){             // 8. 在整个获取中出错(比如线程中断/超时)
-            cancelAcquire(node);  // 9. 清除 node 节点(清除的过程是先给 node 打上 CANCELLED标志, 然后再删除)
-        }
+  final Node node = addWaiter(Node.SHARED);       // 1. 将当前的线程封装成 Node 加入到 Sync Queue 里面
+  boolean failed = true;
 
+  try {
+    boolean interrupted = false;
+    for(;;){
+      final Node p = node.predecessor();      // 2. 获取当前节点的前继节点 (当一个n在 Sync Queue 里面, 并且没有获取 lock 的 node 的前继节点不可能是 null)
+      if(p == head){
+        int r = tryAcquireShared(arg);      // 3. 判断前继节点是否是head节点(前继节点是head, 存在两种情况 (1) 前继节点现在占用 lock (2)前继节点是个空节点, 已经释放 lock, node 现在有机会获取 lock); 则再次调用 tryAcquireShared 尝试获取一下
+        if(r >= 0){
+          setHeadAndPropagate(node, r);   // 4. 获取 lock 成功, 设置新的 head, 并唤醒后继获取  readLock 的节点
+          p.next = null; // help GC
+          if(interrupted){               // 5. 在获取 lock 时, 被中断过, 则自己再自我中断一下(外面的函数可能需要这个参数)
+            selfInterrupt();
+          }
+          failed = false;
+          return;
+        }
+      }
+
+      if(shouldParkAfterFailedAcquire(p, node) && // 6. 调用 shouldParkAfterFailedAcquire 判断是否需要中断(这里可能会一开始 返回 false, 但在此进去后直接返回 true(主要和前继节点的状态是否是 signal))
+         parkAndCheckInterrupt()){           // 7. 现在lock还是被其他线程占用 那就睡一会, 返回值判断是否这次线程的唤醒是被中断唤醒
+        interrupted = true;
+      }
+    }
+  }finally {
+    if(failed){             // 8. 在整个获取中出错(比如线程中断/超时)
+      cancelAcquire(node);  // 9. 清除 node 节点(清除的过程是先给 node 打上 CANCELLED标志, 然后再删除)
+    }
 ```
 
 
@@ -5971,64 +6178,64 @@ private void doAcquireShared(int arg){
 
 ```java
 //两个入参，一个是当前成功获取共享锁的节点，一个就是tryAcquireShared方法的返回值，注意上面说的，它可能大于0也可能等于0
-    private void setHeadAndPropagate(Node node, int propagate) {
-        Node h = head; //记录当前头节点
-        //设置新的头节点，即把当前获取到锁的节点设置为头节点
-        //注：这里是获取到锁之后的操作，不需要并发控制
-        setHead(node);
-        //这里意思有两种情况是需要执行唤醒操作
-        //1.propagate > 0 表示调用方指明了后继节点有可能需要被唤醒，因为此方法是获取读锁过程调用，那么后面节点很可能也要获取读锁
-        //2.头节点后面的节点需要被唤醒（waitStatus<0），不论是老的头结点还是新的头结点
-        if (propagate > 0 || h == null || h.waitStatus < 0) {
-            Node s = node.next;
-            //如果当前节点的后继节点是共享类型获取没有后继节点，则进行唤醒
-            //这里可以理解为除非明确指明不需要唤醒（后继等待节点是独占类型），否则都要唤醒
-            //这里的初衷是   后一个节点正好是共享节点，就唤醒，实现共享，独占有锁释放时候唤醒
-            if (s == null || s.isShared())
-                //后面详细说
-                doReleaseShared();
-        }
-    }
- 
-    private void setHead(Node node) {
-        head = node;
-        node.thread = null;
-        node.prev = null;
-    }
+private void setHeadAndPropagate(Node node, int propagate) {
+  Node h = head; //记录当前头节点
+  //设置新的头节点，即把当前获取到锁的节点设置为头节点
+  //注：这里是获取到锁之后的操作，不需要并发控制
+  setHead(node);
+  //这里意思有两种情况是需要执行唤醒操作
+  //1.propagate > 0 表示调用方指明了后继节点有可能需要被唤醒，因为此方法是获取读锁过程调用，那么后面节点很可能也要获取读锁
+  //2.头节点后面的节点需要被唤醒（waitStatus<0），不论是老的头结点还是新的头结点
+  if (propagate > 0 || h == null || h.waitStatus < 0) {
+    Node s = node.next;
+    //如果当前节点的后继节点是共享类型获取没有后继节点，则进行唤醒
+    //这里可以理解为除非明确指明不需要唤醒（后继等待节点是独占类型），否则都要唤醒
+    //这里的初衷是   后一个节点正好是共享节点，就唤醒，实现共享，独占有锁释放时候唤醒
+    if (s == null || s.isShared())
+      //后面详细说
+      doReleaseShared();
+  }
+}
+
+private void setHead(Node node) {
+  head = node;
+  node.thread = null;
+  node.prev = null;
+}
 ```
 
 
 
-这个唤醒操作在releaseShared()方法里也会调用。唤醒后面想获取锁的节点。
+这个唤醒操作在releaseShared()方法里也会调用。唤醒后面想获取锁的节点
 
 
 
 ```java
 private void doReleaseShared() {
-        for (;;) {
-            //唤醒操作由头结点开始，注意这里的头节点已经是上面新设置的头结点了
-            //其实就是唤醒上面新获取到共享锁的节点的后继节点
-            Node h = head;
-            if (h != null && h != tail) {
-                int ws = h.waitStatus;
-                //表示后继节点需要被唤醒
-                if (ws == Node.SIGNAL) {
-                    //这里需要控制并发，因为入口有setHeadAndPropagate跟releaseShared两个，避免两次unpark
-                    if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
-                        continue;      
-                    //执行唤醒操作      
-                    unparkSuccessor(h);
-                }
-                //如果后继节点暂时不需要唤醒，则把当前节点状态设置为PROPAGATE确保以后可以传递下去
-                else if (ws == 0 &&
-                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
-                    continue;                
-            }
-            //如果头结点没有发生变化，表示设置完成，退出循环
-            //如果头结点发生变化，比如说其他线程获取到了锁，为了使自己的唤醒动作可以传递，必须进行重试
-            if (h == head)                   
-                break;
-        }
+  for (;;) {
+    //唤醒操作由头结点开始，注意这里的头节点已经是上面新设置的头结点了
+    //其实就是唤醒上面新获取到共享锁的节点的后继节点
+    Node h = head;
+    if (h != null && h != tail) {
+      int ws = h.waitStatus;
+      //表示后继节点需要被唤醒
+      if (ws == Node.SIGNAL) {
+        //这里需要控制并发，因为入口有setHeadAndPropagate跟releaseShared两个，避免两次unpark
+        if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
+          continue;      
+        //执行唤醒操作      
+        unparkSuccessor(h);
+      }
+      //如果后继节点暂时不需要唤醒，则把当前节点状态设置为PROPAGATE确保以后可以传递下去
+      else if (ws == 0 &&
+               !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+        continue;                
+    }
+    //如果头结点没有发生变化，表示设置完成，退出循环
+    //如果头结点发生变化，比如说其他线程获取到了锁，为了使自己的唤醒动作可以传递，必须进行重试
+    if (h == head)                   
+      break;
+  }
 ```
 
 
@@ -6038,47 +6245,46 @@ private void doReleaseShared() {
 
 
 ```java
+public final boolean releaseShared(int arg) {
+  if (tryReleaseShared(arg)) {
+    doReleaseShared();
+    return true;
+  }
+  return false;
+}
 
- public final boolean releaseShared(int arg) {
-        if (tryReleaseShared(arg)) {
-            doReleaseShared();
-            return true;
-        }
-        return false;
-    }
-释放锁tryReleaseShared由子类Sync实现
- 
+//释放锁tryReleaseShared由子类Sync实现
 protected final boolean tryReleaseShared(int unused) {
-    Thread current = Thread.currentThread();
-    // 清理firstReader缓存 或 readHolds里的重入计数
-    if (firstReader == current) {
-        // assert firstReaderHoldCount > 0;
-        if (firstReaderHoldCount == 1)
-            firstReader = null;
-        else
-            firstReaderHoldCount--;
-    } else {
-        HoldCounter rh = cachedHoldCounter;
-        if (rh == null || rh.tid != current.getId())
-            rh = readHolds.get();
-        int count = rh.count;
-        if (count <= 1) {
-            // 完全释放读锁
-            readHolds.remove();
-            if (count <= 0)
-                throw unmatchedUnlockException();
-        }
-        --rh.count; // 主要用于重入退出
+  Thread current = Thread.currentThread();
+  // 清理firstReader缓存 或 readHolds里的重入计数
+  if (firstReader == current) {
+    // assert firstReaderHoldCount > 0;
+    if (firstReaderHoldCount == 1)
+      firstReader = null;
+    else
+      firstReaderHoldCount--;
+  } else {
+    HoldCounter rh = cachedHoldCounter;
+    if (rh == null || rh.tid != current.getId())
+      rh = readHolds.get();
+    int count = rh.count;
+    if (count <= 1) {
+      // 完全释放读锁
+      readHolds.remove();
+      if (count <= 0)
+        throw unmatchedUnlockException();
     }
-    // 循环在CAS更新状态值，主要是把读锁数量减 1
-    for (;;) {
-        int c = getState();
-        int nextc = c - SHARED_UNIT;
-        if (compareAndSetState(c, nextc))
-            // 释放读锁对其他读线程没有任何影响，
-            // 但可以允许等待的写线程继续，如果读锁、写锁都空闲。
-            return nextc == 0;
-    }
+    --rh.count; // 主要用于重入退出
+  }
+  // 循环在CAS更新状态值，主要是把读锁数量减 1
+  for (;;) {
+    int c = getState();
+    int nextc = c - SHARED_UNIT;
+    if (compareAndSetState(c, nextc))
+      // 释放读锁对其他读线程没有任何影响，
+      // 但可以允许等待的写线程继续，如果读锁、写锁都空闲。
+      return nextc == 0;
+  }
 }
 ```
 
@@ -6090,7 +6296,7 @@ protected final boolean tryReleaseShared(int unused) {
 
 
 
-写锁的获取和ReentrantLock独占锁的锁获取过程几乎一样，除了tryAcquire（）方法，要考虑读锁的情况
+写锁的获取和ReentrantLock独占锁的锁获取过程几乎一样，除了tryAcquire()要考虑读锁的情况
 
 在以下情况，写锁获取失败：
 
@@ -6104,35 +6310,34 @@ protected final boolean tryReleaseShared(int unused) {
 
 ```java
 public final void acquire(int arg) {
-        if (!tryAcquire(arg) &&
-            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-            selfInterrupt();
-    }
+  if (!tryAcquire(arg) &&
+      acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+    selfInterrupt();
+}
 
 
 protected final boolean tryAcquire(int acquires) {
- 
-            Thread current = Thread.currentThread();
-            int c = getState();
-            int w = exclusiveCount(c);
-            if (c != 0) {
-                // 1.写锁为0，读锁不为0    或者写锁不为0，且当前线程不是已获取独占锁的线程，锁获取失败
-                if (w == 0 || current != getExclusiveOwnerThread())
-                    return false;
-                //2. 写锁数量已达到最大值，写锁获取失败
-                if (w + exclusiveCount(acquires) > MAX_COUNT)
-                    throw new Error("Maximum lock count exceeded");
-                // Reentrant acquire
-                setState(c + acquires);
-                return true;
-            }
-            //3.当前线程应该阻塞，或者设置同步状态state失败，获取锁失败。
-            if (writerShouldBlock() ||
-                !compareAndSetState(c, c + acquires))
-                return false;
-            setExclusiveOwnerThread(current);
-            return true;
-        }
+  Thread current = Thread.currentThread();
+  int c = getState();
+  int w = exclusiveCount(c);
+  if (c != 0) {
+    // 1.写锁为0，读锁不为0    或者写锁不为0，且当前线程不是已获取独占锁的线程，锁获取失败
+    if (w == 0 || current != getExclusiveOwnerThread())
+      return false;
+    //2. 写锁数量已达到最大值，写锁获取失败
+    if (w + exclusiveCount(acquires) > MAX_COUNT)
+      throw new Error("Maximum lock count exceeded");
+    // Reentrant acquire
+    setState(c + acquires);
+    return true;
+  }
+  //3.当前线程应该阻塞，或者设置同步状态state失败，获取锁失败。
+  if (writerShouldBlock() ||
+      !compareAndSetState(c, c + acquires))
+    return false;
+  setExclusiveOwnerThread(current);
+  return true;
+}
 ```
 
 
@@ -6171,8 +6376,6 @@ protected final boolean tryRelease(int releases) {
 #### 总结
 
 
-
-获取读锁和释放读锁
 
 获取锁的过程：
 
@@ -6615,9 +6818,9 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-创建和销毁对象是很费时间的，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
+创建/销毁对象很费时间，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
 
-线程池也**利于管理线程的个数与活跃数,统一分配、调优和监控**
+线程池**利于管理线程的个数与活跃数,统一分配、调优和监控**
 
 
 
@@ -6627,7 +6830,7 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-1. 线程数 < corePoolSize时，创建线程执行任务。
+1. 线程数 < corePoolSize时，创建线程执行任务
 2. 线程数>=corePoolSize && workQueue没满，放入workQueue
 3. 线程数>=corePoolSize && workQueue队满，新任务+新建线程运行，线程总数要 < maximumPoolSize
 4. 当线程总数 = maximumPoolSize && workQueue 队满,执行拒绝策略
@@ -6666,30 +6869,28 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
-　　可以创建（**Executors.newXXX**）3种类型的ThreadPoolExecutor：**FixedThreadPool**、**SingleThreadExecutor**、**CachedThreadPool**。
+　　可以创建（**Executors.newXXX**）3种类型的ThreadPoolExecutor：**FixedThreadPool**、**SingleThreadExecutor**、**CachedThreadPool**
 
 - FixedThreadPool：可重用固定线程数的线程池
 
-  。（适用于负载比较重的服务器）
-
-  - **FixedThreadPool使用无界队列LinkedBlockingQueue作为线程池的工作队列**
+  - 适用于负载比较重的服务器
+- **FixedThreadPool使用无界队列LinkedBlockingQueue作为线程池的工作队列**
+  
 - 该线程池中的线程数量始终不变。当有一个新的任务提交时，线程池中若有空闲线程，则立即执行。若没有，则新的任务会被暂存在一个任务队列中，待有线程空闲时，便处理在任务队列中的任务。
   
-- SingleThreadExecutor：只会创建一个线程执行任务。
+- SingleThreadExecutor：只会创建一个线程执行任务（适用于需要保证顺序执行各个任务；并且在任意时间点，没有多线程活动的场景）
 
-  （适用于需要保证顺序执行各个任务；并且在任意时间点，没有多线程活动的场景。）
-
-  - ***\*SingleThreadExecutorl也使用无界队列LinkedBlockingQueue作为工作队列\****
-- 若多余一个任务被提交到该线程池，任务会被保存在一个任务队列中，待线程空闲，按先入先出的顺序执行队列中的任务。
+  - **SingleThreadExecutorl也使用无界队列LinkedBlockingQueue作为工作队列**
+- 若多余一个任务被提交到该线程池，任务会被保存在一个任务队列中，待线程空闲，按先入先出的顺序执行队列中的任务
   
-- **CachedThreadPool：\**是一个会根据需要调整线程数量的线程池\**。**
+- **CachedThreadPool：会根据需要调整线程数量的线程池**
 
   （大小无界，适用于执行很多的短期异步任务的小程序，或负载较轻的服务器）
 
   - **CachedThreadPool使用没有容量的SynchronousQueue作为线程池的工作队列，但CachedThreadPool的maximumPool是无界的。**
-  - 线程池的线程数量不确定，但若有空闲线程可以复用，则会优先使用可复用的线程。若所有线程均在工作，又有新的任务提交，则会创建新的线程处理任务。所有线程在当前任务执行完毕后，将返回线程池进行复用。
+  - 线程池的线程数量不确定，但若有空闲线程可以复用，则会优先使用可复用的线程。若所有线程均在工作，又有新的任务提交，则会创建新的线程处理任务。所有线程在当前任务执行完毕后，将返回线程池进行复用
 
-- **ScheduledThreadPool**：继承自ThreadPoolExecutor。它主要用来**在给定的延迟之后运行任务，或者定期执行任务**。使用DelayQueue作为任务队列。
+- **ScheduledThreadPool**：继承自ThreadPoolExecutor。它主要用来**在给定的延迟之后运行任务，或者定期执行任务**。使用DelayQueue作为任务队列
 
 
 
@@ -6715,11 +6916,11 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
-阻塞队列是一个在队列基础上又支持了两个附加操作的队列。
+阻塞队列是一个在队列基础上又支持了两个附加操作的队列
 
 2个附加操作：
 
-支持阻塞的**插入**方法：队列满时，队列会阻塞插入元素的线程，直到队列不满。支持阻塞的**移除**方法：队列空时，获取元素的线程会等待队列变为非空。
+支持阻塞的**插入**方法：队列满时，队列会阻塞插入元素的线程，直到队列不满。支持阻塞的**移除**方法：队列空时，获取元素的线程会等待队列变为非空
 
 
 
@@ -6933,17 +7134,15 @@ ThreadPoolExecutor默认有四个拒绝策略：
 
 
 
-
-
-
-
-
-
 # 反射
 
 
 
-在**运行状态**中，对于任意一个实体类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意方法和属性；这种动态获取信息以及动态调用对象方法的功能称为java语言的反射机制。
+**动态获取信息以及动态调用对象方法**
+
+在**运行状态**中，对任意一个实体类，都能知道这个类的所有属性和方法
+
+对于任意对象，都能够调用它的任意方法和属性
 
 
 
@@ -7034,15 +7233,15 @@ setAccessible(true)忽略访问修饰符
 
 
 ```java
-    @Test
-    public void testSet() throws Exception {
-        User user = new User("张三", 23, "220202202002022222");
-        Class<? extends User> userClass = user.getClass();
-      
-        Field idNumberField = userClass.getField("idNumber");
-        // set方法：给对象的字段设置值。需要传入当前被操作的user对象
-        idNumberField.set(user, "123456");
-    }
+@Test
+public void testSet() throws Exception {
+  User user = new User("张三", 23, "220202202002022222");
+  Class<? extends User> userClass = user.getClass();
+
+  Field idNumberField = userClass.getField("idNumber");
+  // set方法：给对象的字段设置值。需要传入当前被操作的user对象
+  idNumberField.set(user, "123456");
+}
 ```
 
 
@@ -7237,15 +7436,15 @@ public class User{}
 
 ```java
 public void testAnnotation() {
-        Class<User> userClass = User.class;
-        // 获取注解
-        MyAnnotation myAnnotation = userClass.getAnnotation(MyAnnotation.class);
-        // 注解不为空的时候进行处理
-        if (myAnnotation != null) {
-            // 获取打在User类上的注解的两个属性
-            System.out.println(myAnnotation.name() + ":" + myAnnotation.value());
-        }
-    }
+  Class<User> userClass = User.class;
+  // 获取注解
+  MyAnnotation myAnnotation = userClass.getAnnotation(MyAnnotation.class);
+  // 注解不为空的时候进行处理
+  if (myAnnotation != null) {
+    // 获取打在User类上的注解的两个属性
+    System.out.println(myAnnotation.name() + ":" + myAnnotation.value());
+  }
+}
 ```
 
 
@@ -7272,12 +7471,12 @@ public void testAnnotation() {
 
 
 ```java
-    List<User> list= new ArrayList<>();
-    Class<? extends List> listClass = list.getClass();
-    Method add = listClass.getDeclaredMethod("add", Object.class);
-		add.setAccessible(true);
-  //通过invoke()在运行时向list插入Integer数据,避免了编译时的泛型检验
-    add.invoke(list, 5);
+List<User> list= new ArrayList<>();
+Class<? extends List> listClass = list.getClass();
+Method add = listClass.getDeclaredMethod("add", Object.class);
+add.setAccessible(true);
+//通过invoke()避免了编译时的泛型检验
+add.invoke(list, 5);
 ```
 
 
@@ -7296,7 +7495,7 @@ public void testAnnotation() {
 
 1．寄存器（register）**最快,位于处理器内部**。数量有限，由编译器根据需求分配。**无法直接控制**
 
-2．栈（stack）位于**随机访问存储器RAM**，**通过“栈指针”从处理器获得直接支持**。==指针向下移动，分配新内存；向上移动，释放内存==。创建程序时，**编译器必须知道栈内所有数据的大小和生命周期**，因为它必须生成相应的代码，以便上下移动指针,**限制了程序的灵活性**
+2．栈（stack）位于**随机访问存储器RAM**，**通过“栈指针”从处理器获得直接支持**。==指针向下移动，分配新内存；向上移动，释放内存==。创建程序时，**编译器必须知道栈内所有数据的大小和生命周期**，因为它必须生成相应代码，以便上下移动指针,**限制程序的灵活性**
 
 3．堆（heap）通用内存池,位于**随机访问存储器RAM**，用于存放对象。堆不同于堆栈的好处是：**编译器不需要知道要分配多少空间，也不必知道数据的生命周期,灵活性高,效率低**
 
@@ -7362,7 +7561,7 @@ public void testAnnotation() {
 
 * 只有1个,被所有线程共享,虚拟机启动时创建
 * 存储==对象和class对象(操作指令)==
-* ==堆是gc的主要区域==
+* ==gc主要区域==
   * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
   * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下一次GC，Eden和使用区里都存在需要回收的对象,从而导致碎片
   * **Survivor from/to区交替空闲** -> 新生代实际可用90%
