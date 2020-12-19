@@ -4117,20 +4117,11 @@ JUC的容器都是安全失败的,可以在多线程下并发使用,并发修改
 
 ```java
 //需求:要求6个线程都执行完了,mian线程最后执行
-public class CountDownLatchDemo {
-  public static void main(String[] args) throws Exception{
-
-    CountDownLatch countDownLatch=new CountDownLatch(6);
-    for (int i = 1; i <=6; i++) {
-      new Thread(()->{
-        System.out.println(Thread.currentThread().getName()+"\t");
-        countDownLatch.countDown();
-      },i+"").start();
-    }
-    countDownLatch.await();
-    System.out.println(Thread.currentThread().getName()+"\t班长关门走人，main线程是班长");
-  }
+CountDownLatch countDownLatch = new CountDownLatch(6);
+for (int i = 1; i <= 6; i++) {
+  new Thread(() -> countDownLatch.countDown(), i + "").start();
 }
+countDownLatch.await();
 ```
 
 
@@ -4143,32 +4134,19 @@ public class CountDownLatchDemo {
 
 可循环(Cyclic) 使用的屏障(barrier)
 
-让一组线程到达屏障(同步点)时被阻塞,直到所有线程到达屏障时,唤醒所有被拦截的线程
+让一组线程到达屏障时被阻塞,直到所有线程到达屏障时,才唤醒所有被拦截的线程
 
 
 
 ```java
 //集齐7颗龙珠就能召唤神龙
-public class CyclicBarrierDemo {
-  public static void main(String[] args) {
-    // public CyclicBarrier(int parties, Runnable barrierAction) {}
-    CyclicBarrier cyclicBarrier=new CyclicBarrier(7,()->{
-      System.out.println("召唤龙珠");
-    });
-    for (int i = 1; i <=7; i++) {
-      final int temp=i;
-      new Thread(()->{
-        System.out.println(Thread.currentThread().getName()+"\t收集到了第"+temp+"颗龙珠");
-        try {
-          cyclicBarrier.await();
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        } catch (BrokenBarrierException e) {
-          e.printStackTrace();
-        }
-      }).start();
-    }
-  }
+CyclicBarrier cyclicBarrier = new CyclicBarrier(7, () -> System.out.println("召唤龙珠"));
+for (int i = 1; i <= 7; i++) {
+  final int temp = i;
+  new Thread(() -> {
+    System.out.println(temp + "");
+    cyclicBarrier.await();
+  }).start();
 }
 ```
 
@@ -4185,28 +4163,24 @@ public class CyclicBarrierDemo {
 
 
 - acquire（获取） 成功获取,信号量–
-- release（释放）信号量++，然后唤醒等待的线程
+- release（释放）信号量++，唤醒等待的线程
 
 
 
 ```java
-public class SemaphoreDemo {
-  public static void main(String[] args) {
-    Semaphore semaphore=new Semaphore(3);
-    for (int i = 1; i <=6; i++) {
-      new Thread(()->{
-        try {
-          System.out.println(Thread.currentThread().getName()+"\t抢占了车位");
-          semaphore.acquire();
-          System.out.println(Thread.currentThread().getName()+"\t离开了车位");
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }finally {
-          semaphore.release();
-        }
-      },String.valueOf(i)).start();
+Semaphore semaphore = new Semaphore(1);
+for (int i = 1; i <= 6; i++) {
+  new Thread(() -> {
+    try {
+      semaphore.acquire();
+      System.out.println(Thread.currentThread().getName() + "\t抢占了车位");
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } finally {
+      semaphore.release();
+      System.out.println(Thread.currentThread().getName() + "\t离开了车位");
     }
-  }
+  }, String.valueOf(i)).start();
 }
 ```
 
@@ -4232,7 +4206,6 @@ AtomicInteger
 
 ```java
 public class AtomicInteger extends Number implements java.io.Serializable {
-  // setup to use Unsafe.compareAndSwapInt for updates
   private static final Unsafe unsafe = Unsafe.getUnsafe();
   private static final long valueOffset;
 
@@ -4739,9 +4712,9 @@ public class TestCallable implements Callable<String> {
 
 
 - Object的wait()+notify()唤醒线程
-  - wait()/notify(必须成对出现,并且**顺序不能反**)
-- Condition的await()+signal()方法唤醒线程
-  - await()+signal()必须成对出现,并且**顺序不能反**
+  - wait()/notify (只能在**同步块或同步方法里**成对出现,**顺序不能反**)
+- Condition的await()+signal()唤醒线程
+  - await()+signal()成对出现,**顺序不能反**
 - LockSupport类可以阻塞当前线程以及唤醒指定被阻塞的线程
 
 
@@ -5171,7 +5144,7 @@ volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1
 
 
 
-**悲观锁**
+**悲观+不公平**
 
 让没有得到锁资源的线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，退出或异常时**自动释放锁**
 
@@ -5185,33 +5158,25 @@ volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1
 
 
 
-**synchronized 同步语句块的实现使用的是 monitorenter 和 monitorexit 指令**
+同步的原理:
 
-monitorenter 指令指向同步代码块的开始位置
+**monitorenter + monitorexit 指令**
 
-monitorexit 指令则指明同步代码块的结束位置
+monitorenter指令:同步开始,线程尝试获取锁(monitor)。当计数器为0则成功获取，获取后将锁计数器设为1
 
-执行 monitorenter 指令时，线程试图获取锁也就是获取 monitor的持有权。当计数器为0则可以成功获取，获取后将锁计数器设为1也就是加1
+monitorexit指令:同步结束,将锁计数器设为0，表明锁被释放
 
-执行 monitorexit 指令后，将锁计数器设为0，表明锁被释放
-
-如果获取对象锁失败，那当前线程就要阻塞等待，直到锁被另外一个线程释放为止
-
-(==monitor对象存在于每个Java对象的对象头中== -> synchronized用到的锁是存在**Java对象头**,也是为什么Java中任意对象可以作为锁的原因) 
+==monitor对象存在于每个Java对象的对象头中== -> synchronized的锁存在**Java对象头**,这也是Java中任意对象都可以作为锁的原因
 
 
 
+**依靠无锁队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，并发高。适合并发量高的场景**
 
-
-**synchronized的底层实现主要依靠无锁队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，并发高。在线程冲突较少的情况下，可以获得和CAS类似的性能；而线程冲突严重的情况下，性能远高于CAS**
-
-尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低
-
-面对这种情况可以使用“**原子操作类**”
+尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低,面对这种情况可以使用“**原子操作类**”
 
 
 
-**锁有四种状态，依次是：无锁状态、偏向锁状态、轻量级锁状态、重量级锁状态**，他们会随着竞争的激烈而逐渐升级
+**锁有四种状态，依次是：无锁状态、偏向锁状态、轻量级锁状态、重量级锁状态**，随着竞争的激烈而逐渐升级
 
 ==锁不可降级==，锁的升级策略提高获得锁和释放锁的效率
 
@@ -5228,13 +5193,11 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
 
 
 * 同步代码块	synchronized (对象) { }
-  * 同步代码块在方法内部的==对象上==加锁。
-
-
+  * ==对象上==加锁
 
 * 同步方法：
   * 在==方法上==加synchronized,锁的范围大，性能差
-  * ==同步方法默认锁定this,即当前类,所以不需要指明对象==
+  * ==锁定this(当前类),不需要指明对象==
 
 **在静态方法中，默认锁定类对象**
 
@@ -5286,9 +5249,9 @@ Unlock()释放锁
 
 
 
-AbstractQueuedSynchronizer抽象的队列式同步器,**没有锁的概念**
+AbstractQueuedSynchronizer	抽象队列式同步器,**没有锁的概念**
 
-除synchronized之外的锁,都基于aqs机制
+除synchronized之外的锁,都基于AQS
 
 
 
@@ -5296,15 +5259,15 @@ AbstractQueuedSynchronizer抽象的队列式同步器,**没有锁的概念**
 
 
 
-如果被请求的共享资源空闲，则将当前线程设置为有效，并锁定共享资源
+如果被请求资源空闲，则将当前线程设置为有效，并锁定共享资源
 
-如果被请求的共享资源被占用，线程阻塞,加入CLH队列,等待合适时机唤醒
+如果被请求资源被占用，线程阻塞,加入CLH队列,等待合适时机唤醒
+
+
 
 CLH是虚拟的FIFO(先进先出)双向队列
 
-
-
-**AQS将请求共享资源的线程封装成CLH锁队列的结点，实现锁的分配**，用volatile修饰共享变量state，线程通过CAS去改变state，成功则获取锁成功，失败则进入等待队列，等待被唤醒
+**AQS将请求共享资源的线程封装成Node，实现锁的分配**，用volatile修饰共享变量state，线程通过CAS去改变state，成功则获取锁成功，失败则进入等待队列，等待被唤醒
 
 **注意：AQS是自旋锁：**在等待唤醒的时候，使用自旋（while(!cas())）的方式，不停地尝试获取锁，直到被其他线程获取成功
 
@@ -5483,7 +5446,7 @@ Mutex：不可重入互斥锁，锁资源（state）只有两种状态：0：未
 
 
 
-重入独占锁,当前持有该锁的线程能够多次获取该锁，无需等待
+重入独占锁,当前持有该锁的线程能够多次获取锁，无需等待
 
 自旋锁，通过循环调用CAS操作来实现加锁
 
@@ -6468,13 +6431,7 @@ protected final boolean tryRelease(int releases) {
 
 
 
-LockSupport是线程阻塞工具类，所有的方法都是静态方法，可以让线程在任意位置阻塞，阻塞之后也有对应的唤醒方法
-
-
-
-通过park()+unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
-
-
+线程阻塞工具类，都是静态方法，可以让线程在任意位置阻塞，也有对应的唤醒方法
 
 
 
@@ -6482,36 +6439,48 @@ Permit(许可）概念
 
 每个线程都有许可(permit),只有两个值1/0，默认0
 
-可以把许可看成是一种(0,1)信号量，但与Semaphore不同的是，permit不能累加
+可以把许可看成是一种(0,1)信号量，但**与Semaphore不同的是，permit不能累加**
 
 
+
+通过park()+unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
 
 ```java
-//park()阻塞
-//permit默认是0，所以一开始调用park()，当前线程阻塞，直到别的线程将当前线程的permit设置为1时, park()会被唤醒，将permit设置为0并返回
+//park()阻塞	permit默认0，所以一开始调用park()，当前线程阻塞，直到别的线程将当前线程的permit设置为1时, park()会被唤醒，将permit设置为0并返回
 public static void park() {
-    UNSAFE.park(false, 0L);
+  UNSAFE.park(false, 0L);
 }
 
-//unpark()唤醒
-//调用unpark(thread)后，会将thread的permit设置成1(多次unpark()不会累加),自动唤醒之前阻塞的LockSupport.park()
+//unpark()唤醒	将thread的permit设置成1(多次unpark()不累加),自动唤醒之前阻塞的LockSupport.park()
 public static void unpark(Thread thread) {
-        if (thread != null)
-            UNSAFE.unpark(thread);
-    }
+  if (thread != null)
+    UNSAFE.unpark(thread);
+}
 ```
 
 
 
 
 
-LockSupport不用持有锁/加锁，性能高
+LockSupport不用持有/加锁，性能高
 
-先后顺序，不容易导致卡死(因为unpark获得了一个凭证，之后再调用park方法，不会阻塞)
-
-
+有先后顺序，先进行unpark获得凭证，才能执行park()后面的方法
 
 
+
+```java
+Thread t1 = new Thread(() -> {
+LockSupport.park();
+
+//因为permit=1,上一行已经使用了permit,第二个park()会导致程序处于一直等待的状态
+LockSupport.park();
+}, "A");
+t1.start();
+
+//多次unPark(),permit=1,不会累加
+Thread t2 = new Thread(() -> LockSupport.unpark(t1), "B");
+t2.start();
+```
 
 
 
