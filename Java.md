@@ -160,11 +160,22 @@ System.out.println((a==c));
 
 
 
-将实例对象的状态信息写入字节流,通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
+将实例对象的状态信息写入==字节流==,通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
+
+通过ObjectInputStream和ObjectOutputStream实现序列化和反序列化
+
+序列化是把内存对象保存到存储介质中，反序列化就是把存储介质中的数据转化为Java对象。java。需要进行序列化的对象必须实现Serializable接口，通常情况下需要满足以下条件：
+（1）强烈建议手动生成serialVersionUID常量
+（2）需要加解密则实现readObject()和writeObject()
+（3）使用Hibernate二级缓存或其他缓存服务器时，对象必须是可序列化的
+（4）如果需要远程调用对象或传值的话，则对象需要序列化
+（5）**序列化类的可序列化成员必须也是可序列化的，不需要序列化的属性用transient修饰**
 
 
 
 ## 两种实现方法
+
+
 
 * 实现Serializable接口，所有的序列化将会自动进行
 
@@ -1545,7 +1556,7 @@ public void clear() {
 
 
 
-适用于**读多写少**的场景,比如白名单，黑名单，商品类目的访问
+**读多写少**的场景,比如黑白名单，商品类目的访问
 
 
 
@@ -2032,19 +2043,148 @@ Node<K,V> loHead = null, loTail = null;
 Node<K,V> hiHead = null, hiTail = null;
 ```
 
-扩容时,将原链表拆为两个高低位的链表
+==扩容时,将原链表拆为两个高低位的链表==
 
 比如16个桶,哈希码11111…….11101
 
-​							 1111	=1101
+​						1111 = 1101
 
-扩容32个桶,					11111	=11101
+扩容32个桶,			  11111 = 11101
 
-扩容后第一位只能是0或1,并且桶中的元素被分配在了1xxx和0xxx两个新桶中,元素保持原先的顺序.而保持了顺序就降低了多线程中,顺序调换出现的死锁概率
+扩容后第一位只能是0或1,桶中的元素被分配到1xxx和0xxx两个新桶中,元素保持原先的顺序.降低了多线程中顺序调换出现的死锁概率
+
+每次扩容都是翻倍，与原来的(n-1)&hash的结果相比，只多了一个二进制位，所以节点要么在原来的位置，要么在 原位置+原容量 位置
+
+也保证了rehash后每个桶上的节点数<=原来桶上的节点数，保证了rehash后不会出现更严重的hash冲突，均匀地把之前的冲突的节点分散到新的桶中
 
 
 
-每次扩容都是翻倍，与原来的(n-1)&hash的结果相比，只是多了一个二进制位，所以节点要么在原来的位置，要么就被分配到 原位置+原容量 这个位置。
+```java
+final Node<K, V>[] resize() {
+  // 先拿到旧的hash桶
+  Node<K, V>[] oldTab = table;
+  // 获取未扩容前的数组容量
+  int oldCap = (oldTab == null) ? 0 : oldTab.length;
+  // 旧的临界值
+  int oldThr = threshold;
+  // 定义新的容量和临界值
+  int newCap, newThr = 0;
+  // 旧容量大于0
+  if (oldCap > 0) {
+    // 旧的容量如果超过了最大容量
+    if (oldCap >= MAXIMUM_CAPACITY) {
+      // 临界值就等于Integer类型最大值
+      threshold = Integer.MAX_VALUE;
+      // 不扩容，直接返回就数组
+      return oldTab;
+    }
+    /*
+            没超过最大值，数组扩容为原来的2倍
+            1.(newCap = oldCap << 1) < MAXIMUM_CAPACITY 扩大到2倍之后赋值给newCap，判断newCap是否小于最大容量
+            2.oldCap >= DEFAULT_INITIAL_CAPACITY 原数组长度大于等于数组初始化长度
+         */
+    else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+             oldCap >= DEFAULT_INITIAL_CAPACITY) {
+      // 当前容量在默认值和最大值的一半之间
+      // 新的临界值为当前临界值的2倍
+      newThr = oldThr << 1; // double threshold
+    }
+  } else if (oldThr > 0) // initial capacity was placed in threshold
+  {
+    // 旧容量为0，当前临界值不为0，让新的临界值等于当前临界值
+    newCap = oldThr;
+  } else {
+    // 当前容量和临界值都为0，让新的容量等于默认值，临界值=初始容量*加载因子
+    newCap = DEFAULT_INITIAL_CAPACITY;
+    newThr = (int) (DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+  }
+  // 经过上面对新临界值的计算后如果还是0
+  if (newThr == 0) {
+    // 计算临界值为新容量 * 加载因子
+    float ft = (float) newCap * loadFactor;
+    // 判断新容量小于最大值，并且计算出的临界值也小于最大值
+    // 那么就把计算出的临界值赋值给新临界值。否则新临界值默认为Integer最大值
+    newThr = (newCap < MAXIMUM_CAPACITY && ft < (float) MAXIMUM_CAPACITY ?
+              (int) ft : Integer.MAX_VALUE);
+  }
+  // 临界值赋值
+  threshold = newThr;
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  // 使用新的容量创建新数组
+  Node<K, V>[] newTab = (Node<K, V>[]) new Node[newCap];
+  // 赋值给hash桶
+  table = newTab;
+  // 下面一堆是复制值
+  // 如果旧的桶不为空
+  if (oldTab != null) {
+    // 遍历旧桶，把旧桶中的元素重新计算下标位置，赋值给新桶
+    // j 表示数组下标位置
+    for (int j = 0; j < oldCap; ++j) {
+      Node<K, V> e;
+      /*
+               (e = oldTab[j]) != null 将旧桶的当前下标位置元素赋值给e，并且e不为null
+             */
+      if ((e = oldTab[j]) != null) {
+        // 置空，置空之后原本的这个数据就可以被gc回收
+        oldTab[j] = null;
+        // 下一个节点如果为空
+        if (e.next == null) {
+          // 如果没有下一个节点，说明不是链表，当前桶上只有一个键值对，直接计算下标后插入
+          newTab[e.hash & (newCap - 1)] = e;
+        } else if (e instanceof TreeNode) {
+          // 节点是红黑树，进行切割操作
+          ((TreeNode<K, V>) e).split(this, newTab, j, oldCap);
+        } else { // preserve order
+          // 到这里说明该位置的元素是链表
+          /*
+                    loHead：链表头结点
+                    loTail：数据链表
+                    hiHead：新位置链表头结点
+                    hiTail：新位置数据链表
+                     */
+          Node<K, V> loHead = null, loTail = null;
+          Node<K, V> hiHead = null, hiTail = null;
+          Node<K, V> next;
+          // 循环链表，直到链表末再无节点
+          do {
+            // 获取下一个节点
+            next = e.next;
+            // 如果这里为true，说明e这个节点在resize之后不需要移动位置
+            if ((e.hash & oldCap) == 0) {
+              if (loTail != null) {
+                loTail.next = e;
+              } else {
+                loHead = e;
+              }
+              loTail = e;
+            } else {
+              if (hiTail == null) {
+                hiHead = e;
+              } else {
+                hiTail.next = e;
+              }
+              hiTail = e;
+            }
+          } while ((e = next) != null);
+          if (loTail != null) {
+            loTail.next = null;
+            newTab[j] = loHead;
+          }
+          if (hiTail != null) {
+            hiTail.next = null;
+            newTab[j + oldCap] = hiHead;
+          }
+        }
+      }
+    }
+  }
+  return newTab;
+}
+```
+
+
+
+
 
 
 
@@ -2180,6 +2320,124 @@ final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValu
         }
         return null;
 ```
+
+
+
+#### treeifyBin
+
+
+
+
+
+```java
+//替换指定哈希表的所引出桶中的所有节点，除非表太小，否则将修改大小
+final void treeifyBin(Node<K, V>[] tab, int hash) {
+  int n, index;
+  Node<K, V> e;
+  /*
+        如果当前数组为空，或者数组长度小于进行树形化的阈值（64）就去扩容，而不是转换为红黑树。
+        目的：如果数组很小，那么转换为红黑树然后遍历效率要低一些，这时候进行扩容，那么重新计算哈希值
+        链表的长度就有可能变短了，数据会放到数组中，这样相对来说效率高一些
+     */
+  if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY) {
+    resize();
+  } else if ((e = tab[index = (n - 1) & hash]) != null) {
+    /*
+            1.执行到这里说明哈希表中数组长度大于阈值64，开始进行树形化。
+            2.(e = tab[index = (n - 1) & hash]) != null 通过当前key的hash计算当前key所在的下标位置，取出来赋值给e，判断e不为空
+         */
+    // hd：红黑树的头结点。tl：红黑树的尾结点
+    TreeNode<K, V> hd = null, tl = null;
+    do {
+      // 重新创建一个树节点，内容和当前链表节点e一致
+      TreeNode<K, V> p = replacementTreeNode(e, null);
+      if (tl == null) {
+        // 将新创建的p节点赋值给红黑树的头结点
+        hd = p;
+      } else {
+        /*
+                p.prev = tl 将上一个节点p赋值给现在的p的前一个节点
+                tl.next = p 将现在的节点p作为树的为节点的下一个节点
+                 */
+        p.prev = tl;
+        tl.next = p;
+      }
+      tl = p;
+    } while ((e = e.next) != null);
+    /*
+            让桶中第一个元素即数组中的元素指向新建的红黑树的节点，以后这个桶里的元素就是红黑树，而不是链表
+         */
+    if ((tab[index] = hd) != null) {
+      hd.treeify(tab);
+    }
+  }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+#### 红黑树查找
+
+
+
+因为红黑树是一个自平衡的二叉查找树，查询操作不会破坏红黑树的平衡，所以查找和二叉查找树的查询方式没有区别。
+
+\1.   从根节点开始，把根节点设置为当前节点。
+
+\2.   若当前节点为空，则返回null。
+
+\3.   若当前节点不为空，用当前节点的key和查找key做比较。
+
+\4.   若当前节点的key等于要查找的key，那么该key就是查找目标，返回当前节点。
+
+\5.   若当前节点key大于查找的key，把当前节点的左子节点设置为当前节点，重复2.
+
+\6.   若当前节点key小于查找的key，把当前节点的右子节点设置为当前节点，重复2
+
+
+
+```java
+final TreeNode<K, V> find(int h, Object k, Class<?> kc) {
+    TreeNode<K, V> p = this;
+    do {
+        int ph, dir;
+        K pk;
+        TreeNode<K, V> pl = p.left, pr = p.right, q;
+        if ((ph = p.hash) > h) {
+            p = pl;
+        } else if (ph < h) {
+            p = pr;
+        } else if ((pk = p.key) == k || (k != null && k.equals(pk))) {
+            return p;
+        } else if (pl == null) {
+            p = pr;
+        } else if (pr == null) {
+            p = pl;
+        } else if ((kc != null ||
+                (kc = comparableClassFor(k)) != null) &&
+                (dir = compareComparables(kc, k, pk)) != 0) {
+            p = (dir < 0) ? pl : pr;
+        } else if ((q = pr.find(h, k, kc)) != null) {
+            return q;
+        } else {
+            p = pl;
+        }
+    } while (p != null);
+    return null;
+}
+```
+
+
+
+
 
 
 
@@ -3601,6 +3859,243 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
+# IO
+
+
+
+
+
+
+
+
+
+
+
+按传输的单位,分为
+字节流：InputStream OutputStream
+
+二进制文件用字节流读取
+
+字符流：Reader Writer
+
+字符流只处理文本文件。在设备中，大多数情况是以字节形式存储数据的，因此字符流通过需要传入字节流当参数
+
+**其它与 IO 操作相关的类都是派生于上述 4 个抽象类**
+
+
+
+按传输的方向,分为
+输入流InputStream
+输出流OutputStream
+
+
+
+按实现功能,分为
+节点流：OutputStream	直接与数据源相连，用于输入或者输出
+处理流： OutputStreamWriter	在节点流的基础上对之进行加工，进行一些功能的扩展
+
+**处理流的构造器需要传入节点流的子类**
+
+
+
+
+
+### BufferedInputStream
+
+
+
+适合大数据量的硬盘读取,缓冲流能够减少对硬盘的损伤
+
+
+
+
+
+### Printwriter
+
+
+
+可以打印各种数据类型
+
+
+
+
+
+
+
+
+
+
+
+把控制台的输出重定向到文件
+
+SetOut（printWriter,printStream）重定向
+
+
+
+
+
+字节流->字符流
+
+
+
+使用转换处理流OutputStreamWriter 可以将字节流转为字符流
+New OutputStreamWriter（new FileOutputStream（File file））;
+
+
+
+
+
+### DataInput
+
+
+
+把包括基本类型在内的数据和字符串按顺序输出到数据源，或者按照顺序从数据源读入
+
+
+
+
+
+
+
+### ObjectInput
+
+
+
+把对象写入数据源或从一个数据源读出来
+
+
+
+
+
+
+
+
+
+InputStream里的read()返回的是什么,read(byte[] data)是什么意思,返回的是什么值
+
+\*答案\*
+
+\*返回的是所读取的字节的int型（范围0-255）
+read（byte [ ] data）将读取的字节储存在这个数组
+返回的就是传入数组参数个数\*
+
+\*Read 字节读取字节 字符读取字符\*
+
+ **18.OutputStream里面的write()是什么意思,write(byte b[], int off, int len)这个方法里面的三个参数分别是什么意思**
+
+\*答案\*
+
+\*write将指定字节传入数据源
+Byte b[ ]是byte数组
+b[off]是传入的第一个字符
+b[off+len-1]是传入的最后的一个字符 
+len是实际长度\*
+
+ **19.流一般需要不需要关闭,如果关闭的话在用什么方法,一般要在那个代码块里面关闭比较好，处理流是怎么关闭的，如果有多个流互相调用传入是怎么关闭的？**
+
+\*答案\*
+
+\*流一旦打开就必须关闭，使用close方法
+放入finally语句块中（finally 语句一定会执行）
+调用的处理流就关闭处理流
+多个流互相调用只关闭最外层的流\*
+
+
+
+
+**说下常用的io流**
+
+Icon
+
+InputStream,OutputStream,
+FileInputStream,FileOutputStream,
+BufferedInputStream,BufferedOutputStream
+Reader,Writer
+BufferedReader,BufferedWriter
+
+
+
+
+
+
+
+
+
+
+
+\1. 读写原始数据，一般采用什么流？（AC ）
+A InputStream
+B DataInputStream
+C OutputStream
+D BufferedInputStream
+\2. 为了提高读写性能，可以采用什么流？（ DF）
+A InputStream
+B DataInputStream
+C BufferedReader
+D BufferedInputStream
+E OutputStream
+F BufferedOutputStream
+\3. 对各种基本数据类型和String类型的读写，采用什么流？（ AD）
+A DataInputStream
+B BufferedReader
+C PrintWriter
+D DataOutputStream
+E ObjectInputStream
+F ObjectOutputStream
+\4. 能指定字符编码的I/O流类型是：（BH ）
+A Reader
+B InputStreamReader
+C BufferedReader
+D Writer
+E PrintWriter
+F ObjectInputStream
+G ObjectOutputStream
+H OutputStreamWriter
+\5. File类型中定义了什么方法来判断一个文件是否存在？（ D）
+A createNewFile
+B renameTo
+C delete
+D exists
+\6. File类型中定义了什么方法来创建一级目录？（ CD）
+A createNewFile
+B exists
+C mkdirs
+D mkdir
+
+
+
+File类的mkdir方法根据抽象路径创建目录；File类的mkdirs方法根据抽象路径创建目录，包括创建必需但不存在的父目录
+
+\7. 对文本文件操作用什么I/O流？（AD ）
+A FileReader
+B FileInputStream
+C RandomAccessFile
+D FileWriter
+
+\9. 创建一个TCP客户程序的顺序是：（DACBE ）
+A 获得I/O流
+B 关闭I/O流
+C 对I/O流进行读写操作
+D 建立socket
+E 关闭socket
+\10. 创建一个TCP服务程序的顺序是：（BCADEGF ）
+A 创建一个服务线程处理新的连接
+B 创建一个服务器socket
+C 从服务器socket接受客户连接请求
+D 在服务线程中，从socket中获得I/O流
+E 对I/O流进行读写操作，完成与客户的交互
+F 关闭socket
+G 关闭I/O流
+\11. [Java ](http://lib.csdn.net/base/java)UDP编程主要用到的两个类型是：（ BD）
+A UDPSocket
+B DatagramSocket
+C UDPPacket
+D DatagramPacket
+
+
+
+
+
 
 
 
@@ -3622,6 +4117,26 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
   * **以块的方式处理数据**,效率高
   * 通道和缓冲区
     * 缓冲区可以分片，只读/直接/间接缓冲区
+
+
+
+| IO                                                           | NIO                                                          |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 面向流                                                       | 面向缓冲区                                                   |
+| 阻塞,连接:线程=1:1                                           | 非阻塞,==异步==                                              |
+| 没处理完线程不能退出,**不能用线程池**,连接数较多将出现资源不足 | 基于反应器模式，用于事件多路分离和分派的体系结构模式，**可用线程池** |
+| 瓶颈在于不能处理过多的连接                                   | 连接的线程数和连接数没有关系,处理1000个连接只需要100个线程的线程池 |
+| **无选择器**                                                 | **有选择器**,允许线程监视多个输入通道，可以注册多个通道使用一个选择器，然后使用一个线程来“选择”通道 |
+|                                                              |                                                              |
+|                                                              |                                                              |
+
+
+
+
+
+
+
+
 
 
 
@@ -3835,9 +4350,9 @@ outChannel.close();
 
 
 
-**进程**：在操作系统中能独立运行，并作为资源分配的基本单位。是运行中的程序。运行程序是进程创建->运行->消亡的过程
+**进程**：在操作系统中能独立运行，并作为**资源分配的基本单位**。是运行中的程序。运行程序是进程创建->运行->消亡的过程
 
-**线程**：是比进程更小的执行单位，也被称为轻量级进程
+**线程**：是比进程更小的**执行单位**，也被称为轻量级进程
 
 同类的多个**线程共享进程的堆和方法区**，但**每个线程有自己的程序计数器、虚拟机栈和本地方法栈**，所以系统在各个线程之间作切换工作时，负担比进程小
 
@@ -3862,15 +4377,27 @@ outChannel.close();
 
 
 
-
-
-上下文切换
+上下文切换 ContextSwitch
 
 **CPU给每个线程分配CPU时间片**,不停地切换线程
 
 在切换前会保存上一个任务的状态，以便下次切换回这个任务时，可以再加载这个任务的状态。
 
 **任务从保存到加载的过程就是一次上下文切换,频繁切换影响执行速度**
+
+线程时间结束后，当前整个状态（PC、寄存器等）全部拿出去放到缓存或者内存中，称为**保护现场**
+
+
+
+
+
+超线程
+
+一个ALU对应多个PC/Registers (所谓的4核8线程)
+
+原本上下文切换需要切换掉 程序计数器PC 和 寄存器Registers 中的数据,再让运算单元ALU去运算
+
+而超线程的ALU不需要切换数据,只需要切换PC/Registers,效率更高
 
 
 
@@ -4194,7 +4721,7 @@ for (int i = 1; i <= 6; i++) {
 
 
 
-juc.atomic包	底层用到了“CAS机制”
+juc.atomic包	底层是CAS
 
 AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
 
@@ -4246,6 +4773,8 @@ public final class Unsafe {
  
  public native int getIntVolatile(Object var1, long var2);
 }
+
+//最终是靠lock cmpxchg指令实现CAS操作,在一个cpu进行修改值时,不允许其他cpu进行修改
 ```
 
 
@@ -4381,9 +4910,13 @@ public ThreadPoolExecutor(int corePoolSize,
 
 
 
-允许创建只能被同一个线程读写的变量,即使两个线程同时执行同一代码，也无法访问到对方的ThreadLocal变量
+创建只能被线程自己读写的变量,线程间无法访问对方的ThreadLocal
 
-为每个线程**创造资源的副本**,而不是共享资源。隔离每个线程存取数据的行为，给线程特定空间来保管该线程的独享资源
+**ThreadLocal是资源的副本**,而不是共享资源。隔离线程存取数据的行为，给线程特定空间来保管独享资源
+
+
+
+在Spring中,标记为事务的M方法调用了m1()和m2(),则m12对数据库的连接都将从 当前线程的ThreadLocal获取,使得两个方法获得同一个连接,从而保证事务能够回滚
 
 
 
@@ -4944,6 +5477,44 @@ synchronized (对象) {
 
 
 
+### 锁消除 eliminate
+
+
+
+StringBuffer是线程安全的,在拼接字符串时进行了synchronized
+
+但在同时执行大量append()时,会导致重复申请/释放锁,浪费性能
+
+```
+sb.append().append()
+```
+
+当JVM发现线程私有的变量,会自动消除对象内部的锁,因为私有变量不存在被其他线程引用的可能
+
+
+
+### 锁粗化 coarsening
+
+
+
+```
+while(i<100){
+sb.append();
+}
+```
+
+
+
+JVM检测到代码块对同一个对象连续加锁,会将加锁范围粗化到代码块外,使得只需要一次加锁
+
+
+
+
+
+
+
+
+
 
 
 
@@ -5075,7 +5646,7 @@ wait + notify 解决线程通信
 
 
 
-==volatile针对变量弱同步，不保证线程安全==
+==volatile针对变量弱同步，不保证线程安全==		static不是可见的
 
 synchronized强同步
 
@@ -5090,11 +5661,61 @@ volatile 内存语义
 
 
 
+### 内存屏障
+
+
+
+
+
+JSR内存屏障协议:	Load读	Storage写
+
+- LoadLoad	上下两个L指令不能重排,下面同理
+- StoreStore
+- LoadStore
+- StoreLoad
+
+　　内存屏障防止Volatile修饰的关键字指令不会重排序。最底层是Locl AddL指令
+
+
+
+
+
 
 
 实现机制
 
 把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
+
+
+
+
+
+### 缓存行
+
+
+
+![](image.assets/volatile在计组原.png)
+
+
+
+==缓存行默认64字节==
+
+缓存行越大,空间局部性效率越高,读取越慢
+
+
+
+
+
+CPU为每个缓存行记录状态
+
+* Modified	被修改
+* Exclusive	独占
+
+* Shared	共享
+
+* Invalid	失效
+
+
 
 
 
@@ -5144,7 +5765,7 @@ volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1
 
 
 
-**悲观+不公平**
+**悲观+不公平	无锁/自旋/互斥信号量**
 
 让没有得到锁资源的线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，退出或异常时**自动释放锁**
 
@@ -5158,9 +5779,13 @@ volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1
 
 
 
-同步的原理:
+### 原理
 
-**monitorenter + monitorexit 指令**
+
+
+![image-20201220211345772](image.assets/image-20201220211345772.png)
+
+编译为字节码后,可以看到有**monitorenter + monitorexit 指令**
 
 monitorenter指令:同步开始,线程尝试获取锁(monitor)。当计数器为0则成功获取，获取后将锁计数器设为1
 
@@ -5170,15 +5795,13 @@ monitorexit指令:同步结束,将锁计数器设为0，表明锁被释放
 
 
 
-**依靠无锁队列，基本思路是自旋后阻塞，竞争切换后继续竞争锁，牺牲公平性，并发高。适合并发量高的场景**
+
+
+
 
 尽管JAVA 1.6为synchronized做了优化,如**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**等技术来减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低,面对这种情况可以使用“**原子操作类**”
 
 
-
-**锁有四种状态，依次是：无锁状态、偏向锁状态、轻量级锁状态、重量级锁状态**，随着竞争的激烈而逐渐升级
-
-==锁不可降级==，锁的升级策略提高获得锁和释放锁的效率
 
 
 
@@ -5200,6 +5823,51 @@ synchronized控制对象的访问,每个对象对应一把锁,必须获得该方
   * ==锁定this(当前类),不需要指明对象==
 
 **在静态方法中，默认锁定类对象**
+
+
+
+
+
+### 4种状态
+
+
+
+![](image.assets/image-20201220195633448.png)
+
+
+
+**锁四种状态，依次是：无锁(刚new出对象) -> 偏向锁 -> 轻量级锁(也叫无锁/自旋锁)、重量级锁**，随着竞争的激烈而逐渐升级
+
+
+
+* 偏向锁(修改偏向锁位)	第一次申请锁,无竞争
+  * **偏向于第一个获得它的线程**，如果在接下来的执行过程中，该锁没有被其他线程获取，则永远不需要进行同步
+  * **一旦有另外一个线程去尝试获取这个锁时，偏向模式结束**
+
+* 轻量级锁(修改指针)	已分配偏向锁,发生竞争
+  * 撤销偏向锁
+  * 尝试**CAS自旋**地将 对象头中的64位指针 指向自己线程栈中的LockRecord,操作成功的线程获得锁
+
+* 自适应自旋锁(Adapative Self Spinning) 1.6+
+  * 自旋过于消耗cpu,会在自旋超过10次/自旋线程超过cpu核数一半 时升级为自适应自旋锁
+  * Jvm控制,无法修改
+
+
+
+==在未升级为重量级之前,申请锁都是只运行在用户态的操作==,但不一定效率高,因为自旋锁大量消耗cpu资源,可能会比重量级锁更慢
+
+
+
+* 重量级锁	
+  * 在**内核态**中,锁为mutex互斥资源(重量级锁),用户态在申请锁时可能出现锁被分配完的情况
+
+
+
+
+
+==锁可以认为不可降级==，锁的升级策略提高获得锁和释放锁的效率
+
+锁只在GC时才会降级,然而此时已经没有对象指向它了,降级也没有任何意义
 
 
 
@@ -5834,10 +6502,6 @@ private void unparkSuccessor(Node node) {
 
 读写锁
 
-==只支持写的重入==,读需要再次申请
-
-对于同时占有读/写锁的线程，如果完全释放了写锁，那它就转换成了读锁，以后的写操作无法重入，在写锁未完全释放时可重入
-
 **读读共享、写写互斥、读写互斥**
 
 
@@ -5851,6 +6515,26 @@ private void unparkSuccessor(Node node) {
 读锁	tryAcquireShared(int arg) tryReleaseShared(int arg)
 
 写锁为独占锁	tryAcquire(int arg) tryRelease(int arg)
+
+
+
+
+
+**线程进入读锁的前提条件**：
+
+- **没有其他线程的写锁**
+- **没有写请求或者有写请求，但调用线程和持有锁的线程是同一个**
+
+**线程进入写锁的前提条件**：
+
+- **没有其他线程的读锁**
+- **没有其他线程的写锁**
+- 如果一个线程占有写锁，在不释放写锁的情况下，它还能占有读锁，即写锁降级为读锁
+- 对同时占有读锁和写锁的线程，如果完全释放了写锁，那么它就完全转换成了读锁，以后的写操作无法重入，在写锁未完全释放时写可以重入
+- 公平模式下无论读/写锁的申请都必须按照AQS等待队列先进先出的顺序。非公平模式下读操作插队的条件是锁等待队列head节点后的下一个节点是SHARED型节点，写锁则无条件插队
+- 读锁不允许newConditon获取Condition接口，而写锁的newCondition接口实现方法同ReentrantLock
+
+
 
 
 
@@ -5933,32 +6617,32 @@ Sync中有两个方法是抽象的，子类必须实现
 ```java
 //公平模式
 static final class FairSync extends Sync {
-				//writerShouldBlock和readerShouldBlock方法都表示当有别的线程也在尝试获取锁时，是否应该阻塞
-        final boolean writerShouldBlock() {
-          //对于公平模式，hasQueuedPredecessors()表示等待队列是否还有线程。一旦有，当前线程也该被挂起
-            return hasQueuedPredecessors();
-        }
-        final boolean readerShouldBlock() {
-            return hasQueuedPredecessors();
-        }
-    }
+  //writerShouldBlock和readerShouldBlock方法都表示当有别的线程也在尝试获取锁时，是否应该阻塞
+  final boolean writerShouldBlock() {
+    //对于公平模式，hasQueuedPredecessors()表示等待队列是否还有线程。一旦有，当前线程也该被挂起
+    return hasQueuedPredecessors();
+  }
+  final boolean readerShouldBlock() {
+    return hasQueuedPredecessors();
+  }
+}
 
 //非公平模式
 static final class NonfairSync extends Sync {
-				// 写线程不公平,不需要阻塞,允许闯入
-        final boolean writerShouldBlock() {    return false; }
-        final boolean readerShouldBlock() {		return apparentlyFirstQueuedIsExclusive();  }
-    }
+  // 写线程不公平,不需要阻塞,允许闯入
+  final boolean writerShouldBlock() {    return false; }
+  final boolean readerShouldBlock() {		return apparentlyFirstQueuedIsExclusive();  }
+}
 
 //当head.next是独占线程，为了防止独占线程(写线程)饥饿等待，则后入线程排队，否则可以闯入
 //也就是说,head.next想获取写锁，则读线程阻塞
 final boolean apparentlyFirstQueuedIsExclusive() {
-        Node h, s;
-        return (h = head) != null &&
-            (s = h.next)  != null &&
-            !s.isShared()         &&
-            s.thread != null;
-    }
+  Node h, s;
+  return (h = head) != null &&
+    (s = h.next)  != null &&
+    !s.isShared()         &&
+    s.thread != null;
+}
 ```
 
 
@@ -7137,7 +7821,7 @@ ThreadPoolExecutor默认有四个拒绝策略：
 
 Class 类是反射的入口，用于获取与类相关的各种信息和方法
 
-**每个类也可看做是一个对象**，有共同的Class来存放类的结构信息，能够通过相应方法取出相应信息：类名、属性、方法、构造方法、父类和接口
+**每个类也可看做是对象**，有共同的Class来存放类的结构信息，能够通过相应方法取出相应信息：类名、属性、方法、构造方法、父类和接口
 
 
 
@@ -7194,7 +7878,7 @@ Class 类是反射的入口，用于获取与类相关的各种信息和方法
 getDeclaredField()访问非public字段时,会报错
 
 ```
-can not access a member of class *** with modifiers "private"
+can not access a member of class  with modifiers "private"
 ```
 
 setAccessible(true)忽略访问修饰符
@@ -7244,13 +7928,13 @@ Invoke方法的用处：SpringAOP在切面方法执行的前后进行某些操�
 
  
 
-| **方法**                                            | **用途**                               |
-| --------------------------------------------------- | -------------------------------------- |
-| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法 |
-| getConstructors()                                   | 获得该类的所有公有构造方法             |
-| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法     |
-| getDeclaredConstructors()                           | 获得该类所有构造方法                   |
-| newInstance(Object... initargs)                     | 根据传递的参数创建类的对象             |
+| **方法**                                            | **用途**                                          |
+| --------------------------------------------------- | ------------------------------------------------- |
+| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法            |
+| getConstructors()                                   | 获得该类的所有公有构造方法                        |
+| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法                |
+| getDeclaredConstructors()                           | 获得该类所有构造方法                              |
+| ==newInstance(Object... initargs)==                 | 根据传递的参数创建类的对象(**弱引用,容易被回收**) |
 
 
 
@@ -7455,6 +8139,8 @@ add.invoke(list, 5);
 # JVM
 
 
+
+Jconsole	查看JVM状态
 
 
 
@@ -7722,16 +8408,150 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
+## 对象内存布局
+
+
+
+
+
+```shell
+java -XX:+PrintCommandLineFlags -version
+
+-XX:InitialHeapSize=257798976 #最小堆大小
+-XX:MaxHeapSize=4124783616 #最大堆大小  
+-XX:+PrintCommandLineFlags
+-XX:+UseCompressedClassPointers #将类型指针进行压缩(8->4字节)
+-XX:+UseCompressedOops	#将普通对象指针(成员变量指向对象)进行压缩 8->4字节
+-XX:-UseLargePagesIndividualAllocation -XX:+UseParallelGC
+java version "1.8.0_191"
+Java(TM) SE Runtime Environment (build 1.8.0_191-b12)
+Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节) Server VM (build 25.191-b12, mixed mode)
+```
+
+
+
+
+
+
+
+![image-20201220173759450](image.assets/image-20201220173759450.png)
+
+
+
+
+
+| 对象头 markword       | 锁                                   | 8字节 |
+| --------------------- | ------------------------------------ | ----- |
+| 类型指针 classpointer | 指向xxx.class                        | 4     |
+| 实例数据 instancedata | 成员属性                             |       |
+| 对齐 padding          | 将存储空间填充为8的倍数,能进加速读取 |       |
+
+
+
+
+
+![](image.assets/image-20201220175904411.png)
+
+
+
+
+
+
+
+
+
+```java
+Object o = new Object();
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());//打印对象在内存中的布局	需加入JOL依赖(Java Object Layout)
+        synchronized (o) {
+            System.out.println(ClassLayout.parseInstance(o).toPrintable());
+        }
+
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)        //对象头           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+      4     4        (object header)        //对象头           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)        //类型指针       e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+   	//Object无成员属性
+     12     4        (loss due to the next object alignment)	//前面的3个Size合计3*4=12,需要填充额外的4字节
+Instance size: 16 bytes//占据的总字节
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+
+
+//锁住对象后的内存状态
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
+      0     4        (object header)                           e8 f7 ac 02 (11101000 11110111 10101100 00000010) (44890088)
+      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+
+
+
+
+
+
+
+
+## JIT
+
+
+
+Just-In-Time	及时编译
+
+原本是JVM将语句一条条地解释,再执行
+
+当一个方法被高频率地调用(热点代码),将直接及时编译成机器语言
+
+
+
+
+
+
+
+
+
 ## 代码的3个阶段
 
 
 
-* .java	经过javac编译->	.class
+源代码阶段
 
-* .class	经过ClassLoader类加载器->	class类对象
-  * class对象包含字段,构造方法,成员方法信息
+.java	成员变量，构造方法，成员方法通过**javac编译** ->	.class
 
-* class对象	创建对象->	对象
+
+
+Class类对象阶段
+
+.class	ClassLoader类加载器 ->	内存(加载了class文件中的成员变量，构造方法，成员方法)
+
+
+
+Runtime运行时阶段
+
+class对象	创建对象->	对象
+
+
+
+
+
+## 指令重排
+
+
+
+
+
+![](image.assets/指令重排.png)
+
+
+
+地址指向引用 和 赋值 指令可能调换顺序
+
+
 
 
 
@@ -7779,24 +8599,37 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 * 强引用
-  * ==不会被GC回收==，并且在java.lang.ref里也没有对应类型
-  * Object obj = new Object()这里的obj便是强引用
-
+  * ==没有变量指向堆中的对象时,GC回收==
+  * Object obj = new Object()
 * 软引用(SoftReference)
   * ==内存不足才回收==
   * 实现内存敏感的高速缓存,和引用队列（ReferenceQueue）联合使用，如果软引用所引用的对象被垃圾回收，Jvm就会把这个软引用加入到与之关联的引用队列中
-
 * 弱引用（WeakReference）
-  * ==一旦发现弱引用的对象，就回收==。由于GC是优先级很低的线程， 不一定会很快发现弱引用的对象
-  * 可以和引用队列联合使用，如果弱引用所引用的对象被垃圾回收，Java虚拟机就会把这个弱引用加入到与之关联的引用队列中
+  * ==一旦发现弱引用的对象，就回收==。由于GC是优先级很低的线程， 不一定会很快发现弱引用
+  * 可以和引用队列联合使用，如果弱引用所引用的对象被垃圾回收，Jvm就会把弱引用加到引用队列中
   * **常用于Map数据结构中，占用内存空间较大的对象**
 
-* 虚引用（PhantomReference）
-  * 主要用来跟踪对象被垃圾回收器回收的活动
-  * **必须和引用队列联合使用**
-  * ==回收时发现虚引用，就会在回收对象的内存之前，把这个虚引用加入到与之关联的引用队列中==
-  * 程序可以通过判断引用队列中是否已经加入了虚引用，来了解被引用的对象是否将要被垃圾回收。如果已被加入，就可以在所引用的对象的内存被回收之前采取必要的行动
-  * 由于Object.finalize()方法的不安全/低效，常用虚引用完成**对象回收前的资源释放工作****
+
+
+虚引用（PhantomReference）
+
+
+
+![](image.assets/虚引用.png)
+
+* 主要用来回收==堆外内存(NIO的实现也用了虚引用)==,**必须和引用队列联合使用**
+* **虚引用无法通过get来获得引用对象**,其他3种都能
+
+
+
+* ==回收之前，把虚引用加入与之关联的引用队列中==
+
+* 通过监听引用队列,得知虚引用对象是否要被GC,通知操作系统释放堆外内存
+* 由于Object.finalize()方法的不安全/低效，常用虚引用完成**对象回收前的资源释放工作**
+
+
+
+
 
 
 
@@ -7825,7 +8658,7 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 （也就是用复制算法，标记-整理算法的收集器），分配算法通常采用指针碰撞。
 
-* ​	空闲列表：虚拟机维护一个列表，记录哪些内存是可用的，分配的时候从列表中找到一块足够大的空间划分给对象，并更新列表。
+* 空闲列表：虚拟机维护一个列表，记录哪些内存是可用的，分配的时候从列表中找到一块足够大的空间划分给对象，并更新列表。
 
 使用CMS这种基于标记-清除算法的收集器，通常用空闲列表
 
@@ -7887,15 +8720,411 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-类加载机制	验证， 准备， 解析
+每个在JVM中运行的实例都有对应的class文件，而class文件的加载通过类加载器
 
-准备	**为类的类变量（非对象变量）分配内存,初始值，准备类中每个字段、方法和实现接口所需的数据结构**
+每个类都对应一个加载器。如果不是有特殊用途，每个类在JVM中只加载一次
+
+Class文件由类装载器装载后，在JVM中将形成一份描述Class结构的元信息对象(包括Class的结构信息：构造函数，属性和方法等),==借由这个Class相关的元信息对象间接调用Class对象的功能==
+
+
+
+**类也是由成员变量/构造器和方法等构成的,类本质也是Class类的对象**
+
+**`class<?>描述类的结构` 所以`class<?>对象对应一个普通类的所有对象`**
+
+**Class类对象无法直接创建 因为构造方法是`私有的` ,由JVM随类装载时自动创建**
+
+所有的Java类都有一个静态属性class，它引用代表这个类的Class对象
+
+
+
+假如类还未加载到内存中，那么在创建该类的实例时，具体过程:
+
+创建实例必须先将该类加载到内存并进行初始化，也就是说，**类初始化在实例化之前进行，但并不意味着：只有类初始化结束后才能进行实例化**
+
+
+
+
+
+
+
+
+
+### 双亲委派模型
+
+![img](image.assets/20200227105016489.png)
+
+
+
+**工作过程**：
+
+类加载器接收到类加载请
+
+把请求委托给父类加载器，每层的类加载器都是如此，因此**所有的加载请求都应该传送到顶层的启动类加载器**中，只有当父加载器反馈无法完成这个加载请求（搜索范围中没有找到所需的类）时，子加载器才会尝试自己去加载
+
+
+
+**加载过程**:
+
+先自底向上检查是否已被加载,以保证类只被加载一次
+
+若未被加载，则由父类加载器先加载，自顶向下逐层尝试加载
+
+
+
+**好处**：
+
+类随着类加载器一起具备了**带有优先级的层次关系**
+
+例如Object类存放在rt.jar中，无论哪个类加载器要加载Object，最终都会委派给启动类加载器，因此Object类在各种类加载器中都是同一个类
+
+
+
+
+
+
+
+![img](image.assets/20190605200613240.png)
+
+
+
+**任何类(在其作用域范围内)为了表示`唯一`的对象都需要加对象的HashCode**
+
+
+
+**每个Class对象又都是生产其对应类对象的模板**
+
+**如果没有 JVM就会通过类加载器(ClassLoader)根据类的名称去找对应的.class文件(这也是Java程序运行前需要先编译的原因 除了加载.class ClassLoader同样负责加载文件和配置等其他资源)**
+
+**这时如果没有发生错误 此类的类对象(Class对象)会被加载到内存**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+当程序要使用某个类, 如果该类还未被加载到内存中, 则通过加载, 连接, 初始化三步来实现对这个类进行初始化:
+
+**加载**就是将class文件读入内存, 并创建Class对象
+
+　　JVM\进行类加载阶段需要完成以下三件事情:   
+
+1. 通过一个类的全限定名称来获取定义此类的二进制字节流 
+
+　　　　2. 将这个字节流所代表的静态存储结构转化为方法区的运行时数据结构
+
+　　　　3. 在java堆中生成一个代表这个类的java.lang.Class对象, 作为方法区这些数据的访问入口
+
+　　类的加载的最终产品是位于堆区中的Class对象, Class对象封装了类在方法区内的数据结构, 并且向Java程序员提供了访问方法区内的数据结构的接口
+
+ 
+
+　　类的加载时机
+
+　　　　1. 创建类的实例
+
+　　　　2. 使用类的静态变量或者为静态变量赋值
+
+　　　　3. 调用类的静态方法
+
+　　　　4. 使用反射方式来强制创建某个类或接口对应的java.lang.Class对象
+
+　　　　5. 初始化某个类的子类
+
+　　　　6. 直接使用java命令来运行某个主类
+
+　　通俗的说就是只要用到了类的东西类就会加载
+
+ 
+
+　　JVM在运行时会产生3个类加载器组成的初始化加载器层次结构
+
+- Bootstrap ClassLoader 根类加载器 
+
+​    　 用C++编写
+
+​    　　也被称为引导类加载器, 负责java核心类的加载 该加载器无法直接获取
+
+​    　　比如System, String等, 在JDK中JRE的lib目录下rt,jar文件中
+
+- Extension ClassLoader 扩展类加载器
+
+​    　　负责JRE的扩展目录中jar包的加载 jre/lib/ext目录下的jar包或-Djava,ext,dirs指定目录下的jar包装入工作库
+
+- System ClassLoader 系统类加载器(加载自己写的类以及第三方类库(导入的jar包))
+
+​    　　负责在JVM\启动时加载来自java命令的class文件, 以及classpath环境变量所指定的jar包和类路径
+
+ 
+
+ 
+
+**连接**就是将类的二进制数据合并到JRE中 
+
+　　**连**接分为以下三步:
+
+　　　　**验证** 检查载入Class文件数据的正确性
+
+- - - 文件格式检验：检验字节流是否符合Class文件格式的规范, 并且能被当前版本的虚拟机处理
+    - 元数据检验：对字节码描述的信息进行语义分析, 以保证其描述的内容符合Java语言规范的要求
+    - 字节码检验：通过数据流和控制流分析, 确定程序语义是合法、符合逻辑的
+    - 符号引用检验：符号引用检验可以看作是对类自身以外(常量池中的各种符号引用)的信息进行匹配性校验
+
+　　　　　　是否有正确的内部结构(构造器, 方法, 变量, 代码块), 并和其他类协调一致
+
+　　　　**准备** 该阶段正式为类变量分配内存并设置类变量初始值
+
+　　　　　　这些变量所使用的内存将在方法区中进行分配, 此时进行内存分配的仅包括类变量, 而不包括实例变量(实例变量将会在对象实例化时随着对象一起分配在Java堆中), 
+
+　　　　　　另外, 在这里分配的静态类变量是将其值定义为默认值, 这里所设置的初始值通常情况下是数据类型默认的零值(如0, 0L, null, false等), 而不是被在Java代码中
+
+　　　　　　被显式地赋予的值, 正确的赋值将在初始化阶段执行,
+
+　　　　**解析** 将类的二进制数据中的符号引用替换为直接引用
+
+　　　　　　比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 这样可以节约很多资源
+
+ 
+
+ 
+
+**初始化**就是对类的静态变量, 静态代码块执行初始化操作
+
+   类初始化阶段是类加载过程的最后一步, 前面的类加载过程中, 除了加载（Loading）阶段用户应用程序可以通过自定义类加载器参与之外, 其余动作完全由虚拟机主导和控制, 到了初始化阶段, 才真正开始执行类中定义的Java程序代码 
+
+　　初始化为类的静态变量赋予正确的初始值, JVM负责对类进行初始化, 主要对类变量进行初始化, 在Java中对类变量进行初始值设定有两种方式：
+
+- - 声明静态变量(类变量)时指定初始值 
+  - 使用静态代码块为类变量指定初始值
+
+​    初始化步骤:
+
+​      \1. 假如这个类还没有被加载和连接, 则程序先加载并连接该类
+
+​      \2. 假如该类的直接父类还没有被初始化, 则先初始化其直接父类
+
+​      \3. 假如类中有初始化语句, 则系统依次执行这些初始化语句
+
+　　JVM在堆内存中创建对象, 类的成员变量进入到堆内存中, 赋默认值 
+
+ 
+
+ 
+
+最后就是我们熟悉的Runtime运行时\阶段
+
+```
+Person p = new Person();
+p,study();
+```
+
+执行上述代码会在堆内存创建一个Person类的对象, 并且在栈内存分配一块储存空间存放Person类型的引用变量p, p存放该对象的地址并且指向该对象, 调用p的study方法实际是, 对象通过Person类的字节码对象来访问方法区Person字节码的study方法
+
+ 
+
+
+
+名词解释 :
+
+Java源程序: 即Java源代码, 用java语言编写的程序
+
+Java类加载器(Java Classloader): 是Java运行时环境(JRE)的一部分, 负责动态加载Java类到JVM的内存空间中
+
+JRE: 即Java Runtime Environment, Java运行环境,内部包含了一个Java虚拟机以及一些标准类库(Jar包)\
+
+JAR包:\ 通常用于聚合大量的Java类文件、相关的元数据和资源(文本、图片等)文件到一个文件, 以便开发Java平台应用软件或库
+
+JVM: 即Java Virtual Machine一种能够运行Java字节码**(*Java bytecode)的虚拟机
+
+类(Class): 类是具有共同属性和行为的对象的集合, 类定义了对象的属性和方法
+
+字节码: 字节码是已经经过编译, 但与特定机器码无关, 需要解释器转译后才能成为机器码的中间代码
+
+Java字节码: 是Java虚拟机执行的一种指令格式
+
+Java编译器:\ 将Java源文件(.java文件)编译成字节码文件(.class文件, 是特殊的二进制文件, 二进制字节码文件), 这种字节码就是JVM的“机器语言”, javac命令可以简单看成是Java编译器
+
+Java解释器:\ 是JVM的一部分, Java解释器用来解释执行Java编译器编译后的程序, java命令可以简单看成是Java解释器
+
+**运行时类**: 加载到内存中的字节码文件对应的类称为运行时类,  此运行时类即为一个Class的实例
+
+Java堆(Heap): 在\**\*JVM\*\**\启动时创建,\ 是JVM\所管理的内存中最大的一块,\ 在JVM 中，堆(Heap)是可供各条线程共享的运行时内存区域, 也是供所有类实例和数组对象分配内存的区域,  Java堆是被所有线程所共享的一块内存区域, Java堆是垃圾收集器管理的主要区域
+
+Java栈(Stack): 在函数中定义的基本类型的变量、Java指令代码、对象的引用变量均在函数的栈内存中分配，当超过变量的作用域后，Java 会自动释放掉该变量分配的内存空间
+
+方法区(Non-Heap): 方法区与Java堆一样，是各个线程共享的内存区域，用于存储已被虚拟机加载的类信息(构造方法和接口定义)、常量、静态变量、即时编译器编译后的代码等数据, 运行时常量池存在方法区中
+
+
+
+
+
+
+
+
+
+
+
+加载 -> 连接(验证/准备/解析) -> 初始化 -> 使用 -> 卸载
+
+
+
+
+
+准备	**为类变量（非对象变量）分配内存,赋初值，准备类中每个字段、方法和实现接口所需的数据结构**
+
+如果类变量是**final**，编译时javac将会为value生成ConstantValue属性，在准备阶段根据ConstantValue将变量设置为指定的值(**不赋默认值**)
+
+
+
+初始化	执行类构造器
+
+**类构造器是编译器收集所有静态语句块和类变量的赋值语句，按语句在源码中的顺序合并生成类构造器**
 
 
 
 
 
 ![](image.assets/1541314-20191003104706537-1884792960.png)
+
+
+
+**类初始化时机：**
+
+类的初始化是指类加载过程中的初始化阶段,对类变量按照代码进行赋值的过程
+
+1. 遇到new、getstatic、putstatic或invokestatic这四条字节码指令
+2. 使用java.lang.reflect包的方法对类进行反射调用
+3. 当初始化一个类的时候，如果发现其父类还没有进行过初始化，就先触发其父类的初始化
+4. JVM启动时，先初始化包含main()的主类
+
+
+
+
+
+
+
+**父类的类构造器() -> 子类的类构造器() -> 父类的成员变量和实例代码块 -> 父类的构造函数 -> 子类的成员变量和实例代码块 -> 子类的构造函数。**
+
+JVM会保证类构造器在多线程环境中被正确的加锁、同步
+
+如果多个线程同时去初始化一个类，只会有一个线程去执行这个类的类构造器
+
+类构造器与构造方法不同，不需要显式调用，JVM会保证在子类类构造器执行前，父类的类构造器执行完毕
+
+在类的生命周期中，类构造器最多会被虚拟机调用一次，构造方法会被JVM调用多次
+
+当对象被创建时，虚拟机就会为其分配内存来存放 对象本身+父类继承的实例变量,同时赋默认值。
+
+在内存分配完成之后，Java虚拟机就会开始对新创建的对象按照程序猿的意志进行初始化。在Java对象初始化过程中，主要涉及三种执行对象初始化的结构，分别是实例变量初始化、实例代码块初始化以及构造函数初始化
+
+
+
+
+
+
+
+### 类卸载
+
+
+
+当Class对象不再被引用时，Class对象结束生命周期，类在方法区内的数据也会被卸载，从而结束类的生命周期
+
+
+
+**JVM自带的类加载器(根类/扩展类/系统类加载器)所加载的类，始终不会被卸载**(jvm和jls规范)
+
+JVM会始终引用这些类加载器，而这些类加载器则会**始终引用**它们所加载的类的Class对象，因此这些Class对象**始终是可触及的**
+
+用户自定义的类加载器对象加载的类型,只有在很简单的上下文环境中才能被卸载，而且还要借助于强制调用虚拟机的垃圾收集功能才可以做到
+
+
+
+一个已经加载的类型被卸载的几率很小,至少被卸载的时间是不确定的
+
+开发代码时候，不应该对虚拟机的类型卸载做任何假设的前提下来实现系统中的特定功能
+
+
+
+
+
+
+
+
+
+![](image.assets/卸载.png)
+
+
+
+loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objClass变量则直接引用它。
+
+如果程序运行过程中，3个引用变量都置为null，此时 对象/类加载器对象/Class对象 都结束生命周期，类在方法区内的二进制数据**被卸载**
+
+当再次有需要时，会检查类的Class对象是否存在，**如果存在则直接使用，不再重新加载**；不存在则类被重新加载，在Jvm的堆区生成新的Class对象
+
+
+
+
+
+
+
+
+
+实例变量在对象初始化的过程中会被赋值几次？
+
+1. 分配完内存后，会给实例变量赋默认值，这个赋值过程无法避免
+
+2. 在声明实例变量x的同时进行了赋值，此时是第二次赋值
+3. 在实例代码块中，又对变量做了初始化操作，就被第三次赋值
+4. 在构造方法中，也对变量做了初始化操作，就被第四次赋值
+
+==在Java的对象初始化过程中，实例变量最多被初始化4次==
+
+
+
+
+
+
+
+
+
+   What(是什么？) Java反射就是在运行状态中，对于任意一个类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意方法和属性；并且能改变它的属性。而这也是Java被视为动态（或准动态，为啥要说是准动态，因为一般而言的动态语言定义是程序运行时，允许改变程序结构或变量类型，这种语言称为动态语言。从这个观点看，Perl，Python，Ruby是动态语言，C++，Java，C#不是动态语言。）语言的一个关键性质。
+   Why(为什么？) 我们知道反射机制允许程序在运行时取得任何一个已知名称的class的内部信息，包括包括其modifiers(修饰符)，fields(属性)，methods(方法)等，并可于运行时改变fields内容或调用methods。那么我们便可以更灵活的编写代码，代码可以在运行时装配，无需在组件之间进行源代码链接，降低代码的耦合度；还有动态代理的实现等等；但是需要注意的是反射使用不当会造成很高的资源消耗！
+  **获取class的三种方式：**（一个类在 JVM 中只会有一个 Class 实例，因此c1= c2= c3）
+1、通过对象调用 getClass() 方法来获取,通常应用在：比如你传过来一个 Object
+类型的对象，而我不知道你具体是什么类，用这种方法
+    **Person p1 = new Person();Class c1 = p1.getClass();**
+2、直接通过 类名.class 的方式得到,该方法最为安全可靠，程序性能更高
+这说明任何一个类都有一个隐含的静态成员变量 class
+   　**Class c2 = Person.class;**
+3、通过 Class 对象的 forName() 静态方法来获取，用的最多，
+但可能抛出 ClassNotFoundException 异常
+    **Class c3 = Class.forName(“com.ys.reflex.Person”);**
+通过 Class 类可以获取成员变量、成员方法、接口、超类、构造方法等。常用的方法如下：
+  getName()：获得类的完整名字。
+　　getFields()：获得类的public类型的属性。
+　　getDeclaredFields()：获得类的所有属性。包括private 声明的和继承类
+　　getMethods()：获得类的public类型的方法。
+　　getDeclaredMethods()：获得类的所有方法。包括private 声明的和继承类
+　　getMethod(String name, Class[] parameterTypes)：获得类的特定方法，name参数指定方法的名字，parameterTypes 参数指定方法的参数类型。
+　　getConstructors()：获得类的public类型的构造方法。
+　　getConstructor(Class[] parameterTypes)：获得类的特定构造方法，parameterTypes 参数指定构造方法的参数类型。
+　　newInstance()：通过类的不带参数的构造方法创建这个类的一个对象。
+暴力反射：获取私有属性和方法的方式称为暴力反射，但是这是不建议的。
+
+**反射的使用场景：**
+  比如对于Tomcat而言，它并不知道我们会有什么样的方法，这些都只是在项目被部署进webapp下后才确定的，由此分析，必然用到了Java的反射来实现类的动态加载、实例化、获取方法、调用方法。Tomcat需要根据请求调用方法，动态地加载方法所在的类，完成类的实例化并通过该实例获得需要的方法，最终将请求传入方法执行。
+  灵活使用反射能让我们代码更加灵活，这里比如JDBC原生代码注册驱动、动态代理、MyBatis的实体类、Spring 的 AOP等等都有反射的实现。但是凡事都有两面性，反射也会消耗系统的性能，增加复杂性等，合理使用才是真！
 
 
 
@@ -8023,7 +9252,7 @@ public class Singleton2 {
   * 静态加载： 静态变量，静态代码块
   * 动态加载： 
   * **静态/实例方法在调用的才会执行**
-  * 当静态加载中遇到需要加载动态的情况：**先加载动态再加载静态**（因为非静态可以访问静态，而静态不能访问非静态）
+  * 当静态加载中遇到需要加载动态的情况：**先加载动态再加载静态**（因为非静态可以访问静态，而静态不能访问非静态）**实例初始化在静态初始化之前**”
   * 静态变量声明必须放在使用前面
 
 * main是否第一句先执行
@@ -8048,19 +9277,43 @@ public class Singleton2 {
 
 
 
-1、new 语句
-
-2、反射,调用 java.lang.Class 或者 java.lang.reflect.Constructor类的 newInstance()实例方法。
+1. new 语句
+2. Class.newInstance() 反射
+3. Constructor.newInstance() 反射（可调用私有构造）
 
 3、clone()
 
 4、反序列化，调用 java.io.ObjectInputStream 对象的readObject()方法。
 
-(1)和(2)显式调用构造
+1/2/3显式调用构造
 
-(3)(4)不调用构造
+4/5不调用构造
 
 
+
+
+
+
+
+new和 Class.forName(String className) 在类加载的时候没有区别，都是由当前调用类的classloader类加载，并写进缓存,不会被再次加载
+
+
+
+类被哪个类加载器加载，不是随意的，是有铁定法则的。
+
+
+
+类加载器分为两类，一类是ContextClassLoader，一个是当前类的加载器
+
+使用new创建类，用的是new所在类的加载器，例如在Group类中用new方式创建了一个Person，那么Person类被Group.class类的加载器加载的(此时假定Person类尚未被虚拟机加载)
+
+而Class.forName(String name, boolean initialize,ClassLoader loader)可以**指定类加载器**。如果没有指定类加载器，那么使用的是ContextClassloader，该加载器是设置在线程中的,可以通过Thread.currentThread.getContextClassLoader()获取
+
+
+
+new 其实是forName和 newInstance的结合并且 new 是静态，forName是动态
+
+调用new之前，类可以没有被加载过，没有加载时就会触发类查找。然而newInstance 只能类被加载时才能正常调用
 
 
 
@@ -8447,7 +9700,7 @@ public @interface Native {}
 
 native是**java调用非java代码的接口**
 
-定义Native Method时,**并不需要提供实现**,其实现体将由**非java语言在外面实现****
+定义Native Method时,**并不需要提供实现**,其实现体将由**非java语言在外面实现*
 
 
 
