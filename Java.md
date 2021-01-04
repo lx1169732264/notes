@@ -156,6 +156,189 @@ System.out.println((a==c));
 
 
 
+
+
+## Splitter
+
+
+
+```
+ Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+    List<String> list = splitter.splitToList("1,,,1,1    ,");
+
+```
+
+
+
+
+
+
+
+
+
+# 时间日期
+
+
+
+## LocalDate
+
+
+
+```
+of() 
+plusDays(long daysToAdd)	增加天数
+```
+
+
+
+
+
+## LocalDateTime
+
+
+
+```
+toLocalDate()	转换LocalDate
+getYear()
+```
+
+
+
+
+
+## Timestamp
+
+
+
+```
+toLocalDateTime()	
+```
+
+
+
+
+
+## DateTimeFormatter
+
+
+
+```java
+//format
+DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE;
+dateFormatter.format(LocalDate.of(2018, 11, 11));
+
+//parse
+DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+LocalDate day = LocalDate.parse("1900-01-01", dateFormatter);
+Assert.assertEquals(LocalDate.of(1900, 1, 1), day);
+```
+
+
+
+
+
+# Optional
+
+
+
+解决NPE,一个包含可选值的包装类，**既可以含有对象也可以为null**
+
+
+
+```java
+empty()	//返回一个空的Optional
+of()/ofNullable()	//创建包含值的 Optional		of()不允许接受null
+get()	
+```
+
+
+
+检查是否有值
+
+```java
+//接受Consumer函数
+public void ifPresent(Consumer<? super T> consumer) {
+  if (value != null)  consumer.accept(value);
+}
+
+opt.ifPresent( u -> assertEquals(user.getEmail(), u.getEmail()));
+```
+
+
+
+取值
+
+```java
+//在对象为空时返回默认值
+public T orElse(T other) {
+  return value != null ? value : other;
+}
+
+//在对象为空时执行Supplier
+public T orElseGet(Supplier<? extends T> other) {
+  return value != null ? value : other.get();
+}
+
+//区别:
+//orElse()中调用方法,无论如何都会执行一次
+//orElseGet()传入Supplier,只在对象为空时才被运行
+User user = new User("john@gmail.com", "1234");
+User result = Optional.ofNullable(user).orElse(createNewUser());	//此处必定调用createNewUser()
+User result2 = Optional.ofNullable(user).orElseGet(() -> createNewUser());//不一定调用
+
+
+//对象为空时抛出异常
+public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
+  if (value != null) {
+    return value;
+  } else {
+    throw exceptionSupplier.get();
+  }
+}
+```
+
+
+
+
+
+转换值
+
+map和flatMap返回值为 Optional ,支持**链式调用**
+
+```java
+Optional<U> map(Function<? super T, ? extends U> mapper)		//入参不同
+Optional<U> flatMap(Function<? super T, Optional<U>> mapper)//传入Optional,返回Optional
+  
+//user -> String
+String email = Optional.ofNullable(user).map(u -> u.getEmail()).orElse("default@gmail.com");
+```
+
+
+
+过滤	 返回测试结果为 true 的值,如果都为false,返回empty()
+
+```java
+public Optional<T> filter(Predicate<? super T> predicate) {
+  Objects.requireNonNull(predicate);
+  if (!isPresent())
+    return this;
+  else
+    return predicate.test(value) ? this : empty();
+}
+
+Optional<User> result = Optional.ofNullable(user).filter(u -> u.getEmail() != null && u.getEmail().contains("@"));
+```
+
+
+
+
+
+
+
+
+
+
+
 # 序列化
 
 
@@ -780,8 +963,6 @@ list.stream().filter(s -> s.startsWith("张"))
                 .forEach(System.out::println);
 ```
 
- stream().forEach
-
 
 
 ## 获取流
@@ -827,6 +1008,7 @@ public static void main(String[] args) {
   * distinct   去重
   * skip     跳过前几个
   * filter        将一个流转换成另一个子集流
+  * range() -> [ , )      rangeClosed() -> [ , ]
 * 映射
 
   * map      将流中的元素映射到另一个流
@@ -864,7 +1046,7 @@ Stream<String> stream = list.stream().map(e -> e.substring(2));
      Stream<String> result = Stream.concat(streamA, streamB);
     ```
 
-  * reduce  将流中的元素反复结合起来，得到一个值。
+  * reduce  将流中的元素反复结合起来，得到一个值
 
 ```java
 List<Integer> list1 = Arrays.asList(1,2,3,4,5,6,7,8,9,10);
@@ -874,10 +1056,8 @@ reduce ： 66
 
 
 
-* 收集	方法参数为Collector。Collector由Collectors中的toList()，toSet(),toMap(Function(T,R) key,Function(T,R) value)等静态方法实现。
-  * toList()
-  * toMap()
-  * toSet()
+* 收集
+  * toList/Map/Set()
 
 ```
 list.stream().collect(Collectors.toList());
@@ -3751,7 +3931,7 @@ static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements Li
 
 
 
-转换成线程安全的容器（==装潢模式==，将已有对象传入另一个类的构造器中创建新的对象来增加新功能）
+转换成线程安全的容器（==装潢模式==，将已有对象传入另一个类的构造器中,创建新对象来增加新功能）
 
 
 
@@ -4688,6 +4868,32 @@ for (int i = 1; i <= 7; i++) {
 
 
 
+### Phaser
+
+
+
+强调阶段,类似于分阶段的内存屏障
+
+不光可以设置阶段个数,也能设置屏障个数
+
+
+
+```
+bulkRegister()	指定屏障拦截的线程数量
+
+onAdvance()	需重写方法,自定义各个阶段的业务,以int表示阶段
+
+arriveAndAwaitAdvance()	线程到达,并参与后续阶段
+
+arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
+
+
+```
+
+
+
+
+
 
 
 
@@ -4700,12 +4906,27 @@ for (int i = 1; i <= 7; i++) {
 
 
 
-适用场景:多个共享资源的互斥使用 / 并发线程数的控制
+限制对共享资源进行访问的线程数量
+
+对资源访问前，线程必须得到信号量的许可(permits-—)
+
+完成访问后，线程必须向信号量归还许可（permits++）
 
 
 
-- acquire（获取） 成功获取,信号量–
-- release（释放）信号量++，唤醒等待的线程
+适用场景:
+
+限流,多个共享资源的互斥使用 / 并发线程数的控制
+
+
+
+```java
+acquire（获取） 成功获取时信号量–-	信号量为0时,获取失败,
+
+release（释放）信号量++，唤醒等待的线程,必须放在finally
+  
+new Semaphore(int permits);	同时执行的线程数量
+```
 
 
 
@@ -4725,6 +4946,43 @@ for (int i = 1; i <= 6; i++) {
   }, String.valueOf(i)).start();
 }
 ```
+
+
+
+
+
+### Exchanger
+
+
+
+**只支持2个线程间同步数据**
+
+
+
+```java
+static Exchanger<String> exchanger = new Exchanger();
+
+public static void main(String[] args) {
+    new Thread(() -> {
+        String s = "T1";
+        s = exchanger.exchange(s);
+        System.out.println(Thread.currentThread().getName() + s);
+    }, "t1").start();
+
+    new Thread(() -> {
+        String s = "T2";
+        s = exchanger.exchange(s);
+        System.out.println(Thread.currentThread().getName() + s);
+    }, "t2").start();
+}
+
+t1T2
+t2T1		两个线程的局部变量s交换了引用
+```
+
+
+
+
 
 
 
@@ -4809,7 +5067,7 @@ public final class Unsafe {
 
 
 
-使用了分段锁,在并发量更大的情况下,比AtomicLong更快
+使用了**分段锁**,在并发量更大的情况下,比AtomicLong更快
 
 
 
@@ -5396,7 +5654,7 @@ interrupt()	中断线程(不推荐)
 
 
 
-JDK 1.5 还提供了信号量(semaphore)机制，信号量可以用来限制对某个共享资源进行访问的线程的数量。在对资源进行访问之前，线程必须得到信号量的许可（调用 Semaphore 对象的 acquire()方法）；在完成对资源的访问后，线程必须向信号量归还许可（调用 Semaphore 对象的 release()方法）。
+
 
 
 
@@ -5750,9 +6008,11 @@ wait + notify 解决线程通信
 
 
 
+synchronized强同步
+
 ==volatile针对变量弱同步，不保证线程安全==		static不是可见的
 
-synchronized强同步
+==volatile修饰引用变量时,引用不变不会刷新至主内存==,所以volatile一般用于修饰值对象
 
 
 
@@ -6641,8 +6901,6 @@ private void unparkSuccessor(Node node) {
 
 
 
-读写锁
-
 **读读共享、写写互斥、读写互斥**
 
 
@@ -7285,9 +7543,15 @@ public static void unpark(Thread thread) {
 
 
 
-
+如果没有LockSupport,线程阻塞一般以加锁/阻塞队列来实现
 
 LockSupport不用持有/加锁，性能高
+
+
+
+唤醒线程的wait+notify顺序不能调换
+
+但LockSupport的unpark可以先于park(还未阻塞之前解除阻塞)
 
 有先后顺序，先进行unpark获得凭证，才能执行park()后面的方法
 
@@ -7295,10 +7559,8 @@ LockSupport不用持有/加锁，性能高
 
 ```java
 Thread t1 = new Thread(() -> {
-LockSupport.park();
-
-//因为permit=1,上一行已经使用了permit,第二个park()会导致程序处于一直等待的状态
-LockSupport.park();
+  LockSupport.park();
+  LockSupport.park();//因为permit=1,上一行已经使用了permit,第二个park()会导致程序处于一直等待的状态
 }, "A");
 t1.start();
 
