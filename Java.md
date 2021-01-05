@@ -9837,14 +9837,14 @@ toLowerCase()
 
 
 
-*  Exception
-  * 必须进行处理的异常，否则不能编译通过
-
-* RuntimeException
-  * 编译器不会检查**它，没有用try-catch/throws也会编译通过
-
+*  Exception (CheckedException   强制调用方对该异常进行处理,否则不能编译通过 )
+*  RuntimeException (unchecked exception,编译器不会检查它，没try-catch/throws也会编译通过)
 * Error:是**程序无法处理的错误**，表示运行应用程序中较严重问题。
   * 大多数错误与代码编写者执行的操作无关。例如，Java虚拟机运行错误/OutOfMemoryError。错误发生时，Java虚拟机（JVM）一般会选择线程终止。
+
+
+
+**对其他应用提供接口的时候,使用javadoc @throws 明确method抛出的异常**
 
 
 
@@ -9856,6 +9856,96 @@ toLowerCase()
 * catch中return，finally依然执行
 * return的是表达式,finally无法改变返回值;return的是引用类型，finally能改变返回值
 * finally代码中最好不要包含return，程序会提前退出，也就是说返回的值不是try或catch中的值
+
+
+
+避免对异常捕获但不作任何处理,只在能处理异常时才进行捕获,否则延迟
+
+对catch的异常不作处理的话,需要写明不处理原因的注释
+
+当catch的异常被命名为expected, 此异常是被期望的且类型正确，此时可以在不作注释的情况下不处理异常
+
+
+
+
+
+
+
+## CheckedException
+
+
+
+在编写代码时无法确定调用方的文件是否存在,此类CheckedException应用在运行时无法避免,只能通过强制软件开发人员在编写代码的时候就考虑对这些无法避免的情况的处理
+
+
+
+```java
+/**
+    * Creates a new <tt>FileReader</tt>, given the name of the
+    * file to read from.
+    *
+    * @param fileName the name of the file to read from
+    * @exception  FileNotFoundException  if the named file does not exist,
+    *                   is a directory rather than a regular file,
+    *                   or for some other reason cannot be opened for
+    *                   reading.
+    */
+public FileReader(String fileName) throws FileNotFoundException {
+  super(new FileInputStream(fileName));
+}
+```
+
+
+
+* 缺点
+  * 将Checked Exception向上传递throws ,将导致异常不断地向上传递,降低代码质量,在异常向上传递的同时也会模糊异常原本的含义,让上层调用者无法得知异常的原因与处理方式,要**避免二次throw异常**
+  * 对于频繁被调用的API,每处调用都需要用 try … catch …块来截获该异常 ,会污染代码
+
+
+
+
+
+Checked Exception只在异常情况对于API以及API的使用者都无法避免的情况下被使用 ,这也是API设计中的一部分。在调用的时候，必须处理此异常 
+
+例如在打开一个文件的时候，API以及API的使用者都没有办法保证该文件一定存在。反过来，在通过索引访问数据的时候，如果API的使用者对参数index传入的是-1，那么这就是一个代码上的错误，是完全可以避免的。因此对于index参数值不对的情况，我们应该使用Unchecked Exception 
+
+Checked Exception不应该被广泛调用的API所抛出。这一方面是基于代码整洁性的考虑，另一方面则是因为Checked Exception本身的实际意义是API以及API的使用者都无法避免的情况。如果一个应用有太多处这种“无法避免的异常”，那么这个程序是否拥有足够的质量也是一个很值得考虑的问题。而就API提供者而言，在一个主要的被广泛使用的功能上抛出这种异常，也是对其自身API的一种否定。
+
+Checked Exception应该有明确的意义。这种明确意义的标准则是需要让API使用者能够看到这个Checked Exception所对应的异常类，该异常类所包含的各个域，并阅读相应的API文档以后就能够了解到底哪里出现了问题，进而向用户提供准确的有关该异常的解释
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -10156,6 +10246,10 @@ String string = "Hello";
 
 
 每个case要么通过continue/break/return等来终止，要么注释说明程序将继续执行到哪一个case为止
+
+
+
+==对于case不需要break时,必须写注释,解释为何不需要break==
 
 必须包含一个default语句并且放在最后
 

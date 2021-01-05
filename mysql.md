@@ -320,12 +320,25 @@ ifnull(字段,空值时的缺省值)		可以设置空值时的缺省值，常用
 
 <=> 安全等于，可判断空值也可运算
 
-【强制】使用ISNULL()来判断是否为NULL值。 说明：NULL与任何值的直接比较都为NULL。
+【强制】使用ISNULL()来判断是否为NULL值。 说明：**null 与任何数值加减乘除四则运算结果都为null**
 1） NULL<>NULL的返回结果是NULL，而不是false。
 2） NULL=NULL的返回结果是NULL，而不是true。
 3） NULL<>1的返回结果是NULL，而不是true。
 
  
+
+```mysql
+#对于可能出现null的字段,使用ifnull()进行sum
+SELECT sum(t.num)+sum(st.num)
+FROM trade t LEFT JOIN service_trade st ON t.tid=st.tid;
+->
+SELECT sum(t.num)+sum(ifnull(st.num,0))
+FROM trade t LEFT JOIN service_trade st ON t.tid=st.tid;
+```
+
+
+
+
 
 ## 字符函数
 
@@ -472,7 +485,7 @@ Exists		判断是否存在，返回boolean
 
 
 
-## 分页查询
+## 分页
 
 
 
@@ -489,6 +502,93 @@ Limit 1		获取第一个数值
 
 
 
+
+
+### 排序字段不唯一会导致翻页时重复记录
+
+
+
+```mysql
+-- 有8条记录
+SELECT *  FROM t2 ORDER BY created DESC;
++----+---------------------+
+| id | created             |
++----+---------------------+
+|  2 | 2017-07-10 08:36:29 |
+|  4 | 2017-07-07 16:14:30 |
+|  3 | 2017-07-07 15:47:34 |
+|  1 | 2017-07-07 10:25:54 |
+|  6 | 2017-07-05 02:02:28 |
+|  5 | 2017-06-03 00:33:05 |
+|  7 | 2017-06-03 00:33:05 |
+|  8 | 2017-06-03 00:33:05 |
++----+---------------------+
+
+-- 第一页
+SELECT *  FROM t2 ORDER BY created DESC LIMIT 0,6;
++----+---------------------+
+| id | created             |
++----+---------------------+
+|  2 | 2017-07-10 08:36:29 |
+|  4 | 2017-07-07 16:14:30 |
+|  3 | 2017-07-07 15:47:34 |
+|  1 | 2017-07-07 10:25:54 |
+|  6 | 2017-07-05 02:02:28 |
+|  8 | 2017-06-03 00:33:05 |
++----+---------------------+
+
+-- 第二页，出现重复记录 id=8
+SELECT *  FROM t2 ORDER BY created DESC LIMIT 6,6;
++----+---------------------+
+| id | created             |
++----+---------------------+
+|  7 | 2017-06-03 00:33:05 |
+|  8 | 2017-06-03 00:33:05 |
++----+---------------------+
+```
+
+当排序字段的值相同时,mysql不能保证结果集的顺序固定
+
+避免出现排序字段值相同而导致的无序 -> 翻页时重复		需要额外增加排序字段
+
+
+
+当未指定OrderBy时,按扫描顺序	如果走主键索引,则按主键排序;如果走二级索引,则按二级索引排序
+
+增，删，改或者走的索引变化后都可能导致查询结果集变化或者乱序
+
+
+
+
+
+### 不需要精确记录数时,只显示记录数的大致范围
+
+
+
+```
+-- 已有索引(user_id,modified)
+-- 现有查询，查询某个用户修改时间范围最近半年内的退款数
+SELECT count(*)
+FROM local_refund
+WHERE user_id=2041579417 
+  AND modified>='2019-04-19 00:00:00';
+
+-- 考虑改为显示10000+
+SELECT count(*)
+FROM (
+  SELECT refund_id
+  FROM local_refund
+  WHERE user_id=2041579417 
+    AND modified>='2019-04-19 00:00:00'
+LIMIT 10000) t;
+```
+
+如果需要精确数据，可以考虑生成统计表
+
+
+
+
+
 ```sql
 #Oracle：通过 rownum 来实现
 select * from ( select rownum rn,t.* from addressbook where rownum<=
@@ -501,7 +601,74 @@ addressbook)
 
 
 
-## Union	联合查询
+
+
+## Count
+
+
+
+count(*)统计行数	== count(1)		性能高
+
+count(column)统计字段不为空的行数
+
+
+
+
+
+
+
+
+
+## OrderBy
+
+
+
+2种排序方式:IndexSort , FileSort
+
+1. index ：通过有序索引顺序扫描直接返回有序数据，不需要额外的排序，效率高
+2. filesort：并不代表通过磁盘文件排序，而是说明进行了排序操作，至于是否使用了磁盘文件或临时表等，取决于MySQL服务器对排序参数的设置和需要排序数据的大小
+
+
+
+一般而言，filesort通过相应的排序算法，将数据在内存排序区sort_buffer_size进行排序，如果内存装载不下，它就将磁盘上的数据进行分块，再对各个数据块进行排序，然后合并成有序的结果集
+
+sort_buffer_size是每个线程独占的，**同一时刻存在多个sort buffer排序区**
+
+
+
+优化：==尽量减少额外排序，通过索引直接返回有序的数据==。where 条件和order by 使用了相同的索引，并且order by 的顺序和索引顺序相同，并且order by 的字段都是升序或者降序，否则肯定需要filesort
+
+
+
+以下SQL不可以使用索引：
+
+select * from tablename order by key_part1 desc,key_part2 asc; ----order by 的字段混合asc,desc
+
+select * from tablename where key2=constant order by key1; ----用于查询的关键字与order by 中所使用的不相同
+
+select * from tablename order by key1,key2;   ----对不同的关键字使用order by
+
+ 
+
+对于Filesort，MySQL有两种排序算法 ：
+
+一次扫描算法和两次扫描算法，通过比较系统变量max_length_for_sort_data的大小和query语句总字段的大小来判断使用哪种排序算法。
+
+适当增加 max_length_for_sort_data的值，适当增加sort_buffer_size排序区，尽量使用具体的字段而不是select * 选择所有字段
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Union	联合
 
 
 
@@ -1041,9 +1208,103 @@ Read View生成时机的不同，造成RC,RR级别下快照读的结果的不同
 
 
 
+## 锁
 
 
-## 间隙锁next-key locking
+
+### 间隙锁 Gap Lock
+
+
+
+ **间隙锁（无论是S还是X）只会阻塞insert操作** 
+
+ 共享锁只锁覆盖索引。排他锁，系统会认为你接下来要更新数据，因此会顺便给主键索引上满足条件的行加上行锁 
+
+ Innodb在可重复读提交下为解决幻读引入的锁机制	==加在索引上==
+
+ 行锁和间隙锁共同组成 next-key locking: 锁定一个范围，并且锁定记录本身 
+
+
+
+1. 加锁的基本单位是（next-key lock）,前开后闭 -> ( , ]
+
+2. 查询过程中访问的对象会加锁
+
+3. 等值查询中给唯一索引加锁时，next-key lock升级为行锁 -> [ , ]
+
+4. 等值查询中最右的值不满足查询需求，next-key lock 退化为间隙锁 -> ( , )
+
+5. 唯一索引上的范围查询会访问到不满足条件的第一个值为止
+
+
+
+
+
+
+
+![](image.assets/锁表格.png)
+
+
+
+```mysql
+//session A
+BEGIN;
+SELECT * FROM z WHERE b = 6 FOR UPDATE;
+
+//session B
+INSERT INTO z VALUES (2, 4);/*success*/
+INSERT INTO z VALUES (2, 8);/*blocked*/
+INSERT INTO z VALUES (4, 4);/*blocked*/
+INSERT INTO z VALUES (4, 8);/*blocked*/
+INSERT INTO z VALUES (8, 4);/*blocked*/
+INSERT INTO z VALUES (8, 8);/*success*/
+INSERT INTO z VALUES (0, 4);/*blocked*/
+INSERT INTO z VALUES (-1, 4);/*success*/
+```
+
+A启动,给索引 b 加 next-key lock (4, 6]和(6 ,8],向右遍历发现最后一个值不满足条件,(6 ,8]退化为间隙锁 (6,8)；所以索引 b 上的 next-key lock 的范围是 [ (b=4,id=3) , (b=6,id=5) ) 和 ( (b=6,id=5) , (b=8,id=7) )
+
+<img src="image.assets/上锁情况.png" style="zoom:50%;" />
+
+ 由于(b=4,id=3)的存在，(b=4,id=2)不在锁的范围内，可以插入 
+
+但是(b=8,id=2)在间隙锁(6,8)的范围内,所以阻塞
+
+
+
+
+
+对于(0, 4)被阻塞:
+
+![](image.assets/B+树对应上锁情况.png)
+
+ 在非 `NO_AUTO_VALUE_ON_ZERO`模式下,对于ID=0的记录会被分配自增序列的下一个值 -> (10,4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1116,6 +1377,30 @@ MYISAM的叶子节点上方的一个地址，指向索引所在行数据的地�
 
 
 
+在innodb里面，表一般为独立表空间，存储所有数据和索引
+
+每一页都有记录该页属于哪个表空间和页偏移量
+
+页大小默认为16KB(16384)，表空间页从0页开始编号，页偏移量为0，页3固定为根页，页偏移量为49152(16384*3)
+
+==二级索引存储的是主键的值，而不是主键的物理地址==
+
+二级索引通过 表空间号+页偏移量 找到根页，进而找到相应记录
+
+
+
+### 单字段二级索引结构
+
+
+
+![1609834762145](image.assets/1609834762145.png)
+
+
+
+
+
+### 多字段的二级索引
+
 ![](image.assets/索引-示例数据.png)
 
 
@@ -1127,8 +1412,6 @@ MYISAM的叶子节点上方的一个地址，指向索引所在行数据的地�
 
 
 ![](image.assets/b+树组合索引结构.png)
-
-
 
 **非聚簇索引**的叶子节点data部分存储PK
 
@@ -1203,6 +1486,67 @@ select * from T1 where c = 14  and d = 3;-- 无法应用索引，违背最左匹
 - 索引按照列值顺序存储，对于IO密集的范围查找会比随机从磁盘读取每一行数据的IO小
 - MyISAM在内存中只缓存索引，数据则依赖操作系统来缓存，因此要访问数据的话需要一次系统调用，使用覆盖索引则避免了这一点
 - InnoDB的非聚簇索引在叶子节点中保存了PK，如果组合索引能够覆盖查询，就避免了对主键索引的回表查询
+
+
+
+
+
+
+
+## 执行计划
+
+
+
+ 索引查找（index seek），索引扫描（index scan），表扫描（table scan）来实现具体的查询 
+
+
+
+| Using where               | 回表查询                                                     |
+| ------------------------- | ------------------------------------------------------------ |
+| Using index               | 索引覆盖,筛选条件是前导列                                    |
+| using index & using where | 索引覆盖，但where条件在索引列中不是前导列,**不一定会回表**,如果用到前导列，就是“索引查找”，如果用不到前导列，就“索引扫描”，回不回表完全看查询列是否被索引覆盖 |
+| using index condition     | 查询列不完全被索引覆盖,但查询条件可以用索引                  |
+| Null                      | 未被索引覆盖 && where筛选列是索引的前导列，通过索引查找并回表找到未被索引覆盖的字段 |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1394,7 +1738,7 @@ select * from T1 where c = 14  and d = 3;-- 无法应用索引，违背最左匹
 
 * null值判断
 *  !=或<>操作符
-* or 连接符
+* or 连接符       使用or，且没有使用覆盖索引,会进行全表扫描 
 * 表达式/函数/算数运算
 * ==复合索引作为条件,索引中的第一个字段必须作为条件，并且字段顺序与索引顺序一致==   
 
@@ -1444,13 +1788,82 @@ select id from t where name like '%abc%'
 
 
 
-## limit优化
+## limit
 
 
 
-==子查询或者JOIN实现分页==
+ 偏移量大时查询遍历的数据多，效率降低 
+
+ 例如limit 1000,10这样的查询这时MYSQL需要查询出1020条记录然后只返回最后20条，前面的1000条记录都会被抛弃 
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```mysql
+-- 下文t1表结构都如下
+CREATE TABLE `t1` (
+  `tid` BIGINT(20) NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT(20) NOT NULL,
+  `created` DATETIME NOT NULL DEFAULT '1970-01-01 08:00:00',
+  `pay_time` DATETIME NOT NULL DEFAULT '1970-01-01 08:00:00',
+  `num` INT(11) NOT NULL DEFAULT '0',
+  `payment` FLOAT NOT NULL DEFAULT '0',
+  `status` VARCHAR(255) DEFAULT NULL,
+  `buyer_nick` VARCHAR(255) DEFAULT NULL,
+  `sid` VARCHAR(50) NOT NULL,
+  PRIMARY KEY (`tid`),
+  KEY `idx_tra_uid_cre` (`user_id`,`created`),
+  KEY `idx_tra_uid_pt_cre` (`user_id`,`pay_time`,`created`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+-- 业务需求：用户在created一段时间范围内的记录导出
+-- 优化前
+EXPLAIN
+SELECT *
+FROM t1
+WHERE user_id = 2881139781
+  AND created >= '2018-05-01'
+ORDER BY created,tid
+LIMIT 100000,10;
++----+-------------+-------+-------+------------------------------------+-----------------+---------+------+--------+-----------------------+
+| id | select_type | table | type  | possible_keys                      | key             | key_len | ref  | rows   | Extra                 |
++----+-------------+-------+-------+------------------------------------+-----------------+---------+------+--------+-----------------------+
+|  1 | SIMPLE      | t1    | range | idx_tra_uid_cre,idx_tra_uid_pt_cre | idx_tra_uid_cre | 13      | NULL | 213144 | Using index condition |
++----+-------------+-------+-------+------------------------------------+-----------------+---------+------+--------+-----------------------+
+-- 10 rows in set (34.11 sec)
+
+
+EXPLAIN
+SELECT *
+FROM t1
+JOIN
+  (SELECT tid
+   FROM t1
+   WHERE user_id = 2881139781
+   AND created >= '2018-05-01'
+   ORDER BY created,tid
+   LIMIT 100000,10) t2 #子查询走覆盖索引
+   ON t1.tid=t2.tid;	#走主键索引
++----+-------------+------------+--------+------------------------------------+-----------------+---------+--------+--------+--------------------------+
+| id | select_type | table      | type   | possible_keys                      | key             | key_len | ref    | rows   | Extra                    |
++----+-------------+------------+--------+------------------------------------+-----------------+---------+--------+--------+--------------------------+
+|  1 | PRIMARY     | <derived2> | ALL    | NULL                               | NULL            | NULL    | NULL   | 100010 | NULL                     |
+|  1 | PRIMARY     | t1         | eq_ref | PRIMARY                            | PRIMARY         | 8       | t2.tid |      1 | NULL                     |
+|  2 | DERIVED     | t1         | range  | idx_tra_uid_cre,idx_tra_uid_pt_cre | idx_tra_uid_cre | 13      | NULL   | 213144 | Using where; Using index |
++----+-------------+------------+--------+------------------------------------+-----------------+---------+--------+--------+--------------------------+
+-- 10 rows in set (0.37 sec)
+
+
+
 SELECT * FROM tableName ORDER BY id LIMIT 50000,2;
 ->
 #子查询方式，索引扫描
@@ -1459,11 +1872,28 @@ WHERE id >= (SELECT id FROM tableName ORDER BY id LIMIT 50000 , 1) LIMIT 2;
 
 #JOIN分页方式
 SELECT * FROM t1 
-JOIN (SELECT id FROM t1 ORDER BY id LIMIT 50000, 1) AS t2 
+JOIN (
+  SELECT id FROM t1 ORDER BY id LIMIT 50000, 1) AS t2	#走覆盖索引 
 WHERE t1.id <= t2.id ORDER BY t1.id LIMIT 2;
+
+#进阶优化:策略模式,每页100条数据，判断如果是100页以内，就使用最基本的分页方式；如果大于100，则使用子查询的分页方式
 ```
 
-进阶优化:运用策略模式处理分页,每页100条数据，判断如果是100页以内，就使用最基本的分页方式；如果大于100，则使用子查询的分页方式
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1494,7 +1924,80 @@ SELECT CHARACTER_LENGTH("轻松工作")； 返回为4
 
 
 
-# sql注入
+## or，子查询，连接查询
+
+
+
+```mysql
+-- 查询：user_id = 2881139781， pay_time或者created在2018-06-01一天的数据。
+
+-- or查询
+EXPLAIN
+SELECT count(*)
+FROM t1
+WHERE user_id = 2881139781
+    AND (pay_time >= '2018-06-01' AND pay_time < '2018-06-02' OR created >= '2018-06-01' AND created < '2018-06-02');
++----+-------------+-------+------+------------------------------------+--------------------+---------+-------+--------+--------------------------+
+| id | select_type | table | type | possible_keys                      | key                | key_len | ref   | rows   | Extra                    |
++----+-------------+-------+------+------------------------------------+--------------------+---------+-------+--------+--------------------------+
+|  1 | SIMPLE      | t1    | ref  | idx_tra_uid_cre,idx_tra_uid_pt_cre | idx_tra_uid_pt_cre | 8       | const | 231494 | Using where; Using index |
++----+-------------+-------+------+------------------------------------+--------------------+---------+-------+--------+--------------------------+
++----------+
+| count(*) |
++----------+
+|     6049 |
++----------+
+1 row in set (0.20 sec)
+
+-- 子查询
+EXPLAIN
+SELECT count(*)
+FROM t1
+WHERE tid IN (
+              SELECT tid FROM t1 WHERE user_id = 2881139781 AND pay_time >= '2018-06-01' AND pay_time < '2018-06-02'
+              UNION
+              SELECT tid FROM t1 WHERE user_id = 2881139781 AND created >= '2018-06-01' AND created < '2018-06-02');
++----+--------------------+------------+--------+--------------------------------------------+-----------------+---------+------+---------+--------------------------+
+| id | select_type        | table      | type   | possible_keys                              | key             | key_len | ref  | rows    | Extra                    |
++----+--------------------+------------+--------+--------------------------------------------+-----------------+---------+------+---------+--------------------------+
+|  1 | PRIMARY            | t1         | index  | NULL                                       | idx_tra_uid_cre | 13      | NULL | 4973266 | Using where; Using index |
+|  2 | DEPENDENT SUBQUERY | t1         | eq_ref | PRIMARY,idx_tra_uid_cre,idx_tra_uid_pt_cre | PRIMARY         | 8       | func |       1 | Using where              |
+|  3 | DEPENDENT UNION    | t1         | eq_ref | PRIMARY,idx_tra_uid_cre,idx_tra_uid_pt_cre | PRIMARY         | 8       | func |       1 | Using where              |
+| NULL | UNION RESULT       | <union2,3> | ALL    | NULL                                       | NULL            | NULL    | NULL |    NULL | Using temporary          |
++----+--------------------+------------+--------+--------------------------------------------+-----------------+---------+------+---------+--------------------------+
+-- 执行时长超过30min
+
+-- 连接查询
+EXPLAIN
+SELECT count(*)
+FROM t1 JOIN (
+              SELECT tid FROM t1 WHERE user_id = 2881139781 AND pay_time >= '2018-06-01' AND pay_time < '2018-06-02'
+              UNION
+              SELECT tid FROM t1 WHERE user_id = 2881139781 AND created >= '2018-06-01' AND created < '2018-06-02') t2 ON t1.tid=t2.tid;
++----+--------------+------------+--------+------------------------------------+--------------------+---------+--------+-------+--------------------------+
+| id | select_type  | table      | type   | possible_keys                      | key                | key_len | ref    | rows  | Extra                    |
++----+--------------+------------+--------+------------------------------------+--------------------+---------+--------+-------+--------------------------+
+|  1 | PRIMARY      | <derived2> | ALL    | NULL                               | NULL               | NULL    | NULL   | 22578 | NULL                     |
+|  1 | PRIMARY      | t1         | eq_ref | PRIMARY                            | PRIMARY            | 8       | t2.tid |     1 | Using index              |
+|  2 | DERIVED      | t1         | range  | idx_tra_uid_cre,idx_tra_uid_pt_cre | idx_tra_uid_pt_cre | 13      | NULL   | 10484 | Using where; Using index |
+|  3 | UNION        | t1         | range  | idx_tra_uid_cre,idx_tra_uid_pt_cre | idx_tra_uid_cre    | 13      | NULL   | 12094 | Using where; Using index |
+| NULL | UNION RESULT | <union2,3> | ALL    | NULL                               | NULL               | NULL    | NULL   |  NULL | Using temporary          |
++----+--------------+------------+--------+------------------------------------+--------------------+---------+--------+-------+--------------------------+
+-- 1 row in set (3.60 sec)
+```
+
+
+
+子查询性能不好时，尝试改为连接查询，看能否提高性能。
+or操作性能不好时，考虑改用union/union all查询，看能否提高性能
+
+
+
+
+
+
+
+# 注入
 
 
 
