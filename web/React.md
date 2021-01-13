@@ -38,6 +38,40 @@ ReactDOM.render(element, document.getElementById('root'));
 
 
 
+**props**
+
+React 组件的输入。它们是从父组件向下传递给子组件的数据。
+
+**只读,不会变化,也不能手动变化它**
+
+
+
+**props.children**
+
+包含组件的开始标签和结束标签之间的内容
+
+每个组件都可以获取到 `props.children`
+
+
+
+**state**
+
+组件中数据在某些时刻发生**变化**时，需要用 `state` 来跟踪状态
+
+如果可以通过state / props 计算出该数据的值,则它不该定义成 state
+
+
+
+区别：==`props` 由父组件传入， `state` 由组件本身管理==。组件不能修改 `props`，但可以修改 `state`
+
+对所有变化数据中的每个特定部分，只应该由一个组件在其 state 中“持有”它。不要试图同步两个组件的 state。相反，应当将其[提升](https://react.docschina.org/docs/lifting-state-up.html)到最近的共同祖先组件中，并将这个 state 作为 props 传递到两个子组件
+
+
+
+
+
+
+
 # 组件
 
 
@@ -142,9 +176,17 @@ function Avatar(props) {
 
 **受控组件**	子组件在触发事件时从父组件接收值,并通知父组件
 
-state成为组件唯一的数据源, 渲染表单的 React 组件还控制着用户输入过程中表单发生的操作
+元素的值是由 React 控制 ,state为唯一的数据源
 
 ==受控组件上指定了value,将阻止用户更改输入== ( `value` 设置为 `undefined` 或 `null` 时不再受控)
+
+当用户将数据输入到受控组件时，会触发修改状态的事件处理器，这时由 条件判断 来决定输入是否有效
+
+
+
+**非受控组件**
+
+运行在 React 体系之外的表单元素。对于用户的输入,React只需要映射更新后的信息。但这也意味着无法强制给这个元素设置一个特定值 
 
 
 
@@ -187,6 +229,10 @@ function Square(props){
 
 
 
+![](image.assets/React生命周期.png)
+
+
+
 **挂载**		组件实例被创建并插入 DOM 中
 
 - constructor()
@@ -196,9 +242,28 @@ function Square(props){
 
 
 
+**更新**	当组件的 props 或 state 发生变化时会触发更新
+
+- [`static getDerivedStateFromProps()`](https://react.docschina.org/docs/react-component.html#static-getderivedstatefromprops)
+- [`shouldComponentUpdate()`](https://react.docschina.org/docs/react-component.html#shouldcomponentupdate)
+- [**`render()`**](https://react.docschina.org/docs/react-component.html#render)
+- [`getSnapshotBeforeUpdate()`](https://react.docschina.org/docs/react-component.html#getsnapshotbeforeupdate)
+- [**`componentDidUpdate()`**](https://react.docschina.org/docs/react-component.html#componentdidupdate)
 
 
 
+**卸载**		当组件从 DOM 中移除时会调用如下方法：
+
+- [**`componentWillUnmount()`**](https://react.docschina.org/docs/react-component.html#componentwillunmount)
+
+
+
+**错误处理**	当渲染过程，生命周期，或子组件的构造函数中抛出错误时
+
+- [`static getDerivedStateFromError()`](https://react.docschina.org/docs/react-component.html#static-getderivedstatefromerror)
+- [`componentDidCatch()`](https://react.docschina.org/docs/react-component.html#componentdidcatch)
+
+### 
 
 
 
@@ -1021,6 +1086,70 @@ function calculateWinner(squares) {
 
 
 
+# Context
+
+
+
+共享对于组件树而言是“全局”的数据，例如当前认证的用户、主题或首选语言 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1065,6 +1194,418 @@ memo仅检查 props 变更。如果函数组件被 `React.memo` 包裹，且其�
 
 
 
+# API
+
+
+
+## render()
+
+
+
+class 组件中唯一必须实现的方法 
+
+render会检查 `this.props` 和 `this.state` 的变化并返回以下类型之一：
+
+- **React 元素**。通常通过 JSX 创建
+- **数组或 fragments**。 使得 render 方法可以返回多个元素
+- **Portals**。可以渲染子节点到不同的 DOM 子树中
+- **字符串或数值类型**。在 DOM 中会被渲染为文本节点
+- **boolean / null**。什么都不渲染。（主要用于支持 `boolean && ` )
+
+`render()` 应为纯函数，在不修改 state 的情况下，每次调用都返回相同结果，并且**不会直接与浏览器交互**
+
+如需与浏览器进行交互，用 `componentDidMount()` 。保持 `render()` 为纯函数，可以使组件更容易思考
+
+
+
+## constructor()
+
+
+
+```react
+constructor(props) {
+	//必须先super(props);否则this.props可能会未定义
+  super(props);
+  //构造函数中this.setState()		其他函数中this.setState()
+  this.state = { counter: 0 };
+  this.handleClick = this.handleClick.bind(this);
+}
+```
+
+
+
+当不初始化 state /不进行方法绑定，不需要构造函数
+
+构造函数仅用于以下两种情况：
+
+- 通过给 `this.state` 赋值对象来初始化[内部 state](https://react.docschina.org/docs/state-and-lifecycle.html)。
+- 为[事件处理函数](https://react.docschina.org/docs/handling-events.html)绑定实例
+
+
+
+**避免将 props 的值赋值给 state！** 可以直接使用 `this.props.` ,赋值将导致修改props不改变state
+
+
+
+## componentDidMount()
+
+
+
+会在组件挂载后（插入 DOM 树）立即调用
+
+适用场景:	实例化网络请求,添加订阅
+
+
+
+可以在 `componentDidMount()` 里setState(),将触发额外渲染，但此渲染会发生在浏览器更新屏幕之前。如此保证了即使在 `render()` 两次调用的情况下，用户也不会看到中间状态。请谨慎使用该模式，因为它会导致性能问题。通常，你应该在 `constructor()` 中初始化 state。如果你的渲染依赖于 DOM 节点的大小或位置，比如实现 modals 和 tooltips 等情况下，可以使用此方式处理
+
+
+
+### componentDidUpdate()
+
+
+
+会在更新后会被立即调用。首次渲染不会执行此方法
+
+==如果 shouldComponentUpdate()返回值为 false，则不会调用 componentDidUpdate()==
+
+当组件更新后，可在此处对 DOM 进行操作。如果对更新前后的 props 进行了比较，也可以选择在此处进行网络请求。（例如，当 props 未发生变化时，则不会执行网络请求）。
+
+```react
+componentDidUpdate(prevProps) {
+  //比较props,发生改变则重新发起网络请求
+  if (this.props.userID !== prevProps.userID) {
+    this.fetchData(this.props.userID);
+  }
+}
+```
+
+可以在 `componentDidUpdate()` 中**setState()**，但**必须被包裹在条件语句中**，否则会死循环。还会导致额外的重新渲染
+
+
+
+## componentWillUnmount()
+
+
+
+会在组件卸载及销毁之前直接调用
+
+在此方法中执行必要的**清理操作**，例如，清除 timer，取消网络请求或清除在 `componentDidMount()` 中创建的订阅等
+
+**此处不应setState()**，因为该组件将永远不会重新渲染
+
+
+
+
+
+
+
+# HOOK 16.8+
+
+
+
+**在无需修改组件结构的情况下复用状态逻辑**, 在函数组件里“钩入” React state 及生命周期等特性的函数
+
+
+
+* 不能在 class 组件中使用
+
+* 在**函数最外层**调用 Hook。不要在循环、条件判断或者子函数中调用
+
+* 在 **React 的函数组件**中调用 Hook。不要在其他 JavaScript 函数中调用
+* 在自定义HOOK中调用其他HOOK
+
+
+
+## useState
+
+
+
+给组件添加一些内部 state, 会在重复渲染时保留这个 state
+
+useState 会返回一对值：**当前**状态和一个让你更新它的函数,这个函数类似 class 组件的 `this.setState`，**但不会把新的 state 和旧的 state 进行合并**( state 只在组件首次渲染的时候被创建。在下一次重新渲染时，`useState` 返回上一次的 state )
+
+
+
+非Class的React函数组件是无状态的(没有state),不使用HOOK的情况下想要加入state,必须得转化成Class
+
+==`useState` 让React 函数组件也能拥有 状态state==
+
+
+
+```react
+class Example extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {  count: 0  };
+}
+->
+function Example() {
+  // 声明一个叫 “count” 的 state 变量		0作为初始state,只在第一次渲染时使用
+  //useState返回一对值：count 当前状态 setCount 更新状态函数
+  const [count, setCount] = useState(0);
+}
+```
+
+
+
+**定义多个state**
+
+```react
+const [state, setState] = useState({ left: 0, top: 0, width: 100, height: 100 });
+//需要展开...state 以确保没有丢失 width 和 height
+setState(state => ({ ...state, left: e.pageX, top: e.pageY }));
+```
+
+
+
+**读取state**
+
+```react
+<p>You clicked {this.state.count} times</p>
+->
+//没有this,可以直接指定变量
+<p>You clicked {count} times</p>
+```
+
+
+
+**更新state**
+
+```react
+<button onClick={() => this.setState({ count: this.state.count + 1 })}></button>
+->
+  //同样没有this
+<button onClick={() => setCount(count + 1)}></button>
+```
+
+
+
+**总结**
+
+```react
+import React, { useState } from 'react';	//引入`useState` Hook
+function Example() {
+  const [count, setCount] = useState(0);	//调用useState Hook,返回一个变量,命名为count,返回一个更新变量的函数,命名为setCount
+  return (
+    <div>
+      <p>{count}</p>
+      <button onClick={() => setCount(count + 1)} />	//点击后更新count,触发重新渲染
+    </div>
+  );
+}
+```
+
+
+
+const [count, setCount]	此处为 JavaScript 语法 ==数组解构==
+
+
+
+```javascript
+const foo = ['one', 'two', 'three'];
+
+const [red, yellow, green] = foo;
+console.log(red); // "one"
+console.log(yellow); // "two"
+console.log(green); // "three"
+```
+
+
+
+## useEffect 
+
+
+
+副作用函数,在React完成对Dom的更改后运行	( 每次渲染 ,包括第一次)
+
+可以视为`componentDidMount`，`componentDidUpdate` 和 `componentWillUnmount` 这三个函数的组合 
+
+**可以在 effect 中直接访问组件的 props 和 state**
+
+
+
+**无需清除的effect**
+
+```react
+import React, { useState, useEffect } from 'react';
+// 相当于 componentDidMount 和 componentDidUpdate:  
+useEffect(() => {    
+  // 使用浏览器的 API 更新页面标题    
+  document.title = `You clicked ${count} times`;  
+});
+```
+
+
+
+
+
+**需要清除的effect**		订阅&清除订阅
+
+一些副作用是需要清除的。例如**订阅外部数据源**。可以防止内存泄露 
+
+```react
+//Class中componentDidMount 和 componentWillUnmount相对应。挂载与卸载逻辑分离
+componentDidMount() {
+  document.title = `You clicked ${this.state.count} times`;
+  ChatAPI.subscribeToFriendStatus(
+    this.props.friend.id,
+    this.handleStatusChange
+  );
+}
+
+componentDidUpdate() {
+  document.title = `You clicked ${this.state.count} times`;
+}
+
+componentWillUnmount() {
+  ChatAPI.unsubscribeFromFriendStatus(
+    this.props.friend.id,
+    this.handleStatusChange
+  );
+}
+->
+useEffect(() => {
+  document.title = `You clicked ${count} times`;
+});
+
+const [isOnline, setIsOnline] = useState(null);
+useEffect(() => {
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
+
+  ChatAPI.subscribeToFriendStatus(props.friend.id, handleStatusChange);
+  return () => {
+    ChatAPI.unsubscribeFromFriendStatus(props.friend.id, handleStatusChange);
+  };
+});
+```
+
+==return () => {}	 返回一个函数是 useEffect 可选的清除机制。**每个 effect只能返回一个清除函数**。如此可以将添加和移除订阅的逻辑放在一起==
+
+会在组件卸载时执行清除操作 
+
+
+
+**Effect HOOK主要是解决Class中生命周期拆分代码逻辑带来的问题**
+
+在Class中,`document.title` 的逻辑是被分割到 `componentDidMount` 和 `componentDidUpdate` 中，订阅逻辑又被分割到 `componentDidMount` 和 `componentWillUnmount` 中。而且 `componentDidMount` 中同时包含了两个不同功能的代码 
+
+使用多个 effect,可以**按照代码的用途分离** ,而不是根据生命周期分离
+
+
+
+
+
+## useContext
+
+
+
+接收 context 对象（`React.createContext` 的返回值）并返回该 context 的当前值。当前的 context 值由上层组件中距离当前组件最近的  <MyContext.Provider>  的 `value` prop 决定。
+
+当组件上层最近的更新时，该 Hook 会触发重渲染，并使用最新传递给 MyContext provider 的 context value值。即使祖先使用 React.memo / shouldComponentUpdate，也会在组件本身使用 useContext 时重新渲染。
+
+别忘记 `useContext` 的参数必须是 *context 对象本身*：
+
+调用了 `useContext` 的组件总会在 context 值变化时重新渲染 
+
+```react
+const themes = {
+  light: {
+    foreground: "#000000",
+    background: "#eeeeee"
+  },
+  dark: {
+    foreground: "#ffffff",
+    background: "#222222"
+  }
+};
+
+const ThemeContext = React.createContext(themes.light);
+
+function App() {
+  return (
+    <ThemeContext.Provider value={themes.dark}>
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+}
+
+function Toolbar(props) {
+  return (
+      <ThemedButton />
+  );
+}
+
+function ThemedButton() {
+  //useContext() 相当于 class组件中的 static contextType = MyContext 或 <MyContext.Consumer>
+  const theme = useContext(ThemeContext);
+  return (
+    <button style={{ background: theme.background, color: theme.foreground }}/>
+  );
+}
+```
+
+
+
+
+
+## useRef
+
+
+
+返回ref对象,其 `.current` 属性可变,但返回的 ref 对象在组件的整个生命周期内保持不变
+
+当`.current` 属性发生改变时,useRef并不会进行通知,也不会触发重新渲染
+
+```react
+const [count, setCount] = useState(0);
+const prevCountRef = useRef();
+useEffect(() => {	prevCountRef.current = count;  });
+const prevCount = prevCountRef.current;
+```
+
+
+
+useRef.current用于保存需要销毁的数据,在useEffect的return中进行销毁
+
+```react
+const divRef = useRef<NodeJS.Timeout | null>(null);
+useEffect(() => {
+  if (buyers.length && currentIndex < buyers.length - 1) {
+    divRef.current = setTimeout(() => {
+      setActive(!active);
+    }, 2000);
+  }
+  return () => {
+    if (divRef.current) {
+      clearTimeout(divRef.current);
+    }
+  };
+}, [active]);
+```
+
+
+
+
+
+## useCallback
+
+
+
+**返回memoized回调函数**
+
+把内联回调函数及依赖项数组作为参数传入 `useCallback`，它将返回该回调函数的 memoized 版本
+
+回调函数仅在某个依赖项改变时才会更新,把回调函数传递给经过优化的并使用引用相等性去避免非必要渲染（例如 `shouldComponentUpdate`）的子组件时，将非常有用
+
+```react
+const memoizedCallback = useCallback(
+  //内联回调函数										依赖项数组
+  () => {  doSomething(a, b); }, [a, b],
+);
+```
 
 
 
@@ -1074,6 +1615,162 @@ memo仅检查 props 变更。如果函数组件被 `React.memo` 包裹，且其�
 
 
 
+## useMemo
+
+
+
+```
+const memoizedValue = useMemo(() => computeExpensiveValue(a, b), [a, b]);
+```
+
+返回一个 [memoized](https://en.wikipedia.org/wiki/Memoization) 值。
+
+把“创建”函数和依赖项数组作为参数传入 `useMemo`，它仅会在某个依赖项改变时才重新计算 memoized 值。这种优化有助于避免在每次渲染时都进行高开销的计算。
+
+记住，传入 `useMemo` 的函数会在渲染期间执行。请不要在这个函数内部执行与渲染无关的操作，诸如副作用这类的操作属于 `useEffect` 的适用范畴，而不是 `useMemo`。
+
+如果没有提供依赖项数组，`useMemo` 在每次渲染时都会计算新的值。
+
+**你可以把 `useMemo` 作为性能优化的手段，但不要把它当成语义上的保证。**将来，React 可能会选择“遗忘”以前的一些 memoized 值，并在下次渲染时重新计算它们，比如为离屏组件释放内存。先编写在没有 `useMemo` 的情况下也可以执行的代码 —— 之后再在你的代码中添加 `useMemo`，以达到优化性能的目的。
+
+
+
+
+
+
+
+
+
+## 自定义HOOK
+
+
+
+对于在组件间重用状态逻辑: 高阶组件 / render props / 自定义HOOK
+
+
+
+函数名以 “`use`” 开头并调用其他 Hook 
+
+只针对状态逻辑进行复用,但每个组件的state是独立的 -> 支持在单个组件多次调用同一个HOOK
+
+
+
+ `FriendStatus` 组件，通过调用 `useState` 和 `useEffect` 的 Hook 来订阅一个好友的在线状态。如果要在另一个组件里重用这个订阅逻辑 
+
+```react
+import React, { useState, useEffect } from 'react';
+
+function FriendStatus(props) {
+  const [isOnline, setIsOnline] = useState(null);
+
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
+
+  useEffect(() => {
+    ChatAPI.subscribeToFriendStatus(props.friend.id, handleStatusChange);
+    return () => {
+      ChatAPI.unsubscribeFromFriendStatus(props.friend.id, handleStatusChange);
+    };
+  });
+  if (isOnline === null) {
+    return 'Loading...';
+  }
+  return isOnline ? 'Online' : 'Offline';
+}
+//抽取到useFriendStatus自定义Hook,以friendID 作为参数，并返回该好友是否在线
+->
+function useFriendStatus(friendID) {
+  const [isOnline, setIsOnline] = useState(null);
+
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
+
+  useEffect(() => {
+    ChatAPI.subscribeToFriendStatus(friendID, handleStatusChange);
+    return () => {
+      ChatAPI.unsubscribeFromFriendStatus(friendID, handleStatusChange);
+    };
+  });
+  return isOnline;
+}
+
+//此时可以在2个组件中复用
+function FriendStatus(props) {
+  const isOnline = useFriendStatus(props.friend.id);
+
+  if (isOnline === null) {
+    return 'Loading...';
+  }
+  return isOnline ? 'Online' : 'Offline';
+}
+function FriendListItem(props) {
+  const isOnline = useFriendStatus(props.friend.id);
+
+  return (
+    <li style={{ color: isOnline ? 'green' : 'black' }}>
+      {props.friend.name}
+    </li>
+  );
+}
+```
+
+
+
+
+
+
+
+# 划分组件
+
+
+
+![](image.assets/划分组件.png)
+
+
+
+* `FilterableProductTable` (橙色):整个示例应用的整体
+  * `SearchBar` (蓝色): 接受所有的*用户输入*
+  * `ProductTable` (绿色): 展示*数据内容*并根据*用户输入*筛选结果
+    * `ProductCategoryRow` (天蓝色):为每一个产品类别展示标题
+    * `ProductRow` (红色):每一行展示一个产品
+
+当应用比较简单时，自上而下开发；较为大型的项目，自下而上
+
+
+
+将渲染 UI 和添加交互这两个过程分开。因为编写静态版本时，往往要大量代码而不需要考虑太多交互细节；添加交互功能时则要考虑大量细节，而不需要编写太多代码
+
+
+
+1. 构建应用的静态版本
+
+   需要创建重用组件，然后通过 *props* 传入所需的数据。*props* 是父组件向子组件传递数据的方式。**但不应该使用 state构建静态版本**。state 代表随时间会产生变化的数据，仅在实现交互时使用
+
+   只提供render()用于渲染,顶层组件通过 props 接受数据模型。如果数据模型发生改变，再次调用 `ReactDOM.render()`，UI 会相应地被更新
+
+2. 确定state的最小集合
+
+   找出应用所需的 state 的最小表示，并根据需要计算出其他所有数据,只保留应用所需的 state 的最小集合，其他数据均由它们计算产生
+
+> 用户输入的搜索词
+>
+> 复选框是否选中的值
+
+3. 确定state的放置位置 (state从父->子)
+
+   找到公共父组件,父组件在组件层级上高于根据这个 state 进行渲染的所有组件
+
+   如果找不到合适位置,就直接创建新组件来存放，并将新组件作为公共父组件
+
+> `ProductTable` 需要根据 state 筛选产品列表。`SearchBar` 需要展示搜索词和复选框的状态。
+>
+> 他们的共同所有者是 `FilterableProductTable`。
+>
+> 因此，搜索词和复选框的值应该很自然地存放在 `FilterableProductTable` 组件中
+
+4. 添加反向数据流 (从子->父)
 
 
 

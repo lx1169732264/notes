@@ -235,6 +235,76 @@ Assert.assertEquals(LocalDate.of(1900, 1, 1), day);
 
 
 
+## Duration 1.8+
+
+
+
+表示两个Instant间的一段时间
+
+包含两个域：纳秒值（小于一秒的部分），秒钟值（一共的秒数），纳秒+秒 合计为真实时间长度
+
+
+
+```java
+//没有毫秒,并且是final	,创建后无法改变时间
+private final long seconds;
+private final int nanos;
+```
+
+
+
+**创建**
+
+```java
+Instant first = Instant.now();
+Instant second = Instant.now();
+Duration duration = Duration.between(first, second);
+```
+
+
+
+**转化**	整个时间(秒+毫秒)的转化
+
+```java
+toNanos()
+toMillis()
+toMinutes()
+toHours()
+toDays()
+//没有toSeconds()是因为等同于没有getSeconds()
+```
+
+
+
+**计算方法**	所有的计算方法都返回新的Duration，保证Duration的不可变
+
+```java
+plusNanos()
+plusMillis()
+plusSeconds()
+plusMinutes()
+plusHours()
+plusDays()
+minusNanos()
+minusMillis()
+minusSeconds()
+minusMinutes()
+minusHours()
+minusDays()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Optional
@@ -5565,6 +5635,7 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 
 * 实现Callable接口  (有返回值,可以抛出异常)
+  * 一般和ExecutorService配合
 
 ```java
 //1.实现Callable接口,定义返回值类型
@@ -7952,6 +8023,20 @@ corePollSize	核心线程数	平时的流量需要的线程数
 
 
 
+execute()，执行一个任务，没有返回值。
+submit()，提交一个线程任务，有返回值。
+submit(Callable<T> task)能获取到它的返回值，通过future.get()获取（阻塞直到任务执行完）。一般使用FutureTask+Callable配合使用（IntentService中有体现）。
+
+submit(Runnable task, T result)能通过传入的载体result间接获得线程的返回值
+
+submit(Runnable task)则是没有返回值的，就算获取它的返回值也是null。
+
+Future.get方法会使取结果的线程进入阻塞状态，知道线程执行完成之后，唤醒取结果的线程，然后返回结果。
+
+
+
+
+
 
 
 
@@ -8169,6 +8254,52 @@ ThreadPoolExecutor默认有四个拒绝策略：
 
 
 
+
+### Future
+
+
+
+支持异步调用,但对于结果的获取却不方便，只能通过阻塞或者轮询的方式得到任务的结果。阻塞的方式显然和我们的异步编程的初衷相违背，轮询的方式又会耗费无谓的 CPU 资源，而且也不能及时地得到计算结果
+
+
+
+三种功能：
+
+判断任务是否完成；
+
+中断任务；
+
+获取任务执行结果
+
+```java
+public interface Future<V> {
+  boolean cancel(boolean mayInterruptIfRunning);//取消任务成功返回true,取消失败/任务已完成,返回false。入参true表示可以取消正在执行过程中的任务
+  boolean isCancelled();	//任务是否被取消成功
+  boolean isDone();
+  V get() throws InterruptedException, ExecutionException;	//获取执行结果，这个方法会阻塞，一直等到任务执行完毕
+  V get(long timeout, TimeUnit unit)  throws InterruptedException, ExecutionException, TimeoutException;
+}
+```
+
+
+
+
+
+### FutureTask
+
+
+
+FutureTask既可以作为Runnable被线程执行，又能作为Future得到Callable的返回值,因为FutureTask实现了RunnableFuture
+
+```java
+public class FutureTask<V> implements RunnableFuture<V>
+  public FutureTask(Callable<V> callable)
+  public FutureTask(Runnable runnable, V result)
+  
+public interface RunnableFuture<V> extends Runnable, Future<V> {
+    void run();
+}
+```
 
 
 
@@ -8940,6 +9071,72 @@ class对象	创建对象->	对象
   * 无法控制回收执行时间,可以通过 System.gc()或者 Runtime.getRuntime().gc()来请求回收
   * ==将对象的引用变量设置为 null，暗示可以回收==
   * 回收任何对象之前，总会先调用它的 finalize 方法,但==不要主动调用finalize==
+
+
+
+**引用计数法**
+
+通过对象的引用计数器,判断该对象是否被引用,计数器为0则被回收
+
+但存在**对象之间相互引用**的问题,此时无法回收
+
+
+
+可达性算法
+
+判断与GC Roots是否可达
+
+
+
+
+
+**标记清除算法**
+
+先对可回收的垃圾进行标记,然后再清理
+
+**会产生大量的内存碎片**
+
+
+
+**标记整理算法**
+
+标记后让所有存活对象向一端移动
+
+**内存变动频繁,效率低**
+
+![image-20210110182712014](image.assets/image-20210110182712014.png)
+
+
+
+![image-20210110182725555](image.assets/image-20210110182725555.png)
+
+
+
+![image-20210110182738332](image.assets/image-20210110182738332.png)
+
+
+
+**复制算法**
+
+
+
+
+
+**分代回收算法**
+
+新生:大量对象新生/死亡				复制算法
+
+年老:存活对象大,没有额外空间进行担保	标记清理/整理
+
+永久代
+
+
+
+
+
+
+
+
 
 
 

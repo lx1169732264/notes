@@ -1,4 +1,8 @@
-## 2，特性
+# MP
+
+
+
+## 特性
 
 1. 无侵入：Mybatis-Plus 在 Mybatis 的基础上进行扩展，只做增强不做改变，引入 Mybatis-Plus 不会对您现有的 Mybatis 构架产生任何影响，而且 MP 支持所有 
 
@@ -36,7 +40,7 @@
 
 
 
-# #和$的区别
+## #和$的区别
 
 
 
@@ -54,7 +58,7 @@
 
 
 
-# 一级缓存
+## 一级缓存
 
 
 
@@ -78,7 +82,7 @@
 
 
 
-# 二级缓存
+## 二级缓存
 
 
 
@@ -88,7 +92,7 @@
 
 
 
-# 分页原理
+## 分页原理
 
 
 
@@ -96,7 +100,7 @@ Mybatis 使用 RowBounds 对象进行分页，也可以直接编写 sql 实现�
 
 
 
-# 自增主键
+## 自增主键
 
 
 
@@ -126,7 +130,167 @@ UUID	全局唯一（UUID）
 
 
 
+# JPA
 
 
 
+8种锁
+
+~~Read,WRITE~~
+
+
+
+OPTIMISTIC	乐观读	**默认**
+
+OPTIMISTIC_FORCE_INCREMENT	乐观写
+
+
+
+
+PESSIMISTIC_READ	悲观读,读之间共享,保证数据在读期间不受修改
+
+PESSIMISTIC_FORCE_INCREMENT	悲观读,事务结束后**增加实体的版本号**，即使实体没有修改 
+
+PESSIMISTIC_WRITE	悲观写,当多个并发更新失败几率较高时使用
+
+
+
+NONE	无锁
+
+
+
+
+
+## 创建查询
+
+
+
+query builder机制内置为构建约束查询库的实体。 带前缀的机制`findXXBy`,`readAXXBy`,`queryXXBy`,`countXXBy`, `getXXBy`自动解析的其余部分。进一步引入子句可以包含表达式等`Distinct`设置不同的条件创建查询。 然而,第一个`By`作为分隔符来表示实际的标准的开始。 在一个非常基础的查询,可以定义条件`And`或者`Or`。
+
+
+
+
+
+IgnoreCase	忽略大小写
+
+OrderBy…Asc/Desc	排序
+
+
+
+假设一个`Person`有一个`Address`与一个`Zipcode`
+
+```java
+List<Person> findByAddressZipCode(ZipCode zipCode);
+//通过 _ 分割,降低错误概率	但实体类需要避免使用 _
+->
+List<Person> findByAddress_ZipCode(ZipCode zipCode);
+```
+
+
+
+入参与方法同名
+
+```java
+Page<User> findByLastname(String lastname, Pageable pageable);
+
+Slice<User> findByLastname(String lastname, Pageable pageable);
+
+List<User> findByLastname(String lastname, Sort sort);
+
+List<User> findByLastname(String lastname, Pageable pageable);
+```
+
+
+
+限制个数
+
+查询方法的结果通过关键字first或者top来限制,它们可以交替使用
+
+在top/firest后添加数字来表示返回最大的结果数,默认1
+
+```java
+User findFirstByOrderByLastnameAsc();
+
+User findTopByOrderByAgeDesc();
+
+Page<User> queryFirst10ByLastname(String lastname, Pageable pageable);
+
+Slice<User> findTop3ByLastname(String lastname, Pageable pageable);
+
+List<User> findFirst10ByLastname(String lastname, Sort sort);
+
+List<User> findTop10ByLastname(String lastname, Pageable pageable);
+```
+
+
+
+返回流
+
+```java
+@Query("select u from User u")
+Stream<User> findAllByCustomQueryAndStream();
+```
+
+
+
+异步查询结果
+
+```java
+@Async
+Future<User> findByFirstname(String firstname);	//返回值java.util.concurrent.Future
+
+@Async
+CompletableFuture<User> findOneByFirstname(String firstname);	//java.util.concurrent.CompletableFuture
+
+@Async
+ListenableFuture<User> findOneByLastname(String lastname);	//org.springframework.util.concurrent.ListenableFuture
+```
+
+
+
+
+
+## 关键词
+
+
+
+And --- 等价于 SQL 中的 and 关键字，比如 findByUsernameAndPassword(String user, Striang pwd)；
+
+Or --- 等价于 SQL 中的 or 关键字，比如 findByUsernameOrAddress(String user, String addr)；
+
+Between --- 等价于 SQL 中的 between 关键字，比如 findBySalaryBetween(int max, int min)；
+
+LessThan --- 等价于 SQL 中的 "<"，比如 findBySalaryLessThan(int max)；
+
+GreaterThan --- 等价于 SQL 中的">"，比如 findBySalaryGreaterThan(int min)；
+
+IsNull --- 等价于 SQL 中的 "is null"，比如 findByUsernameIsNull()；
+
+IsNotNull --- 等价于 SQL 中的 "is not null"，比如 findByUsernameIsNotNull()；
+
+NotNull --- 与 IsNotNull 等价；
+
+Like --- 等价于 SQL 中的 "like"，比如 findByUsernameLike(String user)；
+
+NotLike --- 等价于 SQL 中的 "not like"，比如 findByUsernameNotLike(String user)；
+
+OrderBy --- 等价于 SQL 中的 "order by"，比如 findByUsernameOrderBySalaryAsc(String user)；
+
+Not --- 等价于 SQL 中的 "！ ="，比如 findByUsernameNot(String user)；
+
+In --- 等价于 SQL 中的 "in"，比如 findByUsernameIn(Collection<String> userList) ，方法的参数可以是 Collection 类型，也可以是数组或者不定长参数；
+
+NotIn --- 等价于 SQL 中的 "not in"，比如 findByUsernameNotIn(Collection<String> userList) ，方法的参数可以是 Collection 类型，也可以是数组或者不定长参数；
+
+
+
+
+
+
+
+
+
+@Version
+
+在实体 bean 中使用,会自动对该实体使用**乐观锁**,无需锁声明
 
