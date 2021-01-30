@@ -6389,7 +6389,7 @@ Unlock()释放锁
 
 
 
-AbstractQueuedSynchronizer	抽象队列式同步器,**没有锁的概念**
+AbstractQueuedSynchronizer 抽象队列式同步器,**没有锁的概念**
 
 除synchronized之外的锁,都基于AQS
 
@@ -6411,8 +6411,6 @@ CLH是虚拟的FIFO(先进先出)双向队列
 
 **注意：AQS是自旋锁：**在等待唤醒的时候，使用自旋（while(!cas())）的方式，不停地尝试获取锁，直到被其他线程获取成功
 
-**实现了AQS的锁有：自旋/互斥/读写锁、条件产量、信号量、栅栏都是AQS的衍生物**
-
 ![](image.assets/CLH队列.png)
 
 
@@ -6432,7 +6430,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
   private transient volatile Node head;
   private transient volatile Node tail;
 
-  //lock的占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
+  //锁占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
   private volatile int state;
 }
 
@@ -6455,19 +6453,16 @@ static final class Node {
   //两种资源共享方式
   //Share共享模式，可以被多个线程获取，比如读写锁中的读锁,Semaphore、CountDownLatch、ReadWriteLock，CyclicBarrier
   static final Node SHARED = new Node();
-  //Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
+  
+  //null Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
+  //1 取消获取锁(等待超时/被中断),需要从同步队列中移除
+  //-1 当前节点释放了同步状态或被取消，需要解锁后继节点
+  //-2 节点在等待队列中，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
+  //-3 下一次共享式同步状态获取将会被无条件地传播下去
   static final Node EXCLUSIVE = null;
-
-  //等待超时/被中断，获取锁的请求被取消,需要从同步队列中移除
   static final int CANCELLED =  1;
-
-  //当前节点如果释放了同步状态或者被取消，将会通知后继节点，使后继节点的线程得以运行
   static final int SIGNAL    = -1;
-
-  //节点在等待队列中，节点的线程等待在Condition上，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
   static final int CONDITION = -2;
-
-  //表示下一次共享式同步状态获取将会被无条件地传播下去
   static final int PROPAGATE = -3;
 
   //当前节点的信号量(1,0,-1,-2,-3)5种状态,使用CAS更改状态，volatile保证可见性
@@ -6688,7 +6683,6 @@ static final class FairSync extends Sync {
 }
 
 
-
 //AbstractQueuedSynchronizer
 //加锁
 public final void acquire(int arg) {
@@ -6789,64 +6783,9 @@ final boolean acquireQueued(final Node node, int arg) {
 
 
 
+#### Lock
 
 
-
-
-
-
-#### 可重入的体现
-
-
-
-```java
-private ReentrantLock lock = new ReentrantLock(false);
-private Thread[] threads = new Thread[3];
-
-public Test() {
-  for (int i = 0; i < 3; i++) {
-    threads[i] = new Thread(() -> {
-      for (int i1 = 0; i1 < 2; i1++) {
-        try {
-          lock.lock();
-          Thread.sleep(100);
-          System.out.println(Thread.currentThread().getName());
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        } finally {
-          lock.unlock();
-        }
-      }
-    });
-  }
-  for (Thread thread : threads) {
-    thread.start();
-  }
-}
-运行结果0-0-1-1-2-2
-```
-
-
-
-这段代码每个线程2次获取锁/释放锁
-
-Thread0先获取锁，之后sleep 100ms，那么等待获取锁的同步队列为
-
-head -> thread1 -> thread2 -> thread0 -> thread1 -> thread2
-
-从运行结果可知，第二次获取锁的还是thread0,与同步队列违背
-
-
-
-==非公平锁获取锁最大的不同点：线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁 **(锁对象是同一个)**==
-
-所以以上程序的同步队列应该为:
-
-head -> thread1 -> thread2
-
-
-
-公平/非公平锁源代码主要的2个不同点：
 
 ```java
 //公平
@@ -6868,8 +6807,8 @@ protected final boolean tryAcquire(int acquires) {
         return true;
       }
 
-
-//非公平
+//非公平	当锁对象是同一个时,线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁
+      //非公平是针对队列中线程和新线程而言的,队列中的线程处于 
   final void lock() {
     //直接尝试获取锁，无视同步队列
     if (compareAndSetState(0, 1))   setExclusiveOwnerThread(Thread.currentThread());
@@ -6877,20 +6816,31 @@ protected final boolean tryAcquire(int acquires) {
     else	 acquire(1);
   }
 
-  final boolean nonfairTryAcquire(int acquires) {
-    ...
-      if (c == 0) {
-        //缺少了hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中
-        if (compareAndSetState(0, acquires)) {
-          setExclusiveOwnerThread(current);
+      final boolean nonfairTryAcquire(int acquires) {
+        final Thread current = Thread.currentThread();
+        int c = getState();
+        if (c == 0) {
+          //没有hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中              
+          if (compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+          }
+        }
+        //可重入的体现,
+        else if (current == getExclusiveOwnerThread()) {
+          //重入是将state++
+          int nextc = c + acquires;
+          if (nextc < 0)  throw new Error("Maximum lock count exceeded");
+          setState(nextc);
           return true;
         }
+        return false;
       }
-    ...
-  }
 ```
 
 
+
+![](image.assets/Lock方法.png)
 
 
 
@@ -7589,7 +7539,7 @@ protected final boolean tryRelease(int releases) {
 
 
 
-Permit(许可）概念
+**Permit许可**
 
 每个线程都有许可(permit),只有两个值1/0，默认0
 
@@ -7597,7 +7547,7 @@ Permit(许可）概念
 
 
 
-通过park()+unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
+通过park() + unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
 
 ```java
 //park()阻塞	permit默认0，所以一开始调用park()，当前线程阻塞，直到别的线程将当前线程的permit设置为1时, park()会被唤醒，将permit设置为0并返回
@@ -7614,17 +7564,11 @@ public static void unpark(Thread thread) {
 
 
 
-如果没有LockSupport,线程阻塞一般以加锁/阻塞队列来实现
+**如果没有LockSupport,线程阻塞一般以加锁/阻塞队列来实现,难以唤醒指定线程**
 
-LockSupport不用持有/加锁，性能高
+**并且LockSupport不用持有/加锁，性能高**
 
-
-
-唤醒线程的wait+notify顺序不能调换
-
-但LockSupport的unpark可以先于park(还未阻塞之前解除阻塞)
-
-有先后顺序，先进行unpark获得凭证，才能执行park()后面的方法
+**wait/notify顺序不能调换,park/unpark可以未阻塞前解除阻塞**
 
 
 
