@@ -4107,6 +4107,33 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
+## BIO
+
+
+
+
+
+每个连接对应一个线程,服务器:客户端=1:n
+
+根本原因在于阻塞
+
+```java
+ServerSocket server = new ServerSocket(9090);
+while (true) {
+  Socket client = server.accept();    //等待客户端连接时阻塞,占用时间片但不运行
+  new Thread(() -> {  //每个客户端连接都新开辟线程进行处理
+      InputStream in = client.getInputStream();
+      BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+      while (true) {
+        String s = reader.readLine();
+        if (null == s) {
+          client.close();
+          break;
+        }
+      }
+  });
+```
+
 
 
 
@@ -4376,7 +4403,32 @@ D DatagramPacket
 
 
 
+```java
+LinkedList<SocketChannel> list = new LinkedList<>();
+ServerSocketChannel channel = ServerSocketChannel.open();   //开启监听
+channel.bind(new InetSocketAddress(9090));
+channel.configureBlocking(false);   //开启内核的非阻塞
 
+while (true) {
+  SocketChannel client = channel.accept();    //不会阻塞,立刻有返回值
+
+  if (null != client) {
+    client.configureBlocking(false);
+    list.add(client);
+  }
+  ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
+  for (SocketChannel s : list) {
+    int i = s.read(buffer); // -1 0 >0 此处也非阻塞
+    if (i > 0) {
+      buffer.flip();
+      byte[] bytes = new byte[buffer.limit()];
+      buffer.get(bytes);
+      System.out.println(bytes.toString());
+      buffer.clear();
+    }
+  }
+}
+```
 
 
 
@@ -4611,6 +4663,8 @@ outChannel.close();
 
 
 
+
+
 守护线程 daemon
 
 即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
@@ -4623,21 +4677,15 @@ outChannel.close();
 
 
 
-上下文切换 ContextSwitch
+**上下文切换 ContextSwitch**
 
-**CPU给每个线程分配CPU时间片**,不停地切换线程
-
-时间片结束后，当前状态（PC、寄存器等）放到缓存或者内存中，称为**保护现场**，以便下次切换回这个任务时，可以再加载状态
-
-**任务从保存到加载的过程就是一次上下文切换,频繁切换影响执行速度**
+CPU给每个线程分配CPU时间片,时间片结束后切换线程，当前状态（PC、寄存器等）放到缓存或者内存中，称为**保护现场**，以便下次切换回这个任务时，可以再加载状态
 
 
 
 
 
-
-
-超线程
+**超线程**
 
 一个ALU对应多个PC/Registers (所谓的4核8线程)
 
@@ -6389,7 +6437,7 @@ Unlock()释放锁
 
 
 
-AbstractQueuedSynchronizer	抽象队列式同步器,**没有锁的概念**
+AbstractQueuedSynchronizer 抽象队列式同步器,**没有锁的概念**
 
 除synchronized之外的锁,都基于AQS
 
@@ -6411,8 +6459,6 @@ CLH是虚拟的FIFO(先进先出)双向队列
 
 **注意：AQS是自旋锁：**在等待唤醒的时候，使用自旋（while(!cas())）的方式，不停地尝试获取锁，直到被其他线程获取成功
 
-**实现了AQS的锁有：自旋/互斥/读写锁、条件产量、信号量、栅栏都是AQS的衍生物**
-
 ![](image.assets/CLH队列.png)
 
 
@@ -6432,7 +6478,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
   private transient volatile Node head;
   private transient volatile Node tail;
 
-  //lock的占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
+  //锁占用状态；在ReentrantLock中，0空闲,1被占用，>1可重入占用
   private volatile int state;
 }
 
@@ -6455,19 +6501,16 @@ static final class Node {
   //两种资源共享方式
   //Share共享模式，可以被多个线程获取，比如读写锁中的读锁,Semaphore、CountDownLatch、ReadWriteLock，CyclicBarrier
   static final Node SHARED = new Node();
-  //Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
+  
+  //null Exclusive独占模式，比如读写锁中的写锁,ReentrantLock
+  //1 取消获取锁(等待超时/被中断),需要从同步队列中移除
+  //-1 当前节点释放了同步状态或被取消，需要解锁后继节点
+  //-2 节点在等待队列中，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
+  //-3 下一次共享式同步状态获取将会被无条件地传播下去
   static final Node EXCLUSIVE = null;
-
-  //等待超时/被中断，获取锁的请求被取消,需要从同步队列中移除
   static final int CANCELLED =  1;
-
-  //当前节点如果释放了同步状态或者被取消，将会通知后继节点，使后继节点的线程得以运行
   static final int SIGNAL    = -1;
-
-  //节点在等待队列中，节点的线程等待在Condition上，当其他线程对Condition调用了signal()，该节点从等待队列 -> 条件队列
   static final int CONDITION = -2;
-
-  //表示下一次共享式同步状态获取将会被无条件地传播下去
   static final int PROPAGATE = -3;
 
   //当前节点的信号量(1,0,-1,-2,-3)5种状态,使用CAS更改状态，volatile保证可见性
@@ -6688,7 +6731,6 @@ static final class FairSync extends Sync {
 }
 
 
-
 //AbstractQueuedSynchronizer
 //加锁
 public final void acquire(int arg) {
@@ -6789,64 +6831,9 @@ final boolean acquireQueued(final Node node, int arg) {
 
 
 
+#### Lock
 
 
-
-
-
-
-#### 可重入的体现
-
-
-
-```java
-private ReentrantLock lock = new ReentrantLock(false);
-private Thread[] threads = new Thread[3];
-
-public Test() {
-  for (int i = 0; i < 3; i++) {
-    threads[i] = new Thread(() -> {
-      for (int i1 = 0; i1 < 2; i1++) {
-        try {
-          lock.lock();
-          Thread.sleep(100);
-          System.out.println(Thread.currentThread().getName());
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        } finally {
-          lock.unlock();
-        }
-      }
-    });
-  }
-  for (Thread thread : threads) {
-    thread.start();
-  }
-}
-运行结果0-0-1-1-2-2
-```
-
-
-
-这段代码每个线程2次获取锁/释放锁
-
-Thread0先获取锁，之后sleep 100ms，那么等待获取锁的同步队列为
-
-head -> thread1 -> thread2 -> thread0 -> thread1 -> thread2
-
-从运行结果可知，第二次获取锁的还是thread0,与同步队列违背
-
-
-
-==非公平锁获取锁最大的不同点：线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁 **(锁对象是同一个)**==
-
-所以以上程序的同步队列应该为:
-
-head -> thread1 -> thread2
-
-
-
-公平/非公平锁源代码主要的2个不同点：
 
 ```java
 //公平
@@ -6868,8 +6855,8 @@ protected final boolean tryAcquire(int acquires) {
         return true;
       }
 
-
-//非公平
+//非公平	当锁对象是同一个时,线程外层函数获得锁后,再进入该线程的内层方法会自动获取锁
+      //非公平是针对队列中线程和新线程而言的,队列中的线程处于 
   final void lock() {
     //直接尝试获取锁，无视同步队列
     if (compareAndSetState(0, 1))   setExclusiveOwnerThread(Thread.currentThread());
@@ -6877,20 +6864,31 @@ protected final boolean tryAcquire(int acquires) {
     else	 acquire(1);
   }
 
-  final boolean nonfairTryAcquire(int acquires) {
-    ...
-      if (c == 0) {
-        //缺少了hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中
-        if (compareAndSetState(0, acquires)) {
-          setExclusiveOwnerThread(current);
+      final boolean nonfairTryAcquire(int acquires) {
+        final Thread current = Thread.currentThread();
+        int c = getState();
+        if (c == 0) {
+          //没有hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中              
+          if (compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+          }
+        }
+        //可重入的体现,
+        else if (current == getExclusiveOwnerThread()) {
+          //重入是将state++
+          int nextc = c + acquires;
+          if (nextc < 0)  throw new Error("Maximum lock count exceeded");
+          setState(nextc);
           return true;
         }
+        return false;
       }
-    ...
-  }
 ```
 
 
+
+![](image.assets/Lock方法.png)
 
 
 
@@ -7589,7 +7587,7 @@ protected final boolean tryRelease(int releases) {
 
 
 
-Permit(许可）概念
+**Permit许可**
 
 每个线程都有许可(permit),只有两个值1/0，默认0
 
@@ -7597,7 +7595,7 @@ Permit(许可）概念
 
 
 
-通过park()+unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
+通过park() + unpark(thread)实现阻塞/唤醒	调用的Unsafe中的native代码
 
 ```java
 //park()阻塞	permit默认0，所以一开始调用park()，当前线程阻塞，直到别的线程将当前线程的permit设置为1时, park()会被唤醒，将permit设置为0并返回
@@ -7614,17 +7612,11 @@ public static void unpark(Thread thread) {
 
 
 
-如果没有LockSupport,线程阻塞一般以加锁/阻塞队列来实现
+**如果没有LockSupport,线程阻塞一般以加锁/阻塞队列来实现,难以唤醒指定线程**
 
-LockSupport不用持有/加锁，性能高
+**并且LockSupport不用持有/加锁，性能高**
 
-
-
-唤醒线程的wait+notify顺序不能调换
-
-但LockSupport的unpark可以先于park(还未阻塞之前解除阻塞)
-
-有先后顺序，先进行unpark获得凭证，才能执行park()后面的方法
+**wait/notify顺序不能调换,park/unpark可以未阻塞前解除阻塞**
 
 
 
@@ -7941,11 +7933,11 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-## 线程池（thread pool）
+## 线程池 thread pool
 
 
 
-创建/销毁对象很费时间，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
+创建/销毁对象费时间，**虚拟机将试图跟踪每一个对象，以便能够在对象销毁后进行垃圾回收**
 
 线程池**利于管理线程的个数与活跃数,统一分配、调优和监控**
 
@@ -7953,14 +7945,30 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-### 执行流程
+![](image.assets/内核级线程.png)
 
 
 
-1. 线程数 < corePoolSize时，创建线程执行任务
-2. 线程数>=corePoolSize && workQueue没满，放入workQueue
-3. 线程数>=corePoolSize && workQueue队满，新任务+新建线程运行，线程总数要 < maximumPoolSize
-4. 当线程总数 = maximumPoolSize && workQueue 队满,执行拒绝策略
+**内核级线程**是真正与操作系统内核交互的线程,存在上下文切换等性能消耗
+
+new Thread 用户级:内核级 = 1:1
+
+线程池	用户级:内核级 = 1:n
+
+线程池减少了内核级线程的数量,从而无需大量的创建/切换线程
+
+
+
+
+
+### 流程
+
+
+
+1. 核心线程数 < corePoolSize，创建核心线程
+2. workQueue没满，放入队列
+3. 总线程数 < maximumPoolSize,新建非核心线程
+4. 执行拒绝策略
 
 
 
@@ -7970,60 +7978,121 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-**corePoolSize：线程池的基本大小**，当提交一个任务到线程池时，线程池会创建一个线程来执行任务，即使其他空闲的基本线程能够执行新任务也会创建线程，等到需要执行的任务数大于线程池基本大小时就不再创建。说白了就是，即便是线程池里没有任何任务，也会有corePoolSize个线程在候着等任务。
+**corePoolSize：核心数量,提交任务时开始创建**
 
 **maximumPoolSize:最大线程数**
 
-corePollSize	核心线程数	平时的流量需要的线程数
+**keepAliveTime:线程的存活时间**。> corePoolSize && keepAliveTime，销毁线程
 
-**keepAliveTime:线程的存活时间**。当线程池里的线程数大于corePoolSize时，如果等了keepAliveTime时长还没有任务可执行，则线程退出。
-
-**unit**：指定keepAliveTime的单位，比如秒:TimeUnit.SECONDS
+**unit**：keepAliveTime的单位
 
 **workQueu**e：用于保存等待执行任务的**阻塞队列**，提交的任务将会被放到这个队列里
 
-**threadFactory：线程工厂，用来创建线程**,给线程起名
+**threadFactory：创建线程的线程工厂**,给线程起名
 
-**handler：拒绝策略**，即当线程和队列都已经满了的时候，应该采取什么样的策略来处理新提交的任务。默认策略是AbortPolicy（抛出异常），其他的策略还有：CallerRunsPolicy(只用调用者所在线程来运行任务)、DiscardOldestPolicy(丢弃队列里最近的一个任务，并执行当前任务)、DiscardPolicy(不处理，丢弃掉)
-
-
+**handler：拒绝策略**，默认AbortPolicy（抛出异常），CallerRunsPolicy(只用调用者所在线程来运行任务)、DiscardOldestPolicy(丢弃队列里最近的一个任务，并执行当前任务)、DiscardPolicy(不处理，丢弃掉)
 
 
 
 
 
-### 常见线程池
+### ExecutorService
 
 
 
-　　可以创建（**Executors.newXXX**）3种类型的ThreadPoolExecutor：**FixedThreadPool**、**SingleThreadExecutor**、**CachedThreadPool**
 
-- FixedThreadPool：可重用固定线程数的线程池
 
-  - 适用于负载比较重的服务器
-- **FixedThreadPool使用无界队列LinkedBlockingQueue作为线程池的工作队列**
-  
-- 该线程池中的线程数量始终不变。当有一个新的任务提交时，线程池中若有空闲线程，则立即执行。若没有，则新的任务会被暂存在一个任务队列中，待有线程空闲时，便处理在任务队列中的任务。
-  
-- SingleThreadExecutor：只会创建一个线程执行任务（适用于需要保证顺序执行各个任务；并且在任意时间点，没有多线程活动的场景）
 
-  - **SingleThreadExecutorl也使用无界队列LinkedBlockingQueue作为工作队列**
-- 若多余一个任务被提交到该线程池，任务会被保存在一个任务队列中，待线程空闲，按先入先出的顺序执行队列中的任务
-  
-- **CachedThreadPool：会根据需要调整线程数量的线程池**
 
-  （大小无界，适用于执行很多的短期异步任务的小程序，或负载较轻的服务器）
+```
+public interface ExecutorService extends Executor {
 
-  - **CachedThreadPool使用没有容量的SynchronousQueue作为线程池的工作队列，但CachedThreadPool的maximumPool是无界的。**
-  - 线程池的线程数量不确定，但若有空闲线程可以复用，则会优先使用可复用的线程。若所有线程均在工作，又有新的任务提交，则会创建新的线程处理任务。所有线程在当前任务执行完毕后，将返回线程池进行复用
 
-- **ScheduledThreadPool**：继承自ThreadPoolExecutor。它主要用来**在给定的延迟之后运行任务，或者定期执行任务**。使用DelayQueue作为任务队列
+
+}
+```
+
+
+
+
+
+### Executors
+
+
+
+通过Executors.newXXX快速创建3种类型的ThreadPoolExecutor
+
+
+
+**FixedThreadPool** 固定大小 + LinkedBlockingQueue无界队列
+
+**可控制线程最大并发数**
+
+```java
+public static ExecutorService newFixedThreadPool(int nThreads) {
+  return new ThreadPoolExecutor(nThreads, nThreads,	//核心=最大数量
+                                0L, TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>());}//无界队列
+```
+
+
+
+**SingleThreadExecutor** 单线程 + LinkedBlockingQueue无界队列
+
+保证所有任务按照指定顺序(FIFO, LIFO)执行
+
+```java
+public static ExecutorService newSingleThreadExecutor() {
+    return new FinalizableDelegatedExecutorService
+        (new ThreadPoolExecutor(1, 1,	//只有一个线程
+                                0L, TimeUnit.MILLISECONDS,
+                                new LinkedBlockingQueue<Runnable>()));}//无界队列
+```
+
+
+
+**CachedThreadPool** 核心0 + 非核心无限 + 60秒清除空闲线程 + 无容量队列
+
+**灵活回收空闲线程,**适用于执行很多的短期异步任务的小程序，负载较轻的服务器
+
+```java
+public static ExecutorService newCachedThreadPool() {
+    return new ThreadPoolExecutor(0, Integer.MAX_VALUE,	//无限的非核心线程
+                                  60L, TimeUnit.SECONDS,	//60秒清除空闲
+                                  new SynchronousQueue<Runnable>());}
+//SynchronousQueue没有容量，不存储元素，会直接将任务交给消费者,被消费后才能继续添加新元素
+```
+
+
+
+**ScheduledThreadPool** 定长 + DelayQueue
+
+延迟/定期执行任务
+
+```java
+public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize) {
+  return new ScheduledThreadPoolExecutor(corePoolSize);
+}
+
+public class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements ScheduledExecutorService {
+  public ScheduledThreadPoolExecutor(int corePoolSize) {
+    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,new DelayedWorkQueue());
+  }
+}
+```
+
+
 
 
 
 
 
 execute()，执行一个任务，没有返回值。
+
+```java
+Future<T> submit(Callable<T> task);	//通过future.get()获取返回值(阻塞直到任务运行结束)
+```
+
 submit()，提交一个线程任务，有返回值。
 submit(Callable<T> task)能获取到它的返回值，通过future.get()获取（阻塞直到任务执行完）。一般使用FutureTask+Callable配合使用（IntentService中有体现）。
 
@@ -8032,6 +8101,195 @@ submit(Runnable task, T result)能通过传入的载体result间接获得线程�
 submit(Runnable task)则是没有返回值的，就算获取它的返回值也是null。
 
 Future.get方法会使取结果的线程进入阻塞状态，知道线程执行完成之后，唤醒取结果的线程，然后返回结果。
+
+
+
+
+
+
+
+```java
+//32位,高3位表示线程池状态,低29位表示线程池数量
+private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+
+private final BlockingQueue<Runnable> workQueue;
+
+    private final ReentrantLock mainLock = new ReentrantLock();
+//工作线程
+    private final HashSet<Worker> workers = new HashSet<Worker>();
+
+    private final Condition termination = mainLock.newCondition();
+```
+
+
+
+
+
+### Worker.runWorker
+
+
+
+```java
+//AQS + Runnable
+private final class Worker
+  extends AbstractQueuedSynchronizer
+  implements Runnable{
+
+  final Thread thread;
+  Runnable firstTask;
+  //完成的task数量
+  volatile long completedTasks;
+
+  final void runWorker(Worker w) {
+    Thread wt = Thread.currentThread();
+    Runnable task = w.firstTask;
+    w.firstTask = null;
+    w.unlock(); // allow interrupts
+    boolean completedAbruptly = true;
+    try {
+      //直到队列中下一个task也为null,才停止
+      while (task != null || (task = getTask()) != null) {
+        w.lock();
+        if ((runStateAtLeast(ctl.get(), STOP) ||
+             (Thread.interrupted() &&
+              runStateAtLeast(ctl.get(), STOP))) &&
+            !wt.isInterrupted())
+          wt.interrupt();
+        try {
+          beforeExecute(wt, task);
+          Throwable thrown = null;
+          try {
+            task.run();//运行
+          } catch (RuntimeException x) {
+            thrown = x; throw x;
+          } catch (Error x) {
+            thrown = x; throw x;
+          } catch (Throwable x) {
+            thrown = x; throw new Error(x);
+          } finally {
+            afterExecute(task, thrown);
+          }
+        } finally {
+          task = null;
+          w.completedTasks++;
+          w.unlock();
+        }
+      }
+      completedAbruptly = false;
+    } finally {
+      processWorkerExit(w, completedAbruptly);
+    }
+  }
+```
+
+
+
+
+
+
+
+
+
+### execute
+
+
+
+```java
+public void execute(Runnable command) {
+  if (command == null)       throw new NullPointerException();
+  int c = ctl.get();
+  //工作中线程数量 < 核心,添加核心线程
+  if (workerCountOf(c) < corePoolSize) {
+    if (addWorker(command, true))  return;
+    c = ctl.get();//更新数量
+  }
+  //线程池正在运行 && 添加任务至工作队列成功
+  if (isRunning(c) && workQueue.offer(command)) {
+    
+    int recheck = ctl.get();
+    //二次校验,当线程池停止时,移出队列并拒绝策略
+    if (! isRunning(recheck) && remove(command)) reject(command);
+    //空闲工作线程=0,添加非核心线程
+    else if (workerCountOf(recheck) == 0)  addWorker(null, false);
+  }
+  //此时 工作中线程数量 > 核心 && 队列满,尝试添加非核心工作线程
+  else if (!addWorker(command, false))
+    reject(command);//添加失败执行拒绝策略
+}
+```
+
+
+
+
+
+#### addWorker
+
+
+
+```java
+private boolean addWorker(Runnable firstTask, boolean core) {
+  retry://CAS循环
+  for (;;) {
+    int c = ctl.get();
+    int rs = runStateOf(c);
+
+    // Check if queue empty only if necessary.
+    if (rs >= SHUTDOWN && ! (rs == SHUTDOWN && firstTask == null && ! workQueue.isEmpty()))
+      return false;
+
+    for (;;) {
+      int wc = workerCountOf(c);
+      // 根据是否为添加核心线程 校验能否添加线程
+      if (wc >= CAPACITY || wc >= (core ? corePoolSize : maximumPoolSize))
+        return false;
+      //CAS增加线程数量,成功则跳出循环
+      if (compareAndIncrementWorkerCount(c))  break retry;
+      c = ctl.get();  // 更新数量
+      //当最新状态!=原状态,跳到外层重新retry,否则继续内层CAS
+      if (runStateOf(c) != rs)  continue retry;
+    }
+  }
+
+  boolean workerStarted = false;
+  boolean workerAdded = false;
+  Worker w = null;
+  try {
+    w = new Worker(firstTask);
+    final Thread t = w.thread;
+    if (t != null) {
+      final ReentrantLock mainLock = this.mainLock;
+      mainLock.lock();
+      try {
+        int rs = runStateOf(ctl.get());
+
+        if (rs < SHUTDOWN ||
+            (rs == SHUTDOWN && firstTask == null)) {
+          if (t.isAlive())    throw new IllegalThreadStateException();
+          workers.add(w);
+          int s = workers.size();
+          if (s > largestPoolSize)
+            largestPoolSize = s;
+          workerAdded = true;
+        }
+      } finally {
+        mainLock.unlock();
+      }
+      if (workerAdded) {
+        t.start();
+        workerStarted = true;
+      }
+    }
+  } finally {
+    if (! workerStarted)
+      addWorkerFailed(w);
+  }
+  return workerStarted;
+}
+```
+
+
+
+
 
 
 
