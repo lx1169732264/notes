@@ -524,77 +524,29 @@ public class B extends A{
 
 
 
-## default 默认方法
+## default 1.8+
 
 
 
-实现接口需要实现其所有的抽象方法,当接口加入新方法时，我们就需要对项目重新编写
-
-使用**default**修饰， 定义**方法体**。**子类会默认实现default** ，避免修改代码
+**子类默认实现default**,实际上是**public default**,省略了public
 
 
 
-这个default是jdk8新关键字，**和访问限定修饰符“default”不是一个概念**，与switch中的default功能完全不同
-
-实际上是**public default**,省略了public
+与抽象类的不同：抽象类更多的是提供一个模板，子类之间的某个流程大致相同，仅仅是某个步骤可能不一样（模板方法设计模式），这个时候使用抽象类，该步骤定义为抽象方法。而default是用于扩展
 
 
 
-与抽象类的不同：抽象类更多的是提供一个模板，子类之间的某个流程大致相同，仅仅是某个步骤可能不一样（模板方法设计模式），这个时候使用抽象类，该步骤定义为抽象方法。而default关键字是用于扩展
+## 静态方法 1.8+
 
 
 
-
-
-
-
-以前，一个接口如果增减一个方法，则所有实现它的类都需要改动。default可以少改一些代码——这反而违背了Java的一个核心思想：尽量把问题暴露在编译时
-
-前面说过，接口的核心用法，是在多态时暴露恰当的method。如果只是直接用子类的实例进行调用，那么直接写方法就好，不用给自己头上套一个牢笼。而如果一个接口增加一个方法，则说明所有实现它的类都必须思考一个问题：该如何实现这个方法。即使大多数思考的结果是，直接给个空实现，这个思考过程也是必须的。体现在写代码上，就是每个子类的文件都需要去改一下。如果考虑编程效率问题，那么这也是该由编辑器或者IDE去解决的（实际上这很难吗？一定要我把IDEA里那个功能的名称说出来吗？），而非Java——**Java就是一种用编程效率来换取代码质量的语言**。
-
-default method的出现，让程序员又多了一个犯错的大门类，而没有解决什么实质性问题，更违背了Java的初心
-
-
-
-
-
-
-
-## 静态方法
-
-
-
-接口的静态方法不会被实现类所实现
-
-**只用于内部调用**
+不会被实现类所实现,**只用于内部调用**
 
 
 
 两个接口定义**相同静态方法**，实现类实现这两个接口，并不会产生错误，编译器通过**反射**来区分是哪个接口下的方法
 
-两个接口定义**相同非静态方法**，并且一个实现类同时实现了这两个接口，那么必须在实现类中重写默认方法，否则编译失败。
-
-**静态方法调用    类名.方法**   通过**反射**来区分哪个接口下的方法
-
-​    **非静态         对象.方法** 
-
-
-
-
-
-Java 8让接口可以声明并实现多个静态方法，以及静态常量，这其实没有太大改变
-
-本来在Java 7，静态方法就不是属于实例的，而是属于类的。实例的方法才有继承关系，可以选择重写或沿用。而静态方法虽然能用实例调用，但更应该用类来调用，也不能重写
-
-由于Java在文件级作用域只能有类或接口，所以把静态方法和变量放在类中
-
-Utils/Constants里面只有静态。这是对文件级作用域不能放方法和常量的一种妥协，本来这些方法和常量应该不属于任何一个类的。这里的类只起到了命名空间的作用
-
-在Java 7这两种类有时会用抽象类。但这有一个问题，虽然不能被实例化，但可以被继承。为了避免被继承，有时会不辞辛劳地用一个final类，实现一个private构造器，来做进一步的保护。在Java 8以后，用接口来实现，也是一个思路
-
-这可以视为接口在抽象类手里抢的第一单生意，但这不算什么
-
-
+两个接口定义**相同非静态方法**，实现类实现了这两个接口，必须在实现类中重写默认方法
 
 
 
@@ -604,9 +556,11 @@ Utils/Constants里面只有静态。这是对文件级作用域不能放方法�
 
 **只有一个抽象方法**
 
-### @FunctionalInterface
 
-只在编译期起作用，如@Override注解。编译期会强制检查该接口是否符合函数式接口的条件，不符合则会报错。**即使不使用，只要满足定义也是函数式接口**。
+
+**@FunctionalInterface**
+
+只在编译期起作用。编译期会强制检查该接口是否符合函数式接口的条件，不符合则会报错。**即使不使用，只要满足定义也是函数式接口**。
 
 ![image-20200826214004498](image.assets/image-20200826214004498.png)
 
@@ -620,31 +574,31 @@ Utils/Constants里面只有静态。这是对文件级作用域不能放方法�
 
 用来获取一个泛型参数指定类型的对象数据。由于这是一个函数式接口，这也就意味着对应的Lambda表达式需要“对外提供”一个符合泛型类型的对象数据。
 
-```
-   public void testGetUser() {
-        User user = getUser(User::new);}
+```java
+public void testGetUser() {
+  User user = getUser(User::new);}
 
-    private User getUser(Supplier<User> supplier) {
-        return supplier.get();}
+private User getUser(Supplier<User> supplier) {
+  return supplier.get();}
 ```
 
  
 
-​	Supplier求数组元素的最小值
+Supplier求数组元素的最小值
 
-```
+```java
 public void testGetMin(){
-        int[] arr={5,3,100,10};
-        int min = getMin(()->{
-            int minNum=arr[0];
-            for (int i : arr) {
-                if (i<minNum) minNum=i;}
-            return minNum;
-        });}
+  int[] arr={5,3,100,10};
+  int min = getMin(()->{
+    int minNum=arr[0];
+    for (int i : arr) {
+      if (i<minNum) minNum=i;}
+    return minNum;
+  });}
 
-    private Integer getMin(Supplier<Integer> supplier) {
-        return supplier.get();
-    }
+private Integer getMin(Supplier<Integer> supplier) {
+  return supplier.get();
+}
 ```
 
  
@@ -659,14 +613,14 @@ java.util.function.Consumer<T>
 
 **抽象方法：accept**，消费一个指定泛型的数据
 
-```
+```java
 public void testConsumer() {
-        User user = new User();
-        setUserDefaultSex(u -> u.setSex("nan"), user);
-        //user的sex被改变}
-        
-    private void setUserDefaultSex(Consumer<User> consumer, User user) {
-        consumer.accept(user);}
+  User user = new User();
+  setUserDefaultSex(u -> u.setSex("nan"), user);
+  //user的sex被改变}
+
+  private void setUserDefaultSex(Consumer<User> consumer, User user) {
+    consumer.accept(user);}
 ```
 
 
@@ -677,13 +631,15 @@ public void testConsumer() {
 
 要想实现组合，需要两个或多个Lambda表达式
 
-```
+```java
 public void testConsumer2() {
-        User user = new User();
-        setUserNameAndSex(u -> u.setSex("nan"), u -> u.setName("aa"), user);
-        System.out.println(user.getSex() + user.getName());}
+  User user = new User();
+  setUserNameAndSex(u -> u.setSex("nan"), u -> u.setName("aa"), user);
+  System.out.println(user.getSex() + user.getName());}
 
-    private void setUserNameAndSex(Consumer<User> one, Consumer<User> two, User user) 			{one.andThen(two).accept(user);}
+private void setUserNameAndSex(Consumer<User> one, Consumer<User> two, User user) {
+  one.andThen(two).accept(user);
+}
 ```
 
  
@@ -924,32 +880,22 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 
 
-
-
-
-
-
-
 ## 接口和抽象类的区别
 
 
 
 * 相同
-  * 抽象类和接口均包含抽象方法，类必须实现所有的抽象方法，否则是抽象类
-
-  * **抽象类和接口都不能实例化**，位于继承树的顶端，用来被其他类继承和实现
+  * 抽象类和接口均包含抽象方法，类必须实现所有的抽象方法
+* **都不能实例化**，位于继承树的顶端，用来被继承和实现
+  * 都不全为abstract,接口也可以有default
 
 * 不同
   * 接口中只能定义全局静态常量，不能定义变量。抽象类中可以定义常量和变量
-  * 接口中所有的方法都是abstract。==抽象类不全为abstract==
-  * 抽象类的方法可以有private、protected、prublic和package local四种类型，接口只有public类型
   * **接口不能定义构造方法/成员变量**,抽象类中可以有构造方法，但不能用来实例化
   * 单继承多接口
   * 子类和抽象类是is-a关系，和接口是like-a关系
 
  
-
-
 
 接口可以继承接口
 
@@ -959,59 +905,20 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 ==最主要区别还是设计理念==
 
-*  接口  实现类仅仅是实现了接口定义的约定。接口定义了“做什么”，实现类负责“怎么做”，体现了功能和实现分离的原则。**接口和实现是has-a **
+*  接口  接口定义“做什么”，实现类负责“怎么做”，功能和实现分离。**has-a **
 
-*  抽象类体现继承关系，目的是复用代码，定义了各个子类的相同代码，可以认为父类是一个实现了部分功能的“中间产品”，而子类是“最终产品”。**父类和子类是is-a**
-
-
-
-本质上，**抽象类的设计主要是保护一个类不被实例化，或者允许一个类包含未实现的抽象方法。而接口的设计主要是为了多态**
+*  抽象类体现继承关系，目的是复用代码，定义了各子类的相同代码，可以认为父类是实现了部分功能的“中间产品”，而子类是“最终产品”。**is-a**
 
 
 
-接口更适合来实现多态，仅暴露了必要的method,高度封装
+本质上，**抽象类保护一个类不被实例化，或者允许一个类包含未实现的抽象方法。而接口仅暴露了必要的method,适合多态**
 
 
 
-一个抽象类或普通的父类引用（Reference），也同样可以代表不同的子类，但有两个问题。一是需要被多态引用的子类，必须是这个家族谱系的，不能是其它家族的。这在单继承下，会有很大限制，导致一些情况无法实现。二是暴露了过多的method给调用方。指定为Closable，仅暴露了一个close()方法，其它都是隐藏的。
+抽象也可以实现多态，但有两个问题
 
-
-
-
-
-## Java 9的private method改变了什么？
-
-
-
-Java 9中，接口再次增强，可以实现private method和private static method。
-
-其实，要理解设计思路很简单。既然可以写实现代码了，那么是不是有一些共用的代码需要封装、又不希望暴露给外部？那就加private吧！以前只有抽象方法的时候，自然没有这需求。而Java 8增加static method和default method后，没有一起增加这个功能，简直就是设计上的缺失！
-
-在有了这俩以后，接口和抽象类的区别，只剩下了构造器、成员变量、以及单继承。
-
-单继承是Java相对C++的一个重要改进。以前（C++）把夫妻都计入族谱时，发现好乱，一夫多妻嘛；现在（Java）只着重记男丁，族谱顿时就简明多了。
-
-而可以多重继承的接口，本来因为没有构造器、成员变量、方法实现（都是妻妾），所以没有多重继承的烦恼。现在有了default method，烦恼就来了——这是开历史的倒车。
-
-再往下发展，假如接口也支持成员变量、没有构造器也能构造实例，那就成为了支持多重继承的**新式类**，和老式类**分庭抗礼**——忽然有一种聊Python的感觉——那么问题来了，老式类要不要考虑全盘废弃呢？
-
-
-
-## 抽象类与接口的完美配合
-
-
-
-抽象方法会被下游用户利用多态来调用->接口
-
-
-
-此外，即使一个项目的所有抽象方法都是会被多态调用、是在接口声明的，也同样可能存在抽象类，因为它们有一个完美配合。很多时候，一个接口的多个方法，在实现时是分层级的。在这个类只能实现其中一部分，在其子类才能实现剩余部分，这时父类就需要是抽象方法
-
-比如，有一个接口叫『可繁衍的』，其中有两个方法，一是『进食』，二是『性交』。『人类』implements了这个接口，但是只能实现其中『进食』这个方法。而其子类『男人』和『女人』，分别实现了不同的『性交』方法。这种情况下，『人类』必然是无法实例化的抽象类
-
-
-
-
+1. 单继承的局限
+2. 暴露过多method
 
 
 
@@ -1019,51 +926,27 @@ Java 9中，接口再次增强，可以实现private method和private static met
 
 # Stream
 
-得益于Lambda所带来的函数式编程，引入全新的Stream概念，用于解决集合类库的弊端。
-
-Stream是集合元素的函数模型，不是集合，也不是数据结构，**其本身不存储任何元素或地址**,只是在原数据集上定义了一组操作。也不会改变原有数据
-
-Stream流不保存数据，Stream操作是尽可能惰性的，即每当访问到流中的一个元素，才会在此元素上执行这一系列操作。
 
 
+Stream是集合元素的函数模型，不是集合，也不是数据结构，**其本身不存储任何元素或地址**,只在原数据集上定义了一组操作,不会改变原有数据
 
-```
-list.stream().filter(s -> s.startsWith("张"))
-                .filter(s -> s.length() == 3)
-                .forEach(System.out::println);
-```
+Stream流不保存数据，Stream操作是尽可能惰性的，只在元素被访问到时才会进行操作
 
 
 
 ## 获取流
 
-* Collection接口获取流
+* Collection接口加入了default方法stream() 获取流，所有实现类均可获取流
 
-Collection 接口中加入了default方法stream() 获取流，所有实现类均可获取流。
+* Map获取流	需要分key、value或entry等情况：
 
-* Map获取流
-
-java.util.Map 接口不是 Collection 的子接口，且其K-V数据结构不符合流元素的单一特征，所以获取对应的流
-
-需要分key、value或entry等情况：
-
-```
-public static void main(String[] args) {
-        Map<String, String> map = new HashMap<>();
-        Stream<String> keyStream = map.keySet().stream();
-        Stream<String> valueStream = map.values().stream();
-        Stream<Map.Entry<String, String>> entryStream = map.entrySet().stream();}
+```java
+map.keySet().stream();
+map.values().stream();
+map.entrySet().stream();
 ```
 
-* 数组获取流 
-
-如果使用的不是集合或映射而是数组，由于数组对象不可能添加默认方法，所以 Stream 接口中提供了静态方法of() ，使用很简单：
-
-```
-public static void main(String[] args) {
-        String[] array = {"张无忌", "张翠山", "张三丰", "张一元"};
-        Stream<String> stream = Stream.of(array);}
-```
+* 数组获取流 	Stream.of(array);
 
 
 
@@ -1071,52 +954,72 @@ public static void main(String[] args) {
 
 
 
-* 筛选与分片
-  * forEach	调用的多线程，调用线程池要额外耗费时间,**无序**
-  * forEachOrdered     按**原顺序**输出
-  * limit    取前几个
-  * distinct   去重
-  * skip     跳过前几个
-  * filter        将一个流转换成另一个子集流
-  * range() -> [ , )      rangeClosed() -> [ , ]
-* 映射
+**筛选与分片**
+
+```
+forEach	无序		forEachOrdered	原序
+limit
+skip
+distinct   去重
+filter
+range() -> [ , )      rangeClosed() -> [ , ]
+
 
   * map      将流中的元素映射到另一个流
 
-```java
+​```java
 Stream<String> stream = list.stream().map(e -> e.substring(2));
-```
+​```
 
 * flatMap
+```
 
 
 
-* 终止操作
+**映射**
 
-  * allMatch 检查是否匹配所有元素 方法参数为断言型接口
-  * anyMatch 检查是否匹配所有元素 方法参数为断言型接口
-  * noneMatch 检查是否没有匹配所有元素 方法参数为断言型接口
-  * findFirst 返回第一个元素 无方法参数
-  * findAny 返回当前流的任意元素 无方法参数
-  * count 返回流中的元素总个数 无方法参数
-  * max 返回流的最大值 无方法参数
-  * min 返回流中的最小值 无方法参数
+```java
+Stream<R> map(Function<> mapper);
+
+Stream<R> flatMap(Function<> mapper);	//1:n的转换
+
+Stream<List<Integer>> in = Stream.of(
+ Arrays.asList(1),
+ Arrays.asList(2, 3),
+ Arrays.asList(4, 5, 6)
+ );
+Stream<Integer> out = in.flatMap((childList) -> childList.stream());
+//flatMap 把in中的层级结构扁平化，将底层元素抽出来放到一起，最终out里面都是数字
+```
+
+
+
+**终止操作**
+
+```
+all/any/noneMatch 检查是否匹配所有元素 方法参数为断言型接口
+findFirst 返回第一个元素 无方法参数
+findAny 返回当前流的任意元素 无方法参数
+count 返回流中的元素总个数 无方法参数
+max 返回流的最大值 无方法参数
+min 返回流中的最小值 无方法参数
+```
 
 
 
 
 
-* 归约
+**归约**
 
-  * count   统计个数
+* count   统计个数
 
-  * concat   合并流,Stream的静态方法
+* concat   合并流,Stream的静态方法
 
-    ```java
-     Stream<String> result = Stream.concat(streamA, streamB);
-    ```
+  ```java
+   Stream<String> result = Stream.concat(streamA, streamB);
+  ```
 
-  * reduce  将流中的元素反复结合起来，得到一个值
+* reduce  将流中的元素反复结合起来，得到一个值
 
 ```java
 List<Integer> list1 = Arrays.asList(1,2,3,4,5,6,7,8,9,10);
@@ -1126,17 +1029,11 @@ reduce ： 66
 
 
 
-* 收集
-  * toList/Map/Set()
-
-```
-list.stream().collect(Collectors.toList());
-```
+**收集**	toList/Map/Set()
 
 
 
-* 分组
-  *  Collectors.groupingBy()
+**分组**	Collectors.groupingBy()
 
 ```java
  public static void main(String[] args) {
@@ -1155,18 +1052,6 @@ list.stream().collect(Collectors.toList());
 
 
 
-
-
-## parallelStream
-
-
-
-​	通过默认的ForkJoinPool，提高多线程任务的速度，默认线程数量等于运行计算机上的处理器数量
-
-​	**Java8为ForkJoinPool添加了一个通用线程池，用来处理没有被显式提交到任何线程池的任务**。当调用Arrays类上添加的新方法时，自动并行化就会发生。
-
-
-
 ## 使用原则
 
 
@@ -1178,8 +1063,6 @@ list.stream().collect(Collectors.toList());
 
 
 * ==含有装箱类型，先转成对应的数值流==，减少频繁的拆箱、装箱的性能损失
-
-
 
 
 
@@ -8598,7 +8481,7 @@ public interface RunnableFuture<V> extends Runnable, Future<V> {
 * 反射提高了灵活性和扩展性，**低耦合**。允许**程序创建和控制任何类的对象，无需提前硬编码**目标类
 * Struts、Hibernate、Spring 在实现过程中都采用了该技术
 * 反射是**解释操作**，用于字段和方法接入时效率低
-* 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，因而会带来维护问题。**反射代码比直接代码更复杂**
+* 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，带来维护问题
 
 
 
@@ -10777,8 +10660,6 @@ String string = "Hello";
 
 
 
-
-
 ## 静态内部类和内部类区别
 
 
@@ -10794,36 +10675,6 @@ String string = "Hello";
 1) 静态内部类：不依赖于外部类的实例，直接实例化内部类对象
 
 2) 非静态内部类：通过外部类的对象实例生成内部类对象
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
