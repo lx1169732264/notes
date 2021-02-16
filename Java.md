@@ -5453,10 +5453,6 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 
 
-线程可以获得多个锁
-
-
-
 ### 创建线程3种方式
 
 
@@ -5522,11 +5518,20 @@ isAlive	是否存活
 yield()	#暂停但不阻塞线程,转入就绪状态,cpu有可能再次调度到礼让线程	礼让不一定成功
 join()	#合并线程,让另一个线程在自己的时间片下运行,等合并线程运行完后才执行自己的后续方法	容易造成线程阻塞
 
+```
 
 
 
 interrupt()	中断线程(不推荐)
-```
+
+**线程应该由线程自行停止**
+~~Thread.stop, Thread.suspend, Thread.resume~~
+Thread.interrupt通知线程应该中断了，由被通知的线程决定中断还是继续运行。
+
+1. 如果线程处于被阻塞状态（sleep, wait, join ），那么线程将立即退出被阻塞状态，并抛出一个InterruptedException异常
+2. 如果线程处于正常活动状态，那么会将该线程的中断标志设置为 true。被设置中断标志的线程将继续正常运行，不受影响。interrupt() 不能真正的中断线程，需要被调用的线程自己进行配合才行。也就是说，一个线程如果有被中断的需求，那么就可以这样做。
+   1. 在正常运行任务时，经常检查本线程的中断标志位，如果被设置了中断标志就自行停止线程。
+   2. 在调用阻塞方法时处理InterruptedException异常
 
 
 
@@ -7445,7 +7450,7 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-## 线程池 thread pool
+## 线程池 threadPool
 
 
 
@@ -7455,7 +7460,7 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-![](image.assets/内核级线程.png)
+<img src="image.assets/内核级线程.png" style="zoom: 67%;" />
 
 
 
@@ -7471,14 +7476,24 @@ new Thread 用户级:内核级 = 1:1
 
 
 
-### 流程
-
-
+**流程**
 
 1. 核心线程数 < corePoolSize，创建核心线程
 2. workQueue没满，放入队列
 3. 总线程数 < maximumPoolSize,新建非核心线程
 4. 执行拒绝策略
+
+
+
+**线程池自动关闭**
+
+线程池的引用不可达 && 线程池中没有线程(所有线程运行完成自动消亡)
+
+**不会自动关闭的特例**
+
+FixedThreadPool的核心线程不会自动超时关闭，必须调用shutdown()
+
+CachedThreadPool,核心线程数量0,不会有核心线程存活阻止线程池自动关闭
 
 
 
@@ -7541,7 +7556,7 @@ public static ExecutorService newSingleThreadExecutor() {
 
 
 
-**CachedThreadPool** 核心0 + 非核心无限 + 60秒清除空闲线程 + 无容量队列
+**CachedThreadPool** 0核心 + 无限非核心 + 60秒清除空闲线程 + 无容量队列
 
 **灵活回收空闲线程,**适用于执行很多的短期异步任务的小程序，负载较轻的服务器
 
@@ -7573,7 +7588,7 @@ public class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements S
 
 
 
-【强制】线程池不允许使用Executors创建，而是通过ThreadPoolExecutor，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险
+【强制】线程池不允许使用Executors创建，而是通过ThreadPoolExecutor，规避OOM
 
 Fixed/SingleThreadPool请求队列长度Integer.MAX_VALUE，会堆积大量的请求，导致OOM
 
@@ -7603,13 +7618,43 @@ CachedThreadPool允许的创建线程数量为Integer.MAX_VALUE，会创建大�
 
 
 
-```
+```java
 public interface ExecutorService extends Executor {
-
-
-
+  void execute(Runnable command);	//继承自Executor,无法获取Runnable的结果
+  
+  Future<?> submit(Runnable task);	//Future.get==null,无法获取返回值
+  Future<T> submit(Runnable task, T result);	//入参的result将原封不动的作为返回值
+  Future<T> submit(Callable<T> task);
+  
+  T invokeAny(Collection<? extends Callable<T>> tasks)	//Callable集合入参,返回值不是Future,而是集合中任意一个元素的执行结果
+  T invokeAny(Collection<? extends Callable<T>> tasks,long timeout, TimeUnit unit)	//超时时间
+  
+  List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)	//返回Future集合,任务可能因异常结束,无法通过Future获取异常时的差异
+    
+  void shutdown();	//不会立马关闭,对新的任务执行拒绝策略,在所有任务执行结束后关闭
+  List<Runnable> shutdownNow();	//立即关闭正在执行的任务,并跳过所有已提交但还未运行的任务,无法保证正在运行的任务是否能够成功关闭(可能关闭,可能运行结束)
+  
+  boolean awaitTermination(long timeout, TimeUnit unit)	//等待一段时间后,返回线程池中线程是否全部运行完毕	通常与shutdown一起判断线程池是否完全关闭
 }
 ```
+
+
+
+**关闭线程池**
+
+```java
+ExecutorService executorService = Executors.newSingleThreadExecutor(build);
+Future<T> submit = executorService.submit(callable);
+executorService.shutdown();
+try {
+  if(!executorService.awaitTermination(60, TimeUnit.SECONDS)){	//当正在运行的线程阻塞时(IO的readLine),会导致正在运行的线程无法被shutdown关闭
+    executorService.shutdownNow();	 //超时则强制中断正在运行的线程
+  }
+```
+
+**shutdown + awaitTermination + shutdownNow	确保完全关闭**
+
+
 
 
 
@@ -7620,118 +7665,46 @@ ExecutorService 接口在 java.util.concurrent 包中有如下实现类：
 
 
 
-
-
-
-
-
-
-
-
-execute()，执行任务,无返回值
-
-```java
-Future<T> submit(Callable<T> task);	//通过future.get()获取返回值(阻塞直到任务运行结束)
-```
-
-submit()，提交一个线程任务，有返回值。
-submit(Callable<T> task)能获取到它的返回值，通过future.get()获取（阻塞直到任务执行完）。一般使用FutureTask+Callable配合使用（IntentService中有体现）。
-
-submit(Runnable task, T result)能通过传入的载体result间接获得线程的返回值
-
-submit(Runnable task)则是没有返回值的，就算获取它的返回值也是null。
-
-Future.get方法会使取结果的线程进入阻塞状态，知道线程执行完成之后，唤醒取结果的线程，然后返回结果。
-
-
-
-
+### ThreadPoolExecutor
 
 
 
 ```java
-//32位,高3位表示线程池状态,低29位表示线程池数量
-private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+public abstract class AbstractExecutorService implements ExecutorService {}
 
-private final BlockingQueue<Runnable> workQueue;
+public class ThreadPoolExecutor extends AbstractExecutorService {
+  //32位,高3位表示runState运行状态,低29位表示workerCount工作线程数量
+  private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+  private static final int COUNT_BITS = Integer.SIZE - 3;	//29的比特位
+  private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//2^29-1的容量	29个1
 
-    private final ReentrantLock mainLock = new ReentrantLock();
-//工作线程
-    private final HashSet<Worker> workers = new HashSet<Worker>();
+  //5种状态,用3位的runState表示
+  private static final int RUNNING    = -1 << COUNT_BITS;	//运行态，可处理新任务并执行队列中的任务
+  private static final int SHUTDOWN   =  0 << COUNT_BITS;	//关闭态，不接受新任务，但处理队列中的任务
+  private static final int STOP       =  1 << COUNT_BITS;	//停止态，不接受新任务，不处理队列中任务，且打断运行中任务
+  private static final int TIDYING    =  2 << COUNT_BITS;	//整理态，所有任务已经结束，workerCount = 0 ，将执行terminated()方法
+  private static final int TERMINATED =  3 << COUNT_BITS;	//结束态，terminated() 方法已完成
 
-    private final Condition termination = mainLock.newCondition();
+  private static int runStateOf(int c)     { return c & ~CAPACITY; }	//获取运行状态	容量取反->29个0	与运算获得高3位的状态
+  private static int workerCountOf(int c)  { return c & CAPACITY; }	//获取工作线程个
+  private static int ctlOf(int rs, int wc) { return rs | wc; }	//打包ctl
+
+  private final BlockingQueue<Runnable> workQueue;
+  private final ReentrantLock mainLock = new ReentrantLock();
+  private final HashSet<Worker> workers = new HashSet<Worker>();
+  private final Condition termination = mainLock.newCondition();
+  
+  //4种拒绝策略	可以继承 RejectedExecutionHandler自定义策略
+  public static class AbortPolicy implements RejectedExecutionHandler {}	//抛出RejectedExecutionException
+  public static class CallerRunsPolicy implements RejectedExecutionHandler {}	//调用run方法并且阻塞执行
+  public static class DiscardOldestPolicy implements RejectedExecutionHandler {}	//丢弃新任务
+  public static class DiscardPolicy implements RejectedExecutionHandler {}	//丢弃队首任务
+}
 ```
 
 
 
-
-
-### Worker.runWorker
-
-
-
-```java
-//AQS + Runnable
-private final class Worker
-  extends AbstractQueuedSynchronizer
-  implements Runnable{
-
-  final Thread thread;
-  Runnable firstTask;
-  //完成的task数量
-  volatile long completedTasks;
-
-  final void runWorker(Worker w) {
-    Thread wt = Thread.currentThread();
-    Runnable task = w.firstTask;
-    w.firstTask = null;
-    w.unlock(); // allow interrupts
-    boolean completedAbruptly = true;
-    try {
-      //直到队列中下一个task也为null,才停止
-      while (task != null || (task = getTask()) != null) {
-        w.lock();
-        if ((runStateAtLeast(ctl.get(), STOP) ||
-             (Thread.interrupted() &&
-              runStateAtLeast(ctl.get(), STOP))) &&
-            !wt.isInterrupted())
-          wt.interrupt();
-        try {
-          beforeExecute(wt, task);
-          Throwable thrown = null;
-          try {
-            task.run();//运行
-          } catch (RuntimeException x) {
-            thrown = x; throw x;
-          } catch (Error x) {
-            thrown = x; throw x;
-          } catch (Throwable x) {
-            thrown = x; throw new Error(x);
-          } finally {
-            afterExecute(task, thrown);
-          }
-        } finally {
-          task = null;
-          w.completedTasks++;
-          w.unlock();
-        }
-      }
-      completedAbruptly = false;
-    } finally {
-      processWorkerExit(w, completedAbruptly);
-    }
-  }
-```
-
-
-
-
-
-
-
-
-
-### execute
+#### execute
 
 
 
@@ -7746,7 +7719,6 @@ public void execute(Runnable command) {
   }
   //线程池正在运行 && 添加任务至工作队列成功
   if (isRunning(c) && workQueue.offer(command)) {
-    
     int recheck = ctl.get();
     //二次校验,当线程池停止时,移出队列并拒绝策略
     if (! isRunning(recheck) && remove(command)) reject(command);
@@ -7761,6 +7733,12 @@ public void execute(Runnable command) {
 
 
 
+在execute过程中没有同步控制,完全依赖于乐观check,如果任务可创建则addWorker(Runnable firstTask, boolean core)
+
+
+
+![](image.assets/线程任务处理流程.png)
+
 
 
 #### addWorker
@@ -7768,13 +7746,22 @@ public void execute(Runnable command) {
 
 
 ```java
+boolean addWorker(command, true)： 创建核心线程执行任务；
+boolean addWorker(command, false)：创建非核心线程执行任务；
+boolean addWorker(null, false)：   创建非核心线程，当前任务为空；
+```
+
+
+
+
+
+```java
 private boolean addWorker(Runnable firstTask, boolean core) {
-  retry://CAS循环
+  retry://自旋、CAS、重读ctl 结合，直到确定是否可以创建worker，可以则跳出循环继续操作，否则返回false
   for (;;) {
     int c = ctl.get();
     int rs = runStateOf(c);
 
-    // Check if queue empty only if necessary.
     if (rs >= SHUTDOWN && ! (rs == SHUTDOWN && firstTask == null && ! workQueue.isEmpty()))
       return false;
 
@@ -7832,6 +7819,60 @@ private boolean addWorker(Runnable firstTask, boolean core) {
 
 
 
+#### Worker.runWorker
+
+
+
+```java
+//AQS + Runnable
+private final class Worker extends AbstractQueuedSynchronizer implements Runnable{
+
+  final Thread thread;
+  Runnable firstTask;
+  //完成的task数量
+  volatile long completedTasks;
+
+  final void runWorker(Worker w) {
+    Thread wt = Thread.currentThread();
+    Runnable task = w.firstTask;
+    w.firstTask = null;
+    w.unlock(); // allow interrupts
+    boolean completedAbruptly = true;
+    try {
+      //直到队列中下一个task也为null,才停止
+      while (task != null || (task = getTask()) != null) {
+        w.lock();
+        if ((runStateAtLeast(ctl.get(), STOP) ||
+             (Thread.interrupted() &&
+              runStateAtLeast(ctl.get(), STOP))) &&
+            !wt.isInterrupted())
+          wt.interrupt();
+        try {
+          beforeExecute(wt, task);
+          Throwable thrown = null;
+          try {
+            task.run();//运行
+          } catch (RuntimeException x) {
+            thrown = x; throw x;
+          } catch (Error x) {
+            thrown = x; throw x;
+          } catch (Throwable x) {
+            thrown = x; throw new Error(x);
+          } finally {
+            afterExecute(task, thrown);
+          }
+        } finally {
+          task = null;
+          w.completedTasks++;
+          w.unlock();
+        }
+      }
+      completedAbruptly = false;
+    } finally {
+      processWorkerExit(w, completedAbruptly);
+    }
+  }
+```
 
 
 
@@ -7840,13 +7881,75 @@ private boolean addWorker(Runnable firstTask, boolean core) {
 
 
 
-### 线程池的工作队列
 
 
 
-当没有足够的线程去处理任务时，可以将任务放进队列中，以队列先进先出的特性来执行工作任务
 
-核心线程满了，进队列，队列也满了，创建新线程，直到达到最大线程数，之后再超出，会进入拒绝rejectedExecution
+
+### ScheduledThreadPoolExecutor
+
+
+
+```java
+//实现ScheduledExecutorService,获得调度能力
+public class ScheduledThreadPoolExecutor
+        extends ThreadPoolExecutor
+        implements ScheduledExecutorService {
+  
+}
+```
+
+
+
+**构造**
+
+```java
+public ScheduledThreadPoolExecutor(int corePoolSize,ThreadFactory threadFactory) {
+    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
+          new DelayedWorkQueue(), threadFactory);
+}
+
+public ScheduledThreadPoolExecutor(int corePoolSize,RejectedExecutionHandler handler) {
+    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
+          new DelayedWorkQueue(), handler);
+}
+
+public ScheduledThreadPoolExecutor(int corePoolSize,ThreadFactory threadFactory,RejectedExecutionHandler handler) {
+    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
+          new DelayedWorkQueue(), threadFactory, handler);
+}
+```
+
+
+
+#### ScheduledExecutorService
+
+
+
+```java
+public interface ScheduledExecutorService extends ExecutorService {
+    // 特定时间延时后执行一次Runnable
+    public ScheduledFuture<?> schedule(Runnable command,
+                                       long delay, TimeUnit unit);
+    // 特定时间延时后执行一次Callable
+    public <V> ScheduledFuture<V> schedule(Callable<V> callable,
+                                           long delay, TimeUnit unit);
+    // 固定周期执行任务（与任务执行时间无关，周期是固定的）
+    public ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
+                                                  long initialDelay,
+                                                  long period,
+                                                  TimeUnit unit);
+     // 固定延时执行任务（与任务执行时间有关，延时从上一次任务完成后开始）
+    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
+                                                     long initialDelay,
+                                                     long delay,
+                                                     TimeUnit unit);
+}
+```
+
+
+
+
 
 
 
@@ -7856,11 +7959,11 @@ private boolean addWorker(Runnable firstTask, boolean core) {
 
 
 
-阻塞队列是一个在队列基础上又支持了两个附加操作的队列
+2个额外方法：
 
-2个附加操作：
+支持阻塞的**插入**：队满时，队列会阻塞插入元素的线程
 
-支持阻塞的**插入**方法：队列满时，队列会阻塞插入元素的线程，直到队列不满。支持阻塞的**移除**方法：队列空时，获取元素的线程会等待队列变为非空
+支持阻塞的**移除**：队空时，获取元素的线程会等待队列变为非空
 
 
 
@@ -7870,9 +7973,9 @@ private boolean addWorker(Runnable firstTask, boolean core) {
 
 
 
-- **ArrayBlockingQueue**：**基于数组 有界**，按FIFO（先进先出）原则对元素进行排序,队满时不保证线程公平的访问(队列外的被阻塞元素将持续阻塞,没有获得锁的机会)
-- **LinkedBlockingQueue**：**基于链表 有界**，按FIFO排序，吞吐量高于ArrayBlockingQueue。静态工厂方法Executors.newFixedThreadPool()使用了这个队列
-- **SynchronousQueue**：**不存储元素**。每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直阻塞，吞吐量高于Linked-BlockingQueue，静态工厂方法Executors.newCachedThreadPool使用了这个队列
+- **ArrayBlockingQueue**：**基于数组 有界**，FIFO（先进先出）排序,**队满时不公平**(队列外的被阻塞元素将持续阻塞,没有获得锁的机会)
+- **LinkedBlockingQueue**：**基于链表 有界**，FIFO排序，吞吐量高于ArrayBlockingQueue。Executors.newFixedThreadPool()
+- **SynchronousQueue**：**不存储元素**。插入必须等到另一个线程调用移除操作，否则阻塞，吞吐量高于Linked-BlockingQueue，Executors.newCachedThreadPool
 - **PriorityBlockingQueue**：**支持优先级排序 无界**
 - DelayQueue：**支持延时获取元素** 优先级队列 无界
 - LinkedTransferQueue：链表 无界 
@@ -8031,23 +8134,6 @@ public class ProducerConsumerExample {
 
 
 
-### 拒绝策略
-
-
-
-ThreadPoolExecutor默认有四个拒绝策略：
-
-1. `ThreadPoolExecutor.AbortPolicy()` 直接抛出异常RejectedExecutionException
-2. `ThreadPoolExecutor.CallerRunsPolicy()` 直接调用run方法并且阻塞执行
-3. `ThreadPoolExecutor.DiscardPolicy()` 直接丢弃后来的任务
-4. `ThreadPoolExecutor.DiscardOldestPolicy()` 丢弃在队列中队首的任务
-
-当然可以自己继承 RejectedExecutionHandler 来写拒绝策略
-
-
-
-
-
 
 
 
@@ -8058,27 +8144,47 @@ ThreadPoolExecutor默认有四个拒绝策略：
 
 
 
-支持异步调用,但对于结果的获取却不方便，只能通过阻塞或者轮询的方式得到任务的结果。阻塞的方式显然和我们的异步编程的初衷相违背，轮询的方式又会耗费无谓的 CPU 资源，而且也不能及时地得到计算结果
+![](image.assets/Future继承.png)
 
 
 
-三种功能：
-
-判断任务是否完成；
-
-中断任务；
-
-获取任务执行结果
+支持异步,异步执行的结果保存在Future中
 
 ```java
 public interface Future<V> {
-  boolean cancel(boolean mayInterruptIfRunning);//取消任务成功返回true,取消失败/任务已完成,返回false。入参true表示可以取消正在执行过程中的任务
+  boolean cancel(boolean mayInterruptIfRunning);//取消失败/任务完成返回false。入参true表示可以取消正在执行的任务
   boolean isCancelled();	//任务是否被取消成功
   boolean isDone();
   V get() throws InterruptedException, ExecutionException;	//获取执行结果，这个方法会阻塞，一直等到任务执行完毕
   V get(long timeout, TimeUnit unit)  throws InterruptedException, ExecutionException, TimeoutException;
 }
 ```
+
+
+
+
+
+#### RunnableFuture
+
+​    这个接口同时继承Future接口和Runnable接口，在成功执行run（）方法后，可以通过Future访问执行结果。这个接口都实现类是FutureTask,一个可取消的异步计算，这个类提供了Future的基本实现，后面我们的demo也是用这个类实现，它实现了启动和取消一个计算，查询这个计算是否已完成，恢复计算结果。计算的结果只能在计算已经完成的情况下恢复。如果计算没有完成，get方法会阻塞，一旦计算完成，这个计算将不能被重启和取消，除非调用runAndReset方法。
+
+​    FutureTask能用来包装一个Callable或Runnable对象，因为它实现了Runnable接口，而且它能被传递到Executor进行执行。为了提供单例类，这个类在创建自定义的工作类时提供了protected构造函数。
+
+#### SchedualFuture
+
+​    这个接口表示一个延时的行为可以被取消。通常一个安排好的future是定时任务SchedualedExecutorService的结果
+
+#### CompleteFuture
+
+​    一个Future类是显示的完成，而且能被用作一个完成等级，通过它的完成触发支持的依赖函数和行为。当两个或多个线程要执行完成或取消操作时，只有一个能够成功。
+
+#### ForkJoinTask
+
+​    基于任务的抽象类，可以通过ForkJoinPool来执行。一个ForkJoinTask是类似于线程实体，但是相对于线程实体是轻量级的。大量的任务和子任务会被ForkJoinPool池中的真实线程挂起来，以某些使用限制为代价。
+
+
+
+
 
 
 
