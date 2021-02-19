@@ -1,379 +1,5 @@
 
 
-
-
-
-
-# Math
-
-
-
-## random
-
-```java
-public static double random() {
-    return RandomNumberGeneratorHolder.randomNumberGenerator.nextDouble();
-}
-```
-
-这个方法返回是double [0,1)	**存在除零异常**
-
-
-
-
-
-
-
-# 时间日期
-
-
-
-【强制】日期格式化时，传入pattern中**年份统一使用小写的y**
-
-yyyy表示当天所在的年，YYYY表示当天所在的周所属的年份，当本周跨年时，返回的yyyy就是下一年
-
-表示月份是大写的M
-
-表示分钟则是小写的m
-
-24小时制的是大写的H
-
-12小时制的则是小写的h
-
-```
-new SimpleDateFormat(”yyyy_MM_dd HH:mm:ss");
-```
-
-
-
-
-
-- 非线程安全：java.uttil.Date 是非线程安全的，所有的日期类都是可变的，这是java日期类最大的问题之一。
-- 设计很差：java的日期/时间类的定义并不一致，在java.util和java.sql的包中毒有日期类，此外用于格式化和解析的类在java.text包中定义。java.util.Date同时包含日期和时间，而java.sql.Date仅包含日期，将其纳入java.sql包并不合理。另外这两个类都有相同提高的名字，这本身就是一个非常糟糕的设计。
-- 时区处理麻烦：日期类并不提供国际化，没有时区支持，因此java引入了java.util.Caleandar和java.util.TimeZone类，但他们同样存在上述所有的问题。
-
-### 新日期时间API
-
-java8在java.time包下提供了很多新的API。以下为两个比较重要的API:
-
-- Local(本地)：简化了日期时间的处理，没有时区的问题。
-- Zoned(时区)：通过制定的时区处理日期时间。
-  具体的API:
-
-
-
-
-
-## LocalDate/Time
-
-
-
-LocalDate	年月日	2020-01-11
-
-LocalTime		11:07:03.580
-
-
-
-
-
-```java
-now()
-of(int year, int month, int dayOfMonth) 
-plusDays(long daysToAdd)	增加天数
-getYear()
-  
-//重写了equals方法，利于日期比较
-LocalDate date1  = LocalDate.parse("2020-01-11");
-LocalDate date2  = LocalDate.parse("2020-01-11");
-date1.equals(date2)
-//前后比较
-isBefore/After()
-
-```
-
-
-
-
-
-## LocalDateTime
-
-
-
-```java
-LocalDateTime.toLocalDate()	//LocalDateTime->LocalDate
-LocalDateTime.toLocalTime()	//LocalDateTime->LocalTime
-```
-
-
-
-
-
-## ZonedDateTime-创建时区时间
-
-```
-now()
-parse("2015-12-03T10:15:30+05:30[Asia/Shanghai]")
-```
-
-
-
-
-
-### ZoneId
-
-
-
-```
-of(String zoneId)	//创建时区
-ZoneId.systemDefault()	//当前时区
-
-```
-
-
-
-
-
-
-
-
-
-把LocalDateTime转换成特定的时区：
-
-```
-ZonedDateTime.of(LocalDateTime localDateTime, ZoneId zone)	//LocalDateTime->ZonedDateTime
-```
-
-
-
-
-
-## Instant 时间戳
-
-
-
-```java
-now()
-  
-//偏移量运算
-atOffset(ZoneOffset offset)
-
-Instant.toEpochMilli()	//Instant->
-```
-
-
-
-
-
-
-
-
-
-## Timestamp
-
-
-
-```
-toLocalDateTime()	
-```
-
-
-
-
-
-## DateTimeFormatter
-
-
-
-```java
-//format
-DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE;
-dateFormatter.format(LocalDate.of(2018, 11, 11));
-
-//parse
-DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-LocalDate day = LocalDate.parse("1900-01-01", dateFormatter);
-```
-
-
-
-## Duration 时间段
-
-
-
-包含两个域：纳秒值（小于一秒的部分），秒钟值（一共的秒数），纳秒+秒 合计为真实时间长度
-
-
-
-```java
-public final class Duration implements TemporalAmount, Comparable<Duration>, Serializable {
-  //没有毫秒,并且是final	,创建后无法改变时间
-  private final long seconds;
-  private final int nanos;
-}
-```
-
-
-
-**创建**
-
-```java
-between(Temporal start, Temporal end);	//起始+结束时间
-
-of(long amount, TemporalUnit unit)	//时间段长度+单位
-```
-
-
-
-**转化**	整个时间(秒+毫秒)的转化
-
-```java
-toNanos()
-toMillis()
-toMinutes()
-toHours()
-toDays()
-//没有toSeconds()是因为等同于没有getSeconds()
-```
-
-
-
-**计算方法**	所有的计算方法都返回新的Duration，保证Duration的不可变
-
-```java
-plusNanos()
-plusMillis()
-plusSeconds()
-plusMinutes()
-plusHours()
-plusDays()
-minusNanos()
-minusMillis()
-minusSeconds()
-minusMinutes()
-minusHours()
-minusDays()
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Optional
-
-
-
-解决NPE,一个包含可选值的包装类，**既可以含有对象也可以为null**
-
-
-
-```java
-empty()	//返回一个空的Optional
-of()/ofNullable()	//创建包含值的 Optional		of()不允许接受null
-get()	
-```
-
-
-
-检查是否有值
-
-```java
-//接受Consumer函数
-public void ifPresent(Consumer<? super T> consumer) {
-  if (value != null)  consumer.accept(value);
-}
-
-opt.ifPresent( u -> assertEquals(user.getEmail(), u.getEmail()));
-```
-
-
-
-取值
-
-```java
-//在对象为空时返回默认值
-public T orElse(T other) {
-  return value != null ? value : other;
-}
-
-//在对象为空时执行Supplier
-public T orElseGet(Supplier<? extends T> other) {
-  return value != null ? value : other.get();
-}
-
-//区别:
-//orElse()中调用方法,无论如何都会执行一次
-//orElseGet()传入Supplier,只在对象为空时才被运行
-User user = new User("john@gmail.com", "1234");
-User result = Optional.ofNullable(user).orElse(createNewUser());	//此处必定调用createNewUser()
-User result2 = Optional.ofNullable(user).orElseGet(() -> createNewUser());//不一定调用
-
-
-//对象为空时抛出异常
-public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-  if (value != null) {
-    return value;
-  } else {
-    throw exceptionSupplier.get();
-  }
-}
-```
-
-
-
-
-
-转换值
-
-map和flatMap返回值为 Optional ,支持**链式调用**
-
-```java
-Optional<U> map(Function<? super T, ? extends U> mapper)		//入参不同
-Optional<U> flatMap(Function<? super T, Optional<U>> mapper)//传入Optional,返回Optional
-  
-//user -> String
-String email = Optional.ofNullable(user).map(u -> u.getEmail()).orElse("default@gmail.com");
-```
-
-
-
-过滤	 返回测试结果为 true 的值,如果都为false,返回empty()
-
-```java
-public Optional<T> filter(Predicate<? super T> predicate) {
-  Objects.requireNonNull(predicate);
-  if (!isPresent())
-    return this;
-  else
-    return predicate.test(value) ? this : empty();
-}
-
-Optional<User> result = Optional.ofNullable(user).filter(u -> u.getEmail() != null && u.getEmail().contains("@"));
-```
-
-
-
-
-
-
-
-
-
-
-
 # 序列化
 
 
@@ -449,7 +75,7 @@ serialVersionUID = 1L意义:
 
 超类和子类 成员变量名称相同
 
-并不会重写父类的成员变量,**子类中将有两个相同名称的变量**
+不会重写父类成员变量,**子类中将有两个相同名称的变量**
 
 ```java
 public class A {  
@@ -535,9 +161,7 @@ public class B extends A{
 
 
 
-仅一个无参的方法： T get() 
-
-用来获取一个泛型参数指定类型的对象数据。由于这是一个函数式接口，这也就意味着对应的Lambda表达式需要“对外提供”一个符合泛型类型的对象数据。
+T get()	获取一个泛型参数指定类型的对象数据	**生产一个数据**
 
 ```java
 public void testGetUser() {
@@ -568,11 +192,9 @@ private Integer getMin(Supplier<Integer> supplier) {
 
  
 
-### Consumer接口
+### Consumer
 
-java.util.function.Consumer<T> 
-
-**与Supplier接口相反**，它不是生产一个数据，而是消费一个数据
+**与Supplier接口相反**，消费一个数据
 
 
 
@@ -1041,79 +663,36 @@ reduce ： 66
 
 
 
-集合主要分为两种：Collection 和 Map
-
-Collection 是 List 和 Set 接口的父接口
-
-ArrayList 和 LinkedList 是 List 的实现类
-
-HashSet 和 TreeSet 是 Set 的实现类
-
-LinkedHashSet 是 HashSet 的子类
-
-HashMap 和 TreeMap 是 Map 的实现类
-
-LinkedHashMap 是 HashMap 的子类
-
-
-
-List 以特定索引来存取元素，可重复
-
-Set 不能存放重复元素（equals()区分是否重复）
-
-Map 保存键值对映射，映射关系 一对一/多对一
-
-Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种实现版本，基于哈希存储的版本理论存取时间复杂度为O(1)，而基于排序树版本的实现在插入或删除元素时会按照元素或元素的键（key）构成排序树从而达到排序和去重的效果。
-
-
-
 ![](image.assets/image-20201207212855338.png)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-## 集合VS数组
-
-
-
-| 集合                           | 数组                                              |
-| ------------------------------ | ------------------------------------------------- |
-| 面向对象,效率高                | 非面向对象                                        |
-|                                | 无法判断实际有多少元素，length只告诉了array的容量 |
-| 有多种实现方式和不同的适用场合 | 仅采用顺序表                                      |
-|                                |                                                   |
-
-
-
-
-
-
-
-
-
-## List、Map、Set区别
+| 集合                 | 数组                   |
+| -------------------- | ---------------------- |
+| 面向对象,效率高,灵活 | 非面向对象,顺序表      |
+|                      | 无法判断实际有多少元素 |
 
 
 
 | List                       | Set                      | Map                 |
 | -------------------------- | ------------------------ | ------------------- |
 | 单列                       | 单列                     | 双列                |
-| 重复(重复存储多个对象索引) | 不重复,add()返回boolean  | key不重复,value重复 |
+| 重复(重复存储多个对象指针) | 不重复,add()返回boolean  | key不重复,value重复 |
 | 有序                       | 无序，只能以Iterator遍历 |                     |
-|                            |                          |                     |
 
 
+
+| Data Structure                               | 新增     | **查询/Find** | 删除/Delete | GetByIndex |
+| -------------------------------------------- | -------- | ------------- | ----------- | ---------- |
+| 数组 Array (T[])                             | O(n)     | **O(n)**      | O(n)        | O(1)       |
+| 链表 Linked list (LinkedList<T>)             | O(1)     | **O(n)**      | O(n)        | O(n)       |
+| Resizable array list (List<T>)               | O(1)     | **O(n)**      | O(n)        | O(1)       |
+| Stack (Stack<T>)                             | O(1)     | **-**         | O(1)        | -          |
+| Queue (Queue<T>)                             | O(1)     | **-**         | O(1)        | -          |
+| Hash table (Dictionary<K,T>)                 | O(1)     | **O(1)**      | O(1)        | -          |
+| Tree-based dictionary(SortedDictionary<K,T>) | O(log n) | **O(log n)**  | O(log n)    | -          |
+| Hash table based set (HashSet<T>)            | O(1)     | **O(1)**      | O(1)        | -          |
+| Tree based set (SortedSet<T>)                | O(log n) | **O(log n)**  | O(log n)    | -          |
 
 
 
@@ -1140,8 +719,6 @@ Set 和 Map 容器都有基于哈希存储和排序树（红黑树）的两种�
     * true，元素重复,不插入
 
 **hashCode决定存储位置，equals判断重复**
-
-
 
 
 
@@ -1179,15 +756,10 @@ List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变�
 
 ==效率==
 
-* ArrayList和Vector中，从指定的位置检索，或在末尾插入、删除都是O(1)
-
-  * 其他位置为O(n-i)，n为元素的个数，i下标。需要执行(n-i)个对象的位移操作
-
-* LinkedList
-  * 插入、删除集合中任何位置都O(1)
-  * 索引时O(i),i下标
-
-
+|      | ArrayList/Vector            |            |
+| ---- | --------------------------- | ---------- |
+| O(1) | 下标搜索，**末尾插入/删除** | 插入、删除 |
+| O(n) | 搜索                        | 查找       |
 
 
 
@@ -1197,13 +769,13 @@ List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变�
 
 
 
-==List接口是由AbstractList实现==
+==AbstractList实现List接口==
 
 接口中全都是抽象的方法，而抽象类中可以有抽象方法，还可以有具体的实现方法
 
 让AbstractList实现List接口中一些通用的方法，而具体的子类去继承AbstractList类，拿到一些通用的方法再实现一些特有的方法
 
-这样一来，让代码更简洁，就继承结构最底层的类中通用的方法都抽取出来，先一起实现了，减少重复代码
+提前实现了顶级父类中的通用方法，减少重复代码
 
 
 
@@ -3953,6 +3525,118 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
+FD	文件描述符，指向该进程打开文件的记录表。当程序打开/创建文件时，内核向进程返回一个文件描述符
+
+
+
+由于DMA的存在,单线程来处理IO也不会有数据丢失的情况
+
+
+
+对于一次IO（以read举例），数据会先被拷贝到内核的缓冲区中，再拷贝到应用程序的地址空间,经历两个阶段：
+1. 等待数据准备 (Waiting for the data to be ready)
+2. 将数据从内核拷贝到进程中 (Copying the data from the kernel to the process)
+
+
+
+linux五种网络模式
+- 阻塞 I/O（blocking IO）
+- 非阻塞 I/O（nonblocking IO）
+- I/O 多路复用（ IO multiplexing）
+- 信号驱动 I/O（ signal driven IO）
+- 异步 I/O（asynchronous IO）
+
+
+
+
+
+## select/poll/epoll
+
+
+
+select
+
+单个进程可监视的fd数量被限制，即能监听端口的大小有限
+
+需要维护一个用来存放大量fd的数据结构，这样会使得用户空间和内核空间在传递该结构时复制开销大
+
+只知道有I/O事件发生，但并不知道哪几个流，需要轮询所有流，找出能读/写的流。**O(n)的轮询复杂度**
+
+```java
+while(true){
+  for(流){
+    if(有数据){
+      读/写;
+    }
+  }
+}
+```
+
+
+
+
+
+(2)poll==>时间复杂度O(n)
+
+poll本质上和select没有区别，它将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态， **但是它没有最大连接数的限制**，原因是它是基于链表来存储的
+
+
+
+
+
+
+
+(3)epoll==>时间复杂度O(1)
+
+**epoll可以理解为event poll，事件驱动（每个事件关联上fd）O(1)**
+
+
+
+select，poll，epoll都是IO多路复用的机制。I/O多路复用就通过监视多个描述符，一旦某个描述符读就/写就绪，能够通知程序进行相应的读写操作。
+
+**但select，poll，epoll本质上都是同步I/O，都需要在读写事件就绪后自己负责进行读写，读写过程阻塞**
+
+
+
+
+
+**poll：**
+
+poll本质上和select没有区别，它将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态，如果设备就绪则在设备等待队列中加入一项并继续遍历，如果遍历完所有fd后没有发现就绪设备，则挂起当前进程，直到设备就绪或者主动超时，被唤醒后它又要再次遍历fd。这个过程经历了多次无谓的遍历。
+
+**它没有最大连接数的限制**，原因是它是基于链表来存储的，但是同样有一个缺点：
+
+1、大量的fd的数组被整体复制于用户态和内核地址空间之间，而不管这样的复制是不是有意义。          
+
+2、poll还有一个特点是“水平触发”，如果报告了fd后，没有被处理，那么下次poll时会再次报告该fd。
+
+**epoll:**
+
+epoll有EPOLLLT和EPOLLET两种触发模式，LT是默认的模式，ET是“高速”模式。LT模式下，只要这个fd还有数据可读，每次 epoll_wait都会返回它的事件，提醒用户程序去操作，而在ET（边缘触发）模式中，它只会提示一次，直到下次再有数据流入之前都不会再提示了，无 论fd中是否还有数据可读。所以在ET模式下，read一个fd的时候一定要把它的buffer读光，也就是说一直读到read的返回值小于请求值，或者 遇到EAGAIN错误。还有一个特点是，epoll使用“事件”的就绪通知方式，通过epoll_ctl注册fd，一旦该fd就绪，内核就会采用类似callback的回调机制来激活该fd，epoll_wait便可以收到通知。
+
+**epoll为什么要有EPOLLET触发模式？**
+
+如果采用EPOLLLT模式的话，系统中一旦有大量你不需要读写的就绪文件描述符，它们每次调用epoll_wait都会返回，这样会大大降低处理程序检索自己关心的就绪文件描述符的效率.。而采用EPOLLET这种边沿触发模式的话，当被监控的文件描述符上有可读写事件发生时，epoll_wait()会通知处理程序去读写。如果这次没有把数据全部读写完(如读写缓冲区太小)，那么下次调用epoll_wait()时，它不会通知你，也就是它只会通知你一次，直到该文件描述符上出现第二次可读写事件才会通知你！！！**这种模式比水平触发效率高，系统不会充斥大量你不关心的就绪文件描述符**
+
+**epoll的优点：**
+
+1、**没有最大并发连接的限制，能打开的FD的上限远大于1024（1G的内存上能监听约10万个端口）**；
+**2、效率提升，不是轮询的方式，不会随着FD数目的增加效率下降。只有活跃可用的FD才会调用callback函数；**
+**即Epoll最大的优点就在于它只管你“活跃”的连接，而跟连接总数无关，因此在实际的网络环境中，Epoll的效率就会远远高于select和poll。**
+
+3、 内存拷贝，利用mmap()文件映射内存加速与内核空间的消息传递；即epoll使用mmap减少复制开销。
+**select、poll、epoll 区别总结：**
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## BIO
@@ -4119,10 +3803,7 @@ len是实际长度\*
 
 
 
-
 **说下常用的io流**
-
-Icon
 
 InputStream,OutputStream,
 FileInputStream,FileOutputStream,
@@ -4203,7 +3884,8 @@ D 在服务线程中，从socket中获得I/O流
 E 对I/O流进行读写操作，完成与客户的交互
 F 关闭socket
 G 关闭I/O流
-\11. [Java ](http://lib.csdn.net/base/java)UDP编程主要用到的两个类型是：（ BD）
+
+Java编程主要用到的两个类型是：（ BD）
 A UDPSocket
 B DatagramSocket
 C UDPPacket
@@ -4500,7 +4182,7 @@ outChannel.close();
 
 
 
-线程有独立的工作内存，用于存储私有数据	主内存则共享内存区域
+线程有独立的工作内存，用于存储私有数据	主内存共享内存区域
 
 线程**对变量的操作在工作内存中进行**（线程安全问题的根本原因）
 
@@ -4508,7 +4190,7 @@ outChannel.close();
 
 * 然后对变量进行操作，回写主内存
 
-* ==线程间无法访问对方的工作内存，线程通信(传值)必须通过主内存完成==,多线程对共享变量修改时相互不可见,导致共享变量的结果不可预知
+* ==线程间无法访问对方的工作内存，线程通信(传值)必须通过主内存完成==,多线程对共享变量修改时相互不可见,导致结果不可预知
 
 
 
@@ -5414,15 +5096,11 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 ## 线程6种状态
 
-![](image.assets/image-20200904093701936.png)
+<img src="image.assets/image-20200904093701936.png" style="zoom:67%;" />
 
 
 
-
-
-![image-20201221210958783](image.assets/image-20201221210958783.png)
-
-
+![](image.assets/137084-20180421113325399-1759953729.jpg)
 
 
 
@@ -5433,9 +5111,11 @@ InheritableThreadLocal类是ThreadLocal类的子类
   * Thread.start()  NEW-> RUNNABLE
   * 就绪不代表立即运行,还需要和其他线程竞争CPU
 
-* 阻塞 BLOCKED  等待锁
+* 阻塞 BLOCKED
 
-  * synchronized
+  * 等待阻塞：wait()进入等待队列
+  * 同步阻塞：获取对象的同步锁失败
+  * 其他阻塞：Thread.sleep()/join()，或发出I/O请求
 
 * 等待 WAITING   等待另一个线程执行特定的动作
 
@@ -5443,7 +5123,7 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 * 计时等待 TIMED_WAITING，和WAITING类似，只是多了超时时间
 
-  * wait(long timeout) / Thread.join(long timeout) 设置了超时时间时，才会进入此状态
+  * wait() / join() 设置超时才会进入此状态
 
 * 终止 TERMINATED，线程死亡	**死亡线程将无法再次start**
 
@@ -7400,7 +7080,7 @@ private LinkedList<Object> buffer;    //生产者容器
 
 主要代表有Vector和Hashtable，以及Collections.synchronizedXxx等。
 
-锁的粒度为当前对象整体。迭代器是及时失败的，即在迭代的过程中发现被修改，就会抛出ConcurrentModificationException。
+锁的粒度为当前对象整体。快速失败,在迭代的过程中发现被修改抛出ConcurrentModificationException
 
 ### 二、并发容器
 
@@ -7598,6 +7278,29 @@ CachedThreadPool允许的创建线程数量为Integer.MAX_VALUE，会创建大�
 
 
 
+#### RunnableAdapter
+
+
+
+适配器模式,重写Callable的call():Runnable.run()并返回result
+
+```java
+static final class RunnableAdapter<T> implements Callable<T> {
+    final Runnable task;
+    final T result;
+    RunnableAdapter(Runnable task, T result) {
+        this.task = task;
+        this.result = result;
+    }
+    public T call() {
+        task.run();
+        return result;
+    }
+}
+```
+
+
+
 
 
 
@@ -7662,6 +7365,72 @@ ExecutorService 接口在 java.util.concurrent 包中有如下实现类：
 
 - ThreadPoolExecutor
 - ScheduledThreadPoolExecutor
+
+
+
+
+
+### AbstractExecutorService
+
+
+
+```java
+public abstract class AbstractExecutorService implements ExecutorService {
+
+}
+```
+
+
+
+
+
+
+
+#### newTaskFor
+
+
+
+```java
+protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+  return new FutureTask<T>(runnable, value);	//Runnable+value封装成FutureTask,从而拥有返回值
+}
+protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+  return new FutureTask<T>(callable);
+}
+```
+
+
+
+
+
+#### submit
+
+
+
+```java
+public Future<?> submit(Runnable task) {
+  if (task == null) throw new NullPointerException();
+  RunnableFuture<Void> ftask = newTaskFor(task, null);
+  execute(ftask);
+  return ftask;
+}
+public <T> Future<T> submit(Runnable task, T result) {
+  if (task == null) throw new NullPointerException();
+  RunnableFuture<T> ftask = newTaskFor(task, result);
+  execute(ftask);
+  return ftask;
+}
+public <T> Future<T> submit(Callable<T> task) {
+  if (task == null) throw new NullPointerException();
+  RunnableFuture<T> ftask = newTaskFor(task);
+  execute(ftask);
+  return ftask;
+}
+```
+
+
+
+
 
 
 
@@ -8197,14 +7966,33 @@ public interface Future<V> {
 FutureTask既可以作为Runnable被线程执行，又能作为Future得到Callable的返回值,因为FutureTask实现了RunnableFuture
 
 ```java
-public class FutureTask<V> implements RunnableFuture<V>
-  public FutureTask(Callable<V> callable)
+public class FutureTask<V> implements RunnableFuture<V>{
+      private volatile int state;
+    private static final int NEW          = 0;
+    private static final int COMPLETING   = 1;
+    private static final int NORMAL       = 2;
+    private static final int EXCEPTIONAL  = 3;
+    private static final int CANCELLED    = 4;
+    private static final int INTERRUPTING = 5;
+    private static final int INTERRUPTED  = 6;
+
+
+    private Callable<V> callable;
+    private Object outcome;
+    private volatile Thread runner;
+    private volatile WaitNode waiters;
+  
+    public FutureTask(Callable<V> callable)
   public FutureTask(Runnable runnable, V result)
+}
+
   
 public interface RunnableFuture<V> extends Runnable, Future<V> {
     void run();
 }
 ```
+
+
 
 
 
@@ -8613,25 +8401,23 @@ Jconsole	查看JVM状态
 
 虚拟机和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
 
-
-
 一个方法在栈上的内存称为栈帧,栈有多个栈帧,在方法调用完成后出栈
 
 
 
-* 虚拟机栈==分配的内存大小在编译时确定==
+* 虚拟机栈==大小在编译时确定==
 
-  * ==对象引用,基本类型,指令地址==
+  * ==基本类型,指令地址==
 
   * ==对象引用和局部变量==(大小固定,运行期间不变)
     
     * **32位**(JOL规定)的变量槽（Slot），Slot至少能存放一个boolean、byte、char、short、int、float、reference类型的数据
-    * **局部变量必须手动赋值**，不会被被赋初值,不像类变量在加载过程中有准备阶段
+    * **局部变量不会被被赋初值**,不像类变量在加载过程中有准备阶段
     
   * ==操作数栈==(工作空间)
 
       * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
-      * Jvm的解释执行引擎就是基于操作数栈的执行引擎
+      * Jvm的解释执行引擎就是基于操作数栈
 
   * ==动态连接==
     * 指向方法区中的方法表,从而支持方法调用过程中的动态连接
@@ -8645,16 +8431,14 @@ Jconsole	查看JVM状态
 
       一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
 
-  * 线程私有，生命周期与线程相同,方法调用进栈,结束出栈
-
-  * 效率高.由操作系统自动分配,有专门的寄存器存放栈的地址，压栈出栈有专门指令
+  * 线程私有，生命周期与线程相同,有专门的寄存器存放栈的地址，压栈出栈有专门指令
 
   * 按先后定义的顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
 
   * **线程请求的栈深度大于虚拟机所允许的深度，StackOverflowError**
 * 本地方法栈
   
-  * 为虚拟机使用到本地方法服务（native）
+  * 提供本地方法服务（native）
 
 ==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
 
@@ -8666,28 +8450,32 @@ Jconsole	查看JVM状态
 
 
 
-* 只有1个,被所有线程共享,虚拟机启动时创建
-* 存储==对象和class对象(操作指令)==
-* ==gc主要区域==
-  * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
-  * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC，Eden和使用区里都存在需要回收的对象,导致碎片
-  * **Survivor from/to区交替空闲** -> 新生代实际可用90%
-    * Eden存放新创建对象,==分配内存时需要加锁==
-      * 线程在Eden上被分配独享的空间TLAB（Thread Local Allocation Buffer）,==在TLAB分配内存不需要加锁==，JVM会尽量在TLAB分配,对象过大或TLAB用完时，则仍在堆上进行分配
-      * Eden满时
-        * **进入老年代的对象大小在GC前未知**
-        * 之前晋升到老年代的平均值>老年代剩余空间，**full GC**
-        * < 则判断参数HandlePromotionFailure(是否允许担保失败,默认允许)，有担保则**Minor GC**
-          * 大对象进入年老代,保证Eden区空间充足  -XX:PretenureSizeThreshold(默认0,代表不管怎样都在Eden先分配)
-          * 长期存活进入老年代，避免from/to重复复制,以及Survivor空间不足  -XX:MaxTenuringThreshold 默认15次
-          * **动态对象年龄判断**,年龄相同的对象>Survivor/2，**超出部分放入老年代,保证老年代空间充足**
-      * GC后,使用/空闲区互换,**年龄+1**
-  * 年老代  存活时间较久，较大的对象
+只有1个,被所有线程共享,虚拟机启动时创建
+
+存储==对象和class对象(操作指令)==
+
+==gc主要区域==
+
+* 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
+* 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC，Eden和使用区里都存在需要回收的对象,导致碎片
+* **Survivor from/to区交替空闲** -> 新生代实际可用90%
+  * Eden存放新创建对象,==分配内存时需要加锁==
+    * 线程在Eden上的独占空间:本地线程分配缓冲TLAB,==在TLAB分配内存不需要加锁==，首先尝试在TLAB分配,对象过大/TLAB满，在堆上分配
+    * Eden满时
+      * **进入老年代的对象大小在GC前未知**
+      * 之前晋升到老年代的平均值>老年代剩余空间，**full GC**
+      * < 则判断参数HandlePromotionFailure(是否允许担保失败,默认允许)，有担保则**Minor GC**
+        * 大对象进入年老代,保证Eden区空间充足  -XX:PretenureSizeThreshold(默认0,代表不管怎样都在Eden先分配)
+        * 长期存活进入老年代，避免from/to重复复制,以及Survivor空间不足  -XX:MaxTenuringThreshold 默认15次
+        * **动态对象年龄判断**,年龄相同的对象>Survivor/2，**超出部分放入老年代,保证老年代空间充足**
+    * GC后,使用/空闲区互换,**年龄+1**
+* 年老代  存活时间较久，较大的对象
+
 * 堆的申请和释放工作由程序员控制，容易**内存泄漏** -> 己动态分配的堆内存未释放或无法释放
 
 
 
-![](image.assets/堆分区.png)
+<img src="image.assets/堆分区.png" style="zoom:50%;" />
 
 
 
@@ -8695,23 +8483,19 @@ Jconsole	查看JVM状态
 
 -XX:TLABSize
 
+-XX:UseTLAB	设置是否开启TLAB空间
+
 
 
 Thread Local Allocation Buffer
 
-堆区线程共享,由于频繁创建对象,在并发环境下从堆区中划分内存空间是线程不安全的,需要加锁等机制,将导致分配速度降低,所以需要TLAB
+堆区线程共享,创建对象线程不安全,需要加锁导致分配速度降低
 
 
 
-**JVM为每个线程在Eden区分配了一个私有缓存区**(Eden的1%),使得线程可以不加锁地创建对象
+**JVM为每个线程在Eden区分配独占缓存区**(Eden的1%),使得线程可以不加锁地创建对象
 
 快速分配策略:当TLAB空间不足时,重新创建TLAB.多线程同时分配内存时,使用TLAB可以避免线程安全问题,提升内存分配的吞吐量
-
-
-
-- 尽管不是所有的对象实例都能够在TLAB中成功分配内存,但JVM确实是将TLAB作为内存分配的首选
-- 在程序中,开发人员可以通过选项"-XX:UseTLAB"设置是否开启TLAB空间。
-- 一旦对象在TLAB空间分配内存失败时, JVM就会尝试着通过使用加锁机制确保数据操作的原子性,从而直接在Eden空间中分配内存
 
 
 
@@ -8802,6 +8586,18 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
+**方法区主要回收**
+
+废弃常量	可达性
+
+无用的类	所有实例/加载该类的ClassLoader/Class对象被GC
+
+
+
+
+
+
+
 ### 程序计数器
 
 
@@ -8816,7 +8612,7 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-## JOL 对象内存布局
+## 对象内存布局 JOL
 
 
 
@@ -8941,35 +8737,13 @@ Just-In-Time	及时编译
 
 Class类对象阶段
 
-.class	ClassLoader类加载器 ->	内存(加载了class文件中的成员变量，构造方法，成员方法)
+.class	ClassLoader类加载器 ->	class对象(加载了class文件中的成员变量，构造方法，成员方法)
 
 
 
 Runtime运行时阶段
 
-class对象	创建对象->	对象
-
-
-
-
-
-## 指令重排
-
-
-
-
-
-![](image.assets/指令重排.png)
-
-
-
-地址指向引用 和 赋值 指令可能调换顺序
-
-
-
-
-
-
+class对象	实例化->	对象
 
 
 
@@ -9102,445 +8876,392 @@ class对象	创建对象->	对象
 
 
 
+### 判断存活
 
 
 
+#### ~~引用计数~~
 
-## 创建/分配/访问
+堆中每个实例都有一个引用计数。当一个对象被创建时，就将该对象实例分配给一个变量,被引用则计数+1。计数为0被收集。当对象被GC时，它引用的任何对象实例的引用计数器减1
 
 
 
-* 创建
+**优点**：引用计数收集器可以很快的执行，交织在程序运行中。对程序需要不被长时间打断的实时环境比较有利
 
-遇到new指令时，首先检查这个指令的参数是否能在常量池中定位到一个类的符号引用，并且检查这个符号引用代表的类是否已被加载、连接和初始化过。
+**缺点**：**无法检测出循环引用**。如父对象有一个对子对象的引用，子对象反过来引用父对象。这样，他们的引用计数永远不可能为0
 
-如果没有，那必须先执行相应的类的加载过程
 
- 
 
-内存分配	==对象内存的大小在类加载完成后已经确定==，分配空间等同于从堆中划分确定大小的内存
+#### 可达性分析
 
-首先尝试在栈上进行分配,如果对象比较简单,就直接在栈上分配
 
-```java
-public class Test{
-	public Point point;	//在持有的对象引用内部简单时,会被JVM视为Test有x,y两个成员属性
-}
 
-public class Point{
-	public int x;
-	public int x;
-}
-```
+从一个节点GC ROOT开始，寻找对应的引用节点，找到这个节点以后，继续寻找这个节点的引用节点，当所有的引用节点寻找完毕之后，剩余的节点则被认为不可达
 
 
 
-* 两种分配方式
-  * 指针碰撞：所有用过的内存在一边，空闲内存在另一边，中间放着一个指针作为分界点的指示器，
+**可作为GC Roots的对象**
 
-把指针往空闲内存那边挪一段与对象大小相等的距离。再使用Serial，ParNew等收集器，
+虚拟机栈中引用的对象（栈帧中的本地变量表）
 
-（也就是用复制算法，标记-整理算法的收集器），分配算法通常采用指针碰撞。
+方法区中类静态属性引用的对象
 
-* 空闲列表：虚拟机维护一个列表，记录哪些内存是可用的，分配的时候从列表中找到一块足够大的空间划分给对象，并更新列表。
+方法区中常量引用的对象
 
-使用CMS这种基于标记-清除算法的收集器，通常用空闲列表
+本地方法栈中JNI（Native方法）引用的对象
 
- 
 
-　　对象创建在虚拟机中时非常频繁的行为，即使是仅仅修改一个指针指向的位置，在并发情况下也并不是线程安全的，可能出现正在给对象A分配内存，指针还没来得及修改，对象B又同时使用了原来的指针来分配内存的情况。
 
-同步
+**不可达不会马上GC**
 
-　　虚拟机采用CAS配上失败重试的方式保证更新操作的原子性
+在GC前调用一次~~finalize()~~,只保证调用,不保证执行完
 
-本地线程分配缓冲（Thread Local Allocation Buffer, TLAB）
+当对象在finalize()过程中重新建立了引用,则不会被GC
 
-　　把内存分配的动作按照线程划分为在不同的空间之中进行，即每个线程在Java堆中预先分配一小块内存（TLAB）。
 
-　　哪个线程要分配内存，就在哪个线程的TLAB上分配。只有TLAB用完并分配新的TLAB时，才需要同步锁定。
 
- 
+### 回收方式
 
-　　内存分配完之后，虚拟机要将分配到的内存空间都初始化为零值（不包括对象头），保证了对象的实例字段在Java代码中可以不赋初始值就直接使用。
 
- 
 
+#### ~~引用计数~~
 
 
- 
 
-**对象的访问定位：**
+#### 标记清除
 
-　　程序要通过栈上的reference数据来操作堆上的具体对象。对象的访问方式有**使用句柄**和**直接指针**。
 
-　　**使用句柄**：java堆会划分一块内存作为句柄池，reference中存的是对象的**句柄地址**，而句柄中包含了**对象的实例数据的地址和类型数据的地址（在方法区）**。
 
-优点：对象被移动，reference不用修改，只会改变句柄中保存的地址。
+Mark-Sweep	两个阶段：标记/清除
 
-　　**使用直接指针**：reference中存的是对象的地址，对象中分一小块内存保存类型数据的地址。优点：速度快。
+![](image.assets/标记清除.jpg)
 
+优点	实现容易,不需要移动对象
 
+缺点	容易碎片，导致大对象分配空间不足,提前触发GC
 
 
 
+#### 复制算法
 
 
 
+将可用内存按容量划分为大小相等的两块，每次只使用其中的一块。当这一块的内存用完了，就将还存活着的对象复制到另外一块上面，然后再把已使用的内存空间一次清理掉
 
+![](image.assets/复制算法.jpg)
 
 
 
 
-## 类加载机制
 
+优点	不容易出现碎片
 
+缺点	能用的内存缩减一半,在存活对象很多时,会频繁GC
 
-每个在JVM中运行的实例都有对应的class文件，而class文件的加载通过类加载器
 
-每个类都对应一个加载器。如果不是有特殊用途，每个类在JVM中只加载一次
 
-Class文件由类装载器装载后，在JVM中将形成一份描述Class结构的元信息对象(包括Class的结构信息：构造函数，属性和方法等),==借由这个Class相关的元信息对象间接调用Class对象的功能==
 
 
+#### 标记-整理
 
-**类也是由成员变量/构造器和方法等构成的,类本质也是Class类的对象**
+Mark-compact
 
-**`class<?>描述类的结构` 所以`class<?>对象对应一个普通类的所有对象`**
+标记阶段和Mark-Sweep一样
 
-**Class类对象无法直接创建 因为构造方法是`私有的` ,由JVM随类装载时自动创建**
+完成标记后，将存活对象向一端移动，再清理掉端边界以外的内存
 
-所有的Java类都有一个静态属性class，它引用代表这个类的Class对象
 
 
+优点	解决了内存碎片的问题
 
-假如类还未加载到内存中，那么在创建该类的实例时，具体过程:
 
-创建实例必须先将该类加载到内存并进行初始化，也就是说，**类初始化在实例化之前进行，但并不意味着：只有类初始化结束后才能进行实例化**
 
+#### 分代收集
 
+Generational Collection
 
+根据对象存活的生命周期将内存划分为老年代（Tenured Generation）新生代（Young Generation）永久代（Permanet Generation）。老年代的特点是每次垃圾收集时只有少量对象需要被回收，而
 
+新生代	大量的对象需要被GC -> 复制的操作少	采取Copying算法
 
+老年代	只回收少量对象	采取Mark-Compact算法
 
 
 
 
-### 双亲委派模型
 
-![img](image.assets/20200227105016489.png)
 
 
+## 类生命周期
 
-**工作过程**：
+**加载 -> 连接(验证/准备/解析) -> 初始化** -> 使用 -> 卸载
 
-类加载器接收到类加载请
+![](image.assets/加载过程.png)
 
-把请求委托给父类加载器，每层的类加载器都是如此，因此**所有的加载请求都应该传送到顶层的启动类加载器**中，只有当父加载器反馈无法完成这个加载请求（搜索范围中没有找到所需的类）时，子加载器才会尝试自己去加载
 
 
+![](image.assets/20160812142709857)
 
-**加载过程**:
 
-先自底向上检查是否已被加载,以保证类只被加载一次
 
-若未被加载，则由父类加载器先加载，自顶向下逐层尝试加载
+### 类加载
 
+实例 : 类加载器 : class文件 = n​ : m : ​1
 
+Class文件由类装载器装载后，在JVM中形成class对象(类的结构信息：构造函数，属性和方法等),==借由class对象间接调用类方法->反射==
 
-**好处**：
 
-类随着类加载器一起具备了**带有优先级的层次关系**
 
-例如Object类存放在rt.jar中，无论哪个类加载器要加载Object，最终都会委派给启动类加载器，因此Object类在各种类加载器中都是同一个类
+**类初始化在实例化前进行，但不意味着只有类初始化结束后才能进行实例化**: 先实例化,发现类未初始化 -> 加载/连接/初始化 -> 继续实例化
 
 
 
+#### 类加载器
 
+负责读取 Java 字节码，并转换成Class对象
 
+**类相同前提是被同一个类加载器加载**,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
 
 
-![img](image.assets/20190605200613240.png)
 
+1. 启动类加载器 Bootstrap ClassLoader	负责JACA_HOME\lib 核心类加载 该加载器无法直接获取
 
+2. 扩展类加载器 Extension ClassLoader	负责JRE的扩展目录\lib\ext加载
 
-**任何类(在其作用域范围内)为了表示`唯一`的对象都需要加对象的HashCode**
+3. 应用程序类加载器 Application ClassLoader  加载ClassPath中的类库
+4. 自定义类加载器 User ClassLoader  通过继承ClassLoader实现，加载自定义类以及导入的jar包
 
 
 
-**每个Class对象又都是生产其对应类对象的模板**
+##### 双亲委派模型
 
-**如果没有 JVM就会通过类加载器(ClassLoader)根据类的名称去找对应的.class文件(这也是Java程序运行前需要先编译的原因 除了加载.class ClassLoader同样负责加载文件和配置等其他资源)**
+**所有的加载请求委托到启动类加载器**，当父加载器无法完成加载（没找到所需的类）,子加载器尝试自己加载
 
-**这时如果没有发生错误 此类的类对象(Class对象)会被加载到内存**
+自底向上再自顶向下,**保证类只被加载一次**
 
+![](image.assets/20200227105016489.png)
 
 
 
+#### 加载
 
+将Class文件读入内存, 创建Class对象,封装类在方法区内的数据结构, 并提供访问方法区数据结构的接口
 
+通过自定义类加载器参与加载(**类加载唯一能控制的部分**,其余动作完全由JVM控制)
 
+1. 通过类的全限定名(com.xxx.class)获取定义此类的二进制字节流 
+2. 将字节流所代表的静态存储结构转化为方法区的运行时数据结构
+3. 在堆中生成Class对象, 作为方法区数据的访问入口
 
 
 
+**加载时机**
 
+1. 创建类的实例
+2. 使用类的静态变量/为静态变量赋值
+3. 调用类的静态方法
+4. 反射创建类或接口的Class对象
+5. 初始化某个类的子类
+6. 运行某个主类
 
 
 
+#### 连接
 
 
 
-当程序要使用某个类, 如果该类还未被加载到内存中, 则通过加载, 连接, 初始化三步来实现对这个类进行初始化:
+##### 验证
 
-**加载**就是将class文件读入内存, 并创建Class对象
+检查Class文件正确性
 
-　　JVM\进行类加载阶段需要完成以下三件事情:   
+* 文件格式检验：检验字节流是否符合Class文件格式的规范, 并且能被当前版本的虚拟机处理
 
-1. 通过一个类的全限定名称来获取定义此类的二进制字节流 
+- 元数据检验：对字节码描述的信息进行语义分析, 以保证其描述的内容符合Java语言规范的要求
+- 字节码检验：通过数据流和控制流分析, 确定程序语义是合法、符合逻辑的
+- 符号引用检验：是否有正确的内部结构(构造器, 方法, 变量, 代码块), 并和其他类协调一致
 
-　　　　2. 将这个字节流所代表的静态存储结构转化为方法区的运行时数据结构
 
-　　　　3. 在java堆中生成一个代表这个类的java.lang.Class对象, 作为方法区这些数据的访问入口
 
-　　类的加载的最终产品是位于堆区中的Class对象, Class对象封装了类在方法区内的数据结构, 并且向Java程序员提供了访问方法区内的数据结构的接口
+##### 准备
 
- 
+1. 为static变量分配内存 ==(半初始化)==
+2. 赋初值
 
-　　类的加载时机
+final变量在编译时生成ConstantValue属性，在准备阶段赋ConstantValue值(**不赋初值**)
 
-　　　　1. 创建类的实例
 
-　　　　2. 使用类的静态变量或者为静态变量赋值
 
-　　　　3. 调用类的静态方法
+##### 解析
 
-　　　　4. 使用反射方式来强制创建某个类或接口对应的java.lang.Class对象
+可以与初始化调换顺序 -> 指令重排
 
-　　　　5. 初始化某个类的子类
+将常量池中符号引用转为直接引用,比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 节约资源
 
-　　　　6. 直接使用java命令来运行某个主类
 
-　　通俗的说就是只要用到了类的东西类就会加载
 
- 
 
-　　JVM在运行时会产生3个类加载器组成的初始化加载器层次结构
 
-- Bootstrap ClassLoader 根类加载器 
+#### 初始化
 
-​    　 用C++编写
+对类变量依序赋值
 
-​    　　也被称为引导类加载器, 负责java核心类的加载 该加载器无法直接获取
 
-​    　　比如System, String等, 在JDK中JRE的lib目录下rt,jar文件中
 
-- Extension ClassLoader 扩展类加载器
+实例化时,JVM保证构造器在多线程时被正确的加锁/同步，同时只有一个线程去执行构造器
 
-​    　　负责JRE的扩展目录中jar包的加载 jre/lib/ext目录下的jar包或-Djava,ext,dirs指定目录下的jar包装入工作库
 
-- System ClassLoader 系统类加载器(加载自己写的类以及第三方类库(导入的jar包))
 
-​    　　负责在JVM\启动时加载来自java命令的class文件, 以及classpath环境变量所指定的jar包和类路径
-
- 
-
- 
-
-**连接**就是将类的二进制数据合并到JRE中 
-
-　　**连**接分为以下三步:
-
-　　　　**验证** 检查载入Class文件数据的正确性
-
-- - - 文件格式检验：检验字节流是否符合Class文件格式的规范, 并且能被当前版本的虚拟机处理
-    - 元数据检验：对字节码描述的信息进行语义分析, 以保证其描述的内容符合Java语言规范的要求
-    - 字节码检验：通过数据流和控制流分析, 确定程序语义是合法、符合逻辑的
-    - 符号引用检验：符号引用检验可以看作是对类自身以外(常量池中的各种符号引用)的信息进行匹配性校验
-
-　　　　　　是否有正确的内部结构(构造器, 方法, 变量, 代码块), 并和其他类协调一致
-
-　　　　**准备** 该阶段正式为类变量分配内存并设置类变量初始值
-
-　　　　　　这些变量所使用的内存将在方法区中进行分配, 此时进行内存分配的仅包括类变量, 而不包括实例变量(实例变量将会在对象实例化时随着对象一起分配在Java堆中), 
-
-　　　　　　另外, 在这里分配的静态类变量是将其值定义为默认值, 这里所设置的初始值通常情况下是数据类型默认的零值(如0, 0L, null, false等), 而不是被在Java代码中
-
-　　　　　　被显式地赋予的值, 正确的赋值将在初始化阶段执行,
-
-　　　　**解析** 将类的二进制数据中的符号引用替换为直接引用
-
-　　　　　　比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 这样可以节约很多资源
-
- 
-
- 
-
-**初始化**就是对类的静态变量, 静态代码块执行初始化操作
-
-   类初始化阶段是类加载过程的最后一步, 前面的类加载过程中, 除了加载（Loading）阶段用户应用程序可以通过自定义类加载器参与之外, 其余动作完全由虚拟机主导和控制, 到了初始化阶段, 才真正开始执行类中定义的Java程序代码 
-
-　　初始化为类的静态变量赋予正确的初始值, JVM负责对类进行初始化, 主要对类变量进行初始化, 在Java中对类变量进行初始值设定有两种方式：
-
-- - 声明静态变量(类变量)时指定初始值 
-  - 使用静态代码块为类变量指定初始值
-
-​    初始化步骤:
-
-​      \1. 假如这个类还没有被加载和连接, 则程序先加载并连接该类
-
-​      \2. 假如该类的直接父类还没有被初始化, 则先初始化其直接父类
-
-​      \3. 假如类中有初始化语句, 则系统依次执行这些初始化语句
-
-　　JVM在堆内存中创建对象, 类的成员变量进入到堆内存中, 赋默认值 
-
- 
-
- 
-
-最后就是我们熟悉的Runtime运行时\阶段
-
-```
-Person p = new Person();
-p,study();
-```
-
-执行上述代码会在堆内存创建一个Person类的对象, 并且在栈内存分配一块储存空间存放Person类型的引用变量p, p存放该对象的地址并且指向该对象, 调用p的study方法实际是, 对象通过Person类的字节码对象来访问方法区Person字节码的study方法
-
- 
-
-
-
-名词解释 :
-
-Java源程序: 即Java源代码, 用java语言编写的程序
-
-Java类加载器(Java Classloader): 是Java运行时环境(JRE)的一部分, 负责动态加载Java类到JVM的内存空间中
-
-JRE: 即Java Runtime Environment, Java运行环境,内部包含了一个Java虚拟机以及一些标准类库(Jar包)\
-
-JAR包:\ 通常用于聚合大量的Java类文件、相关的元数据和资源(文本、图片等)文件到一个文件, 以便开发Java平台应用软件或库
-
-JVM: 即Java Virtual Machine一种能够运行Java字节码**(*Java bytecode)的虚拟机
-
-类(Class): 类是具有共同属性和行为的对象的集合, 类定义了对象的属性和方法
-
-字节码: 字节码是已经经过编译, 但与特定机器码无关, 需要解释器转译后才能成为机器码的中间代码
-
-Java字节码: 是Java虚拟机执行的一种指令格式
-
-Java编译器:\ 将Java源文件(.java文件)编译成字节码文件(.class文件, 是特殊的二进制文件, 二进制字节码文件), 这种字节码就是JVM的“机器语言”, javac命令可以简单看成是Java编译器
-
-Java解释器:\ 是JVM的一部分, Java解释器用来解释执行Java编译器编译后的程序, java命令可以简单看成是Java解释器
-
-**运行时类**: 加载到内存中的字节码文件对应的类称为运行时类,  此运行时类即为一个Class的实例
-
-Java堆(Heap): 在\**\*JVM\*\**\启动时创建,\ 是JVM\所管理的内存中最大的一块,\ 在JVM 中，堆(Heap)是可供各条线程共享的运行时内存区域, 也是供所有类实例和数组对象分配内存的区域,  Java堆是被所有线程所共享的一块内存区域, Java堆是垃圾收集器管理的主要区域
-
-Java栈(Stack): 在函数中定义的基本类型的变量、Java指令代码、对象的引用变量均在函数的栈内存中分配，当超过变量的作用域后，Java 会自动释放掉该变量分配的内存空间
-
-方法区(Non-Heap): 方法区与Java堆一样，是各个线程共享的内存区域，用于存储已被虚拟机加载的类信息(构造方法和接口定义)、常量、静态变量、即时编译器编译后的代码等数据, 运行时常量池存在方法区中
-
-
-
-
-
-
-
-
-
-
-
-加载 -> 连接(验证/准备/解析) -> 初始化 -> 使用 -> 卸载
-
-
-
-
-
-准备	**为类变量（非对象变量）分配内存,赋初值，准备类中每个字段、方法和实现接口所需的数据结构**
-
-如果类变量是**final**，编译时javac将会为value生成ConstantValue属性，在准备阶段根据ConstantValue将变量设置为指定的值(**不赋默认值**)
-
-
-
-初始化	执行类构造器
-
-**类构造器是编译器收集所有静态语句块和类变量的赋值语句，按语句在源码中的顺序合并生成类构造器**
-
-
-
-
-
-![](image.assets/1541314-20191003104706537-1884792960.png)
-
-
-
-**类初始化时机：**
-
-类的初始化是指类加载过程中的初始化阶段,对类变量按照代码进行赋值的过程
+**初始化时机：**
 
 1. 遇到new、getstatic、putstatic或invokestatic这四条字节码指令
 2. 使用java.lang.reflect包的方法对类进行反射调用
-3. 当初始化一个类的时候，如果发现其父类还没有进行过初始化，就先触发其父类的初始化
+3. 当类初始化时，如果发现其父类还没有初始化，先初始化父类
 4. JVM启动时，先初始化包含main()的主类
 
 
 
+##### 加载顺序
+
+1. 静态代码块
+
+只运行一次，优先于各种代码块以及构造函数
+
+* 静态代码块**主动运行**,所以不在方法体中
+* 静态方法被动运行,通过类名或对象名访问
+* 普通方法实例化后运行,通过对象访问
+
+2. 构造代码块
+
+```
+{}
+```
+
+属于类,**每次创建对象时调用**，优先于构造函数执行
+
+3. 构造函数
+
+属于类,不能被void修饰,以区分其他方法,默认先调用父类的无参构造
+
+4. 普通代码块
+
+构造代码块是在**类中**定义的,普通代码块是在**方法体中**定义的
+
+
+
+```java
+public class Singleton {
+  //1.静态变量    调用了非静态的构造器  将优先加载非静态,跳过静态
+  //4.构造方法结束,赋值
+  private static Singleton instance = new Singleton();
+  //3.构造方法    此时x=y=1
+  public Singleton() {   x++;   y++; }
+
+  //5.静态变量赋值  此时x=1,y=0
+  private static int x,y = 0;
+
+  //2.非静态变量
+  private int z = 1;
+
+  public static Singleton getInstance() {   return instance; }
+
+  public static void main(String[] args) {
+    //6.main方法体     结果x=1,y=0		首先加载main所在的类,不执行main
+    getInstance();   
+  }
+}
+```
+
+
+```java
+public class Singleton2 {
+  //3.构造方法    此时x=y=1
+  public Singleton2() {     x++; y++;    }
+
+  //1.静态变量赋值  此时x=y=0
+  private static int x = 0, y;
+  //2.静态变量调用构造方法
+  //4.构造器返回值赋值
+  private static Singleton2 instance = new Singleton2();
+
+  public static Singleton2 getInstance() {   return instance;    }
+
+  public static void main(String[] args) {
+    //5.main方法体       结果x=y=1
+    getInstance();   
+  }
+}
+```
+
+
+##### 父子类加载顺序
+
+==静态加载中遇到加载动态时,先加载动态再静态==（动态可以访问静态，静态不能访问动态）
+
+1. 父类静态变量/代码块(声明顺序) -> 子类
+
+2. main()
+
+3. 父类成员变量/构造代码块(声明顺序) + 构造方法 -> 子类
+
+   **静态/实例方法只在调用时才执行**
+
+
+
+##### 赋值次数
+
+1. 分配完内存后给实例变量赋默认值
+
+2. 声明实例变量时进行的赋值
+3. 实例代码块赋值
+4. 构造方法赋值
+
+==初始化过程中最多赋值4次==
 
 
 
 
-**父类的类构造器() -> 子类的类构造器() -> 父类的成员变量和实例代码块 -> 父类的构造函数 -> 子类的成员变量和实例代码块 -> 子类的构造函数。**
-
-JVM会保证类构造器在多线程环境中被正确的加锁、同步
-
-如果多个线程同时去初始化一个类，只会有一个线程去执行这个类的类构造器
-
-类构造器与构造方法不同，不需要显式调用，JVM会保证在子类类构造器执行前，父类的类构造器执行完毕
-
-在类的生命周期中，类构造器最多会被虚拟机调用一次，构造方法会被JVM调用多次
-
-当对象被创建时，虚拟机就会为其分配内存来存放 对象本身+父类继承的实例变量,同时赋默认值。
-
-在内存分配完成之后，Java虚拟机就会开始对新创建的对象按照程序猿的意志进行初始化。在Java对象初始化过程中，主要涉及三种执行对象初始化的结构，分别是实例变量初始化、实例代码块初始化以及构造函数初始化
 
 
 
+### 使用
 
 
 
+类引用调用的大致过程
 
-### 类卸载
-
-
-
-当Class对象不再被引用时，Class对象结束生命周期，类在方法区内的数据也会被卸载，从而结束类的生命周期
-
-
-
-**JVM自带的类加载器(根类/扩展类/系统类加载器)所加载的类，始终不会被卸载**(jvm和jls规范)
-
-JVM会始终引用这些类加载器，而这些类加载器则会**始终引用**它们所加载的类的Class对象，因此这些Class对象**始终是可触及的**
-
-用户自定义的类加载器对象加载的类型,只有在很简单的上下文环境中才能被卸载，而且还要借助于强制调用虚拟机的垃圾收集功能才可以做到
+* 编译器将源代码编译成class文件，根据静态类型将调用的符号引用写到class文件
+* 在执行时，JVM根据class文件找到调用方法的符号引用，在方法表中找到偏移量
+* 然后根据this指针确定对象的实际类型，==使用实际类型的方法表(多态的实现)==，根据偏移量在实际类型的方法表中找到方法则直接调用，否则，按照继承关系从下往上搜索
 
 
 
-一个已经加载的类型被卸载的几率很小,至少被卸载的时间是不确定的
+实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量,实例方法可以调用静态方法和变量。
 
-开发代码时候，不应该对虚拟机的类型卸载做任何假设的前提下来实现系统中的特定功能
+
+
+类方法执行时,对象还未创建,==类方法不能被实例调用==
+
+在类方法中调用实例方法,将优先执行完所有实例方法,==类方法可以调用实例方法==
 
 
 
 
 
+### 卸载
 
+
+
+[等同方法区GC](##运行时常量池)
+
+
+
+**JVM自带的类加载器(根类/扩展类/系统类加载器)所加载的类，始终不会被卸载**(jvm和jls规范),JVM会始终引用这些类加载器，而这些类加载器会始终引用它们所加载的类的Class对象，因此这些Class对象始终可达
+
+自定义类加载器加载的类型只在很简单的上下文环境中才能被卸载，而且还要借助于强制调用虚拟机的垃圾收集功能
 
 
 
 ![](image.assets/卸载.png)
-
-
 
 loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objClass变量则直接引用它。
 
@@ -9556,214 +9277,22 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 
 
 
-实例变量在对象初始化的过程中会被赋值几次？
-
-1. 分配完内存后，会给实例变量赋默认值，这个赋值过程无法避免
-
-2. 在声明实例变量x的同时进行了赋值，此时是第二次赋值
-3. 在实例代码块中，又对变量做了初始化操作，就被第三次赋值
-4. 在构造方法中，也对变量做了初始化操作，就被第四次赋值
-
-==在Java的对象初始化过程中，实例变量最多被初始化4次==
-
-
-
-
-
-
-
-
-
-   What(是什么？) Java反射就是在运行状态中，对于任意一个类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意方法和属性；并且能改变它的属性。而这也是Java被视为动态（或准动态，为啥要说是准动态，因为一般而言的动态语言定义是程序运行时，允许改变程序结构或变量类型，这种语言称为动态语言。从这个观点看，Perl，Python，Ruby是动态语言，C++，Java，C#不是动态语言。）语言的一个关键性质。
-   Why(为什么？) 我们知道反射机制允许程序在运行时取得任何一个已知名称的class的内部信息，包括包括其modifiers(修饰符)，fields(属性)，methods(方法)等，并可于运行时改变fields内容或调用methods。那么我们便可以更灵活的编写代码，代码可以在运行时装配，无需在组件之间进行源代码链接，降低代码的耦合度；还有动态代理的实现等等；但是需要注意的是反射使用不当会造成很高的资源消耗！
-  **获取class的三种方式：**（一个类在 JVM 中只会有一个 Class 实例，因此c1= c2= c3）
-1、通过对象调用 getClass() 方法来获取,通常应用在：比如你传过来一个 Object
-类型的对象，而我不知道你具体是什么类，用这种方法
-    **Person p1 = new Person();Class c1 = p1.getClass();**
-2、直接通过 类名.class 的方式得到,该方法最为安全可靠，程序性能更高
-这说明任何一个类都有一个隐含的静态成员变量 class
-   　**Class c2 = Person.class;**
-3、通过 Class 对象的 forName() 静态方法来获取，用的最多，
-但可能抛出 ClassNotFoundException 异常
-    **Class c3 = Class.forName(“com.ys.reflex.Person”);**
-通过 Class 类可以获取成员变量、成员方法、接口、超类、构造方法等。常用的方法如下：
-  getName()：获得类的完整名字。
-　　getFields()：获得类的public类型的属性。
-　　getDeclaredFields()：获得类的所有属性。包括private 声明的和继承类
-　　getMethods()：获得类的public类型的方法。
-　　getDeclaredMethods()：获得类的所有方法。包括private 声明的和继承类
-　　getMethod(String name, Class[] parameterTypes)：获得类的特定方法，name参数指定方法的名字，parameterTypes 参数指定方法的参数类型。
-　　getConstructors()：获得类的public类型的构造方法。
-　　getConstructor(Class[] parameterTypes)：获得类的特定构造方法，parameterTypes 参数指定构造方法的参数类型。
-　　newInstance()：通过类的不带参数的构造方法创建这个类的一个对象。
-暴力反射：获取私有属性和方法的方式称为暴力反射，但是这是不建议的。
-
-**反射的使用场景：**
-  比如对于Tomcat而言，它并不知道我们会有什么样的方法，这些都只是在项目被部署进webapp下后才确定的，由此分析，必然用到了Java的反射来实现类的动态加载、实例化、获取方法、调用方法。Tomcat需要根据请求调用方法，动态地加载方法所在的类，完成类的实例化并通过该实例获得需要的方法，最终将请求传入方法执行。
-  灵活使用反射能让我们代码更加灵活，这里比如JDBC原生代码注册驱动、动态代理、MyBatis的实体类、Spring 的 AOP等等都有反射的实现。但是凡事都有两面性，反射也会消耗系统的性能，增加复杂性等，合理使用才是真！
-
-
-
-```java
-public class Singleton {
-    //1.静态变量    调用了非静态的构造器  将优先加载非静态,跳过静态
-    //4.构造方法结束,赋值
-    private static Singleton instance = new Singleton();
-
-    //3.构造方法    此时x=y=1
-    public Singleton() {   x++;   y++; }
-
-    //5.静态变量赋值  此时x=1,y=0
-    private static int x,y = 0;
-
-    //2.非静态变量
-    private int z = 1;
-
-    public static Singleton getInstance() {   return instance; }
-
-    public static void main(String[] args) {
-        //6.main方法体     结果x=1,y=0
-        getInstance();   }}
-```
-
-
-
-```java
-public class Singleton2 {
-
-    //3.构造方法    此时x=y=1
-    public Singleton2() {     x++; y++;    }
-
-    //1.静态变量赋值  此时x=y=0
-    private static int x = 0, y;
-    //2.静态变量调用构造方法
-    //4.构造器返回值赋值
-    private static Singleton2 instance = new Singleton2();
-
-    public static Singleton2 getInstance() {   return instance;    }
-
-    public static void main(String[] args) {
-        //5.main方法体       结果x=y=1
-        getInstance();   }}
-```
-
-
-
-![img](image.assets/20160812142709857)
-
-* 类引用调用的大致过程
-  * 编译器将源代码编译成class文件，根据静态类型将调用的符号引用写到class文件
-  * 在执行时，JVM根据class文件找到调用方法的符号引用，在方法表中找到偏移量
-  * 然后根据this指针确定对象的实际类型，==使用实际类型的方法表(多态的实现)==，根据偏移量在实际类型的方法表中找到方法则直接调用，否则，按照继承关系从下往上搜索
-
-
-
-实例方法和变量的内存是在运行时分配的，所以地址(内存的偏移)无法固定。静态方法无法调用实例方法和变量,实例方法可以调用静态方法和变量。
-
-
-
-类方法执行时,对象还未创建,==类方法不能被实例调用==
-
-在类方法中调用实例方法,将优先执行完所有实例方法,==类方法可以调用实例方法==
-
-
-
-### 静态代码块
-
-```java
- static{ }
-```
-
-* 属于类
-* 类被加载的时运行，只运行一次，优先于各种代码块以及构造函数
-  * 静态代码块**主动运行**,所以不能在方法体中
-  * 静态方法是被动运行,通过类名或对象名访问
-  * 普通方法是实例化后运行,通过对象访问
-
-* 一般用于项目启动加载配置文件
-
-
-
-### 构造代码块
-
-```
-{}
-```
-
-* 属于类
-
-* 创建对象时调用，**每次创建对象都会调用**，优先于构造函数执行
-
-* 不实例化对象，构造代码块不会执行
-
-* 构造方法被重载,不能事先确定到底执行哪个,构造代码块却一定被执行
-
-  
-
-### 构造函数
-
-* 属于类
-* 命名为类名,不带返回值。普通函数可以和构造函数同名，但有返回值
-
-* 主要用于在类的对象创建时定义初始化的状态。不能被void修饰,以区分其他有返回值的方法
-
-* 不能被直接调用，必须通过new
-
-* 默认先调用父类的无参构造
-
-
-
-### 普通代码块
-
--    构造代码块是在**类中**定义的，
--    普通代码块是在**方法体中**定义的
-
-
-
-
-
-
-
-* 静态和动态分开处理
-  * 静态加载： 静态变量，静态代码块
-  * 动态加载： 
-  * **静态/实例方法在调用的才会执行**
-  * 当静态加载中遇到需要加载动态的情况：**先加载动态再加载静态**（因为非静态可以访问静态，而静态不能访问非静态）**实例初始化在静态初始化之前**”
-  * 静态变量声明必须放在使用前面
-
-* main是否第一句先执行
-  * main也是静态方法，首先加载main所在的类,不执行main，优先加载类中其他静态部分
-
-* 父类、子类加载顺序
-
-　　1、父类的静态变量和静态块赋值（按照声明顺序）
-　　2、自身的静态变量和静态块赋值（按照声明顺序）
-　　3、main方法
-　　3、父类的成员变量和块赋值（按照声明顺序）
-　　4、父类构造器赋值
-　　5、自身成员变量和块赋值（按照声明顺序）
-　　6、自身构造器赋值
-　　7、静态方法，实例方法只有在调用的时候才会去执行
-
-
-
 
 
 # 创建对象方式
 
 
 
-1. new 语句
+1. new()
 2. Class.newInstance() 反射
 3. Constructor.newInstance() 反射（可调用私有构造）
+4. clone()
+5. 反序列化，调用 java.io.ObjectInputStream 对象的readObject()
 
-3、clone()
+1/2/3显式调用构造 4/5不调用构造
 
-4、反序列化，调用 java.io.ObjectInputStream 对象的readObject()方法。
 
-1/2/3显式调用构造
 
-4/5不调用构造
 
 
 
@@ -9771,135 +9300,20 @@ public class Singleton2 {
 
 
 
-new和 Class.forName(String className) 在类加载的时候没有区别，都是由当前调用类的classloader类加载，并写进缓存,不会被再次加载
 
 
 
-类被哪个类加载器加载，不是随意的，是有铁定法则的。
 
 
 
-类加载器分为两类，一类是ContextClassLoader，一个是当前类的加载器
 
-使用new创建类，用的是new所在类的加载器，例如在Group类中用new方式创建了一个Person，那么Person类被Group.class类的加载器加载的(此时假定Person类尚未被虚拟机加载)
-
-而Class.forName(String name, boolean initialize,ClassLoader loader)可以**指定类加载器**。如果没有指定类加载器，那么使用的是ContextClassloader，该加载器是设置在线程中的,可以通过Thread.currentThread.getContextClassLoader()获取
-
-
-
-new 其实是forName和 newInstance的结合并且 new 是静态，forName是动态
-
-调用new之前，类可以没有被加载过，没有加载时就会触发类查找。然而newInstance 只能类被加载时才能正常调用
-
-
-
-
-
-# Object 6个方法
-
-
-
-```java
-public boolean equals(Object) 	比较地址
-public native int hashCode() 	获取哈希码 	是native Method,不是用java实现的方法
-public String toString()
-public final native Class getClass() 		获取类结构信息
-protected void finalize() throws Throwable 	垃圾回收前执行的方法
-protected native Object clone() throws CloneNotSupportedException 	克隆
-public final void wait() throws InterruptedException 	多线程等待
-public final native void notify() 			唤醒,由JVM随机唤醒
-public final native void notifyAll() 		唤醒所有等待线程,随后竞争
-```
-
-
-
-## == hash equals
-
-
-
-equals():true -> 对象相同 -> hashCode相同
-
-hashCode相同，equals()不一定true
-
-
-
-**==是关系运算符，equals()是方法**
-
-* ==
-  * 基本类型，比较值
-  * 引用类型，比较地址
-  * ==不能比较没有继承关系的对象==
-
-* equals() 
-  * 重写后比较内容
-  * Object的equals 比较地址
-* 对象相等 -> equals
-  
-* hashCode()
-
-  * 根据一定的规则将与对象相关的信息（内存地址，对象的字段）映射成散列值
-  * 用于查找的快捷性,用散列来确定对象hash到哪个slot,减少equals的次数
-  * equals -> hashCode 相等
-  * !equals -> hashCode 可以相等,但建议不同
-  * 重写equals()时，有必要重写 hashCode()
-
-  
-
-  
-
-
-
-
-
-
-
-
-
-
-
-## 对象克隆
-
-
-
-* ==实现 Cloneable 接口==并重写 Object 类中的 clone()方法
-
-* 实现 Serializable 接口，通过对象的==序列化和反序列化==，深度克隆,支持泛型
-
-
-
-### 深/浅克隆
-
-浅度拷贝即直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存。而深度拷贝为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
-
-要将可变对象和不可变对象相互转换，或者需要==操作新对象的时候不影响原始对象，用深度拷贝== ==copy-on-write==原则就是利用深度拷贝来实现的
-
- 
-
-### hutool克隆
-
-
-
-CopyOptions定义了克隆规则		setIgnoreNullValue忽略null
-
-```
-BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(true).setIgnoreError(true));
-```
-
-
-
-
-
-# 拆箱装箱 1.5+
+# 常用类
 
 
 
 装箱：基本数据类型->包装器类型      valueOf方法
 
 拆箱：包装器类型->基本数据类型      xxxValue方法
-
-
-
-==基本数据类型不是面向对象（没有属性、方法）==，实际使用时存在很多的不便（比如集合的元素只能是Object）。所以需要包装类
 
 
 
@@ -9912,6 +9326,7 @@ BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(t
 | 长度固定.不随机器变化,移植能力强 |                                                   |
 | 栈,传值,效率高                   | 堆,传引用                                         |
 | 在声明时分配空间/赋值            | 声明时分配引用空间,实例化在堆内存中开辟空间后赋值 |
+| 非面向对象（没有属性、方法）     |                                                   |
 
 
 
@@ -9937,6 +9352,92 @@ s1 += 1;				//正确,被优化为s1 = (short)(s1 + 1)
 
 float f=3.4			//错误,3.4 是双精度数，将双精度型（double）赋值给浮点型（float）
 float f =(float)3.4	或 float f =3.4F		//正确
+```
+
+
+
+
+
+
+
+## Object
+
+
+
+
+
+```java
+public boolean equals(Object) 	比较地址
+public native int hashCode() 	获取哈希码
+public String toString()
+public final native Class getClass() 		获取类结构信息
+protected void finalize() throws Throwable 	垃圾回收前执行的方法
+protected native Object clone() throws CloneNotSupportedException 	克隆
+public final void wait() throws InterruptedException 	多线程等待
+public final native void notify() 			唤醒,由JVM随机唤醒
+public final native void notifyAll() 		唤醒所有等待线程,随后竞争
+```
+
+
+
+### == hash equals
+
+
+
+equals():true -> 对象相同 -> hashCode相同
+
+hashCode相同，equals()不一定true
+
+
+
+**==是关系运算符，equals()是方法**
+
+* ==
+  * 基本类型，比较值
+  * 引用类型，比较地址
+  * ==不能比较没有继承关系的对象==
+
+* equals() 
+  * 重写后比较内容
+  * Object的equals 比较地址
+* 对象相等 -> equals
+
+* hashCode()
+
+  * 根据一定的规则将与对象相关的信息（内存地址，对象的字段）映射成散列值
+  * 用于查找的快捷性,用散列来确定对象hash到哪个slot,减少equals的次数
+  * equals -> hashCode 相等
+  * !equals -> hashCode 可以相等,但建议不同
+  * 重写equals()时，有必要重写 hashCode()
+
+
+
+### 对象克隆
+
+
+
+* ==实现 Cloneable 接口==并重写 Object.clone()
+
+* 实现 Serializable 接口，通过对象的==序列化和反序列化==，深度克隆,支持泛型
+
+
+
+#### 深浅克隆
+
+浅度拷贝即直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存。而深度拷贝为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
+
+要将可变对象和不可变对象相互转换，或者需要==操作新对象的时候不影响原始对象，用深度拷贝== ==copy-on-write==原则就是利用深度拷贝来实现的
+
+ 
+
+#### hutool克隆
+
+
+
+CopyOptions定义了克隆规则		setIgnoreNullValue忽略null
+
+```
+BeanUtil.copyProperties(来源,目标, CopyOptions.create().setIgnoreNullValue(true).setIgnoreError(true));
 ```
 
 
@@ -10098,6 +9599,370 @@ System.out.println((a==c));
  Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
     List<String> list = splitter.splitToList("1,,,1,1    ,");
 ```
+
+
+
+
+
+## Math
+
+
+
+### random
+
+```java
+public static double random() {
+    return RandomNumberGeneratorHolder.randomNumberGenerator.nextDouble();
+}
+```
+
+返回double [0,1)	**存在除零异常**
+
+
+
+## 时间日期
+
+
+
+【强制】日期格式化时，传入pattern中**年份统一使用小写的y**
+
+yyyy表示当天所在的年，YYYY表示当天所在的周所属的年份，当本周跨年时，返回的yyyy就是下一年
+
+表示月份是大写的M
+
+表示分钟则是小写的m
+
+24小时制的是大写的H
+
+12小时制的则是小写的h
+
+```
+new SimpleDateFormat(”yyyy_MM_dd HH:mm:ss");
+```
+
+
+
+**旧API缺点**
+
+java.util.Date 是非线程安全
+
+在util/sql包都有日期类
+
+没提供国际化/时区支持
+
+**1.8+新API**
+
+Local(本地)：简化了日期时间的处理，没有时区的问题
+
+Zoned(时区)：通过制定的时区处理日期时间
+
+
+
+
+
+
+
+### LocalDate/Time
+
+
+
+LocalDate	年月日	2020-01-11
+
+LocalTime		11:07:03.580
+
+
+
+```java
+now()
+of(int year, int month, int dayOfMonth) 
+plusDays(long daysToAdd)	增加天数
+getYear()
+  
+//重写了equals方法，利于日期比较
+LocalDate date1  = LocalDate.parse("2020-01-11");
+LocalDate date2  = LocalDate.parse("2020-01-11");
+date1.equals(date2)
+//前后比较
+isBefore/After()
+
+```
+
+
+
+### LocalDateTime
+
+
+
+```java
+LocalDateTime.toLocalDate()	//LocalDateTime->LocalDate
+LocalDateTime.toLocalTime()	//LocalDateTime->LocalTime
+```
+
+
+
+
+
+### ZonedDateTime-创建时区时间
+
+```
+now()
+parse("2015-12-03T10:15:30+05:30[Asia/Shanghai]")
+```
+
+
+
+
+
+#### ZoneId
+
+
+
+```
+of(String zoneId)	//创建时区
+ZoneId.systemDefault()	//当前时区
+
+```
+
+
+
+把LocalDateTime转换成特定的时区：
+
+```
+ZonedDateTime.of(LocalDateTime localDateTime, ZoneId zone)	//LocalDateTime->ZonedDateTime
+```
+
+
+
+
+
+### Instant 时间戳
+
+
+
+```java
+now()
+  
+//偏移量运算
+atOffset(ZoneOffset offset)
+
+Instant.toEpochMilli()	//Instant->
+```
+
+
+
+
+
+
+
+
+
+### Timestamp
+
+
+
+```
+toLocalDateTime()	
+```
+
+
+
+
+
+### DateTimeFormatter
+
+
+
+```java
+//format
+DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE;
+dateFormatter.format(LocalDate.of(2018, 11, 11));
+
+//parse
+DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+LocalDate day = LocalDate.parse("1900-01-01", dateFormatter);
+```
+
+
+
+### Duration 时间段
+
+
+
+包含两个域：纳秒值（小于一秒的部分），秒钟值（一共的秒数），纳秒+秒 合计为真实时间长度
+
+
+
+```java
+public final class Duration implements TemporalAmount, Comparable<Duration>, Serializable {
+  //没有毫秒,并且是final	,创建后无法改变时间
+  private final long seconds;
+  private final int nanos;
+}
+```
+
+
+
+**创建**
+
+```java
+between(Temporal start, Temporal end);	//起始+结束时间
+
+of(long amount, TemporalUnit unit)	//时间段长度+单位
+```
+
+
+
+**转化**	整个时间(秒+毫秒)的转化
+
+```java
+toNanos()
+toMillis()
+toMinutes()
+toHours()
+toDays()
+//没有toSeconds()是因为等同于没有getSeconds()
+```
+
+
+
+**计算方法**	所有的计算方法都返回新的Duration，保证Duration的不可变
+
+```java
+plusNanos()
+plusMillis()
+plusSeconds()
+plusMinutes()
+plusHours()
+plusDays()
+minusNanos()
+minusMillis()
+minusSeconds()
+minusMinutes()
+minusHours()
+minusDays()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Optional
+
+
+
+解决NPE,一个包含可选值的包装类，**既可以含有对象也可以为null**
+
+
+
+```java
+empty()	//返回一个空的Optional
+of()/ofNullable()	//创建包含值的 Optional		of()不允许接受null
+get()	
+```
+
+
+
+**检查是否有值**
+
+```java
+//接受Consumer函数
+public void ifPresent(Consumer<? super T> consumer) {
+  if (value != null)  consumer.accept(value);
+}
+
+opt.ifPresent( u -> assertEquals(user.getEmail(), u.getEmail()));
+```
+
+
+
+**取值**
+
+```java
+//在对象为空时返回默认值
+public T orElse(T other) {
+  return value != null ? value : other;
+}
+
+//在对象为空时执行Supplier
+public T orElseGet(Supplier<? extends T> other) {
+  return value != null ? value : other.get();
+}
+
+//区别:
+//orElse()中调用方法,无论如何都会执行一次
+//orElseGet()传入Supplier,只在对象为空时才被运行
+User user = new User("john@gmail.com", "1234");
+User result = Optional.ofNullable(user).orElse(createNewUser());	//此处必定调用createNewUser()
+User result2 = Optional.ofNullable(user).orElseGet(() -> createNewUser());//不一定调用
+
+
+//对象为空时抛出异常
+public <X extends Throwable> T orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
+  if (value != null) {
+    return value;
+  } else {
+    throw exceptionSupplier.get();
+  }
+}
+```
+
+
+
+
+
+**转换值**
+
+map和flatMap返回值为 Optional ,支持**链式调用**
+
+```java
+Optional<U> map(Function<? super T, ? extends U> mapper)		//入参不同
+Optional<U> flatMap(Function<? super T, Optional<U>> mapper)//传入Optional,返回Optional
+  
+//user -> String
+String email = Optional.ofNullable(user).map(u -> u.getEmail()).orElse("default@gmail.com");
+```
+
+
+
+**过滤**	 返回测试结果为 true 的值,如果都为false,返回empty()
+
+```java
+public Optional<T> filter(Predicate<? super T> predicate) {
+  Objects.requireNonNull(predicate);
+  if (!isPresent())
+    return this;
+  else
+    return predicate.test(value) ? this : empty();
+}
+
+Optional<User> result = Optional.ofNullable(user).filter(u -> u.getEmail() != null && u.getEmail().contains("@"));
+```
+
+
+
+
 
 
 
