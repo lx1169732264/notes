@@ -65,7 +65,7 @@ which redis-server
 
 ### 启动
 
-/usr/local/redis/bin/redis-server /root/myredis/redis.conf
+/usr/local/redis/bin/redis-server  /usr/local/myredis/redis.conf
 
 ```
 #客户端连接

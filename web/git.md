@@ -24,6 +24,80 @@ git diff 文件名  查看区别 没有区别就不显示
 
 
 
+
+
+
+
+## 分支实现
+
+使用指针将每个提交连接成一条时间线，HEAD 指针指向当前分支指针。
+
+新建分支是新建一个指针指向时间线的最后一个节点，并让 HEAD 指针指向新分支，表示新分支成为当前分支。
+
+每次提交只会让当前分支指针向前移动，而其它分支指针不会移动。
+
+合并分支也只需要改变指针即可。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/image-20191208203010540.png"/> </div><br>
+
+## 冲突
+
+当两个分支都对同一个文件的同一行进行了修改，在分支合并时就会产生冲突。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/image-20191208203034705.png"/> </div><br>
+
+
+
+
+
+## Fast forward
+
+"快进式合并"（fast-farward merge），会直接将 master 分支指向合并的分支，这种模式下进行分支合并会丢失分支信息，也就不能在分支历史上看出分支信息。
+
+可以在合并时加上 --no-ff 参数来禁用 Fast forward 模式，并且加上 -m 参数让合并时产生一个新的 commit。
+
+```
+$ git merge --no-ff -m "merge with no-ff" dev
+```
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/image-20191208203639712.png"/> </div><br>
+
+## 储藏（Stashing）
+
+在一个分支上操作之后，如果还没有将修改提交到分支上，此时进行切换分支，那么另一个分支上也能看到新的修改。这是因为所有分支都共用一个工作区的缘故。
+
+可以使用 git stash 将当前分支的修改储藏起来，此时当前工作区的所有修改都会被存到栈中，也就是说当前工作区是干净的，没有任何未提交的修改。此时就可以安全的切换到其它分支上了。
+
+```
+$ git stash
+Saved working directory and index state \ "WIP on master: 049d078 added the index file"
+HEAD is now at 049d078 added the index file (To restore them type "git stash apply")
+```
+
+该功能可以用于 bug 分支的实现。如果当前正在 dev 分支上进行开发，但是此时 master 上有个 bug 需要修复，但是 dev 分支上的开发还未完成，不想立即提交。在新建 bug 分支并切换到 bug 分支之前就需要使用 git stash 将 dev 分支的未提交修改储藏起来。
+
+## SSH 传输设置
+
+Git 仓库和 Github 中心仓库之间的传输是通过 SSH 加密。
+
+如果工作区下没有 .ssh 目录，或者该目录下没有 id_rsa 和 id_rsa.pub 这两个文件，可以通过以下命令来创建 SSH Key：
+
+```
+$ ssh-keygen -t rsa -C "youremail@example.com"
+```
+
+然后把公钥 id_rsa.pub 的内容复制到 Github "Account settings" 的 SSH Keys 中。
+
+
+
+
+
+
+
+
+
+
+
 # git pull和git fetch
 
 - .git/refs/head/[本地分支]
@@ -237,14 +311,3 @@ git config  credential.helper store  	免密push
 
 
 
-# 集中式VS分布式
-
-​	
-
-​	集中式版本控制系统，版本库是集中存放在中央服务器的，**必须先更新最新的版本**，然后开始工作,做完后，再把自己的活推送给中央服务器。所以**必须联网才能工作**，在局域网内还好，如果在互联网上，网速慢就提交不上去
-
-​	分布式版本控制系统根本没有“中央服务器”，每个人的电脑上都是一个完整的版本库，工作时，**不需要联网**，因为版本库就在你自己的电脑上。多人协作时只需把各自的修改推送给对方，就可以互相看到对方的修改了。
-
-​	**分布式版本控制安全性高**，每个人电脑里都有完整的版本库。而集中式版本控制系统的中央服务器要是出了问题，所有人都没法干活了。
-
-​    在实际使用分布式版本控制系统的时候，其实很少在两人之间的电脑上推送版本库的修改，因为可能你们俩不在一个局域网内，两台电脑互相访问不了，也可能今天你的同事病了，他的电脑压根没有开机。因此，分布式版本控制系统通常也有一台充当“中央服务器”的电脑，但这个服务器的作用仅仅是用来方便“交换”大家的修改，没有它大家也一样干活，只是交换修改不方便而已。
