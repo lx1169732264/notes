@@ -1,4 +1,4 @@
-序列化
+# 序列化
 
 
 
@@ -23,7 +23,7 @@
 
 实现**Externalizable接口**,在writeExternal方法中进行手工指定所要序列化的变量
 
- 
+
 
 ## 原理
 
@@ -197,11 +197,11 @@ private Integer getMin(Supplier<Integer> supplier) {
 ```java
 public void testConsumer() {
   User user = new User();
-  setUserDefaultSex(u -> u.setSex("nan"), user);
-  //user的sex被改变}
-
-  private void setUserDefaultSex(Consumer<User> consumer, User user) {
-    consumer.accept(user);}
+  setUserDefaultSex(u -> u.setSex("nan"), user);	//user的sex被改变
+}
+private void setUserDefaultSex(Consumer<User> consumer, User user) {
+  consumer.accept(user);
+}
 ```
 
 
@@ -225,7 +225,7 @@ private void setUserNameAndSex(Consumer<User> one, Consumer<User> two, User user
 
  
 
-### Predicate接口
+### Predicate
 
 对某种类型的数据进行判断，**得到boolean**结果
 
@@ -257,9 +257,38 @@ private void successMan(Predicate<String> one, Predicate<String> two, String str
 
 
 
+```java
+public interface Predicate<T> {
+
+  boolean test(T t);
+
+  default Predicate<T> and(Predicate<? super T> other) {	//与
+    Objects.requireNonNull(other);
+    return (t) -> test(t) && other.test(t);
+  }
+
+  default Predicate<T> negate() {	//非
+    return (t) -> !test(t);
+  }
+
+  default Predicate<T> or(Predicate<? super T> other) {	//或
+    Objects.requireNonNull(other);
+    return (t) -> test(t) || other.test(t);
+  }
+
+  static <T> Predicate<T> isEqual(Object targetRef) {
+    return (null == targetRef) ? Objects::isNull : object -> targetRef.equals(object);
+  }
+}
+```
 
 
-### Function接口
+
+
+
+
+
+### Function
 
 
 
@@ -276,6 +305,16 @@ public void testFunction() {
 ```
 
 **默认方法：andThen**
+
+
+
+静态方法 identity
+
+```java
+static <T> Function<T, T> identity() {
+  return t -> t;	//返回入参本身
+}
+```
 
 
 
@@ -1373,15 +1412,8 @@ CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读�
 
 
 
-* 是Hashtable的非线程安全实现
-
-* 允许空键/值
-
-  
-
 
 ```java
-//继承AbstractMap,实现了Map，克隆，序列化接口
 HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {
 
 //AbstractMap已经实现Map接口，而HashMap又继承AbstractMap再实现了Map接口,是JDK中多此一举的失误
@@ -1409,10 +1441,6 @@ hash&(length-1)	==	hash%length
 当length-1不为全1,即length不为2的幂,将出现0,而0的部分按位与永远为0
 
 将导致0的桶永远放不进
-
-
-
-
 
 
 
@@ -4285,6 +4313,35 @@ public class TestCallable implements Callable<String> {
 
 
 
+<a name="指令重排">**指令重排**</a>
+
+Java程序中天然的有序性：如果在本线程内观察，所有操作都是天然有序的。如果在一个线程中观察另一个线程，所有操作都是无序的
+
+as-if-serial语义:不管怎么重排序，单线程程序的执行结果都不能被改变。编译器和处理器无论如何优化，都必须遵守as-if-serial语义
+
+
+
+```java
+public class Singleton {  
+  private volatile static Singleton singleton;  
+  private Singleton (){}  
+  public static Singleton getSingleton() {  
+    if (singleton == null) {  
+      synchronized (Singleton.class) {  
+        if (singleton == null) {  
+          singleton = new Singleton();  
+        }  
+      }  
+    }  
+    return singleton;  
+  }  
+} 
+```
+
+
+
+
+
 
 
 
@@ -4364,28 +4421,6 @@ Compare And Swap	比较与交换
 compare()不仅要比较A和V的实际值，还要比较变量的版本号是否一致,每次修改都更新版本号
 
 AtomicStampedReference类就实现了用版本号作比较机制
-
-
-
-
-
-## COW
-
-
-
-CopyOnWrite
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -5432,8 +5467,89 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 
 ```java
+private void set(ThreadLocal<?> key, Object value) {
+  Entry[] tab = table;
+  int len = tab.length;
+  int i = key.threadLocalHashCode & (len-1);
 
+  for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {	//线性探测法查找元素,tab[i]!= null -> hash冲突 -> 向后查找
+    ThreadLocal<?> k = e.get();
+
+    if (k == key) {
+      e.value = value;
+      return;
+    }
+
+    if (k == null) {	//key==null -> 旧threadLocal对象已被回收
+      replaceStaleEntry(key, value, i);	//替换旧元素
+      return;
+    }
+  }
+
+  tab[i] = new Entry(key, value);
+  int sz = ++size;
+  if (!cleanSomeSlots(i, sz) && sz >= threshold)	rehash();	//cleanSomeSlots清理脏数据
+}
+
+private static int nextIndex(int i, int len) {
+  return ((i + 1 < len) ? i + 1 : 0);
+}
+
+private boolean cleanSomeSlots(int i, int n) {
+  boolean removed = false;
+  Entry[] tab = table;
+  int len = tab.length;
+  do {
+    i = nextIndex(i, len);
+    Entry e = tab[i];
+    if (e != null && e.get() == null) {
+      n = len;
+      removed = true;
+      i = expungeStaleEntry(i);
+    }
+  } while ( (n >>>= 1) != 0);
+  return removed;
+}
+
+private int expungeStaleEntry(int staleSlot) {
+  Entry[] tab = table;
+  int len = tab.length;
+
+  // expunge entry at staleSlot
+  tab[staleSlot].value = null;
+  tab[staleSlot] = null;
+  size--;
+
+  // Rehash until we encounter null
+  Entry e;
+  int i;
+  for (i = nextIndex(staleSlot, len);
+       (e = tab[i]) != null;
+       i = nextIndex(i, len)) {
+    ThreadLocal<?> k = e.get();
+    if (k == null) {
+      e.value = null;
+      tab[i] = null;
+      size--;
+    } else {
+      int h = k.threadLocalHashCode & (len - 1);
+      if (h != i) {
+        tab[i] = null;
+        while (tab[h] != null)
+          h = nextIndex(h, len);
+        tab[h] = e;
+      }
+    }
+  }
+  return i;
+}
 ```
+
+
+
+如果当前table[i]！=null的话说明hash冲突就需要向后环形查找，若在查找过程中遇到脏entry就通过replaceStaleEntry进行处理；
+
+如果当前table[i]==null的话说明新的entry可以直接插入，但是插入后会调用cleanSomeSlots方法检测并清除脏entry
 
 
 
@@ -5451,6 +5567,24 @@ private Entry getEntry(ThreadLocal<?> key) {
   else	return getEntryAfterMiss(key, i, e);
 }
 ```
+
+
+
+#### 解决hash冲突
+
+
+
+```java
+private static final int HASH_INCREMENT = 0x61c88647;	//斐波那契数列相关,能够让hashCode均匀地分布在2^n的数组中
+private static AtomicInteger nextHashCode = new AtomicInteger();
+private final int threadLocalHashCode = nextHashCode();
+
+private static int nextHashCode() {
+    return nextHashCode.getAndAdd(HASH_INCREMENT);	// 每次获取值时，把当前值加上HASH_INCREMENT并返回
+}
+```
+
+
 
 
 
@@ -5950,7 +6084,7 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-依赖于cpu的缓存一致性协议
+依赖于cpu的[缓存一致性协议](####缓存一致性协议)
 
 ==针对变量弱同步，不保证线程安全==		static不是可见的
 
@@ -5958,12 +6092,28 @@ ConcurrentHashMap中，会将hash表的数组分成若干段，每段维护一�
 
 
 
-volatile 内存语义
+**两条实现原则**
 
-* 写入时，JMM 把工作内存中的**变量值立即刷新到主内存,并通知其他线程**
+1.Lock前缀指令会引起处理器缓存回写到内存
+当对volatile变量进行写操作的时候，JVM会向处理器发送一条lock前缀的指令，将缓存中的变量回写到主存
+
+2.一个处理器的缓存回写会导致其他处理器的缓存失效
+处理器使用嗅探技术保证内部缓存/系统内存/其他处理器的缓存的数据在总线上保持一致
+
+
+
+**内存语义**
+
+* 写入时，JMM把工作内存中的**变量值立即刷新到主内存,并通知其他线程**(线程通信)
   * 其他线程的读写,放弃工作内存中的副本，重新去主内存获取
-* 产生==内存屏障==，防止指令重排把后面的指令排到内存屏障前/后,指令顺序执行
-* volatile 变量不会被缓存在寄存器 或 处理器不可见的地方，因此在读 volatile 变量时总会返回最新的值
+* 产生==内存屏障==，防止指令重排,指令顺序执行
+* volatile 变量不会被缓存在寄存器/处理器不可见的地方，因此读volatile变量时总会返回最新的值
+
+
+
+**以下两个场景中可用volatile来代替synchronized：**
+1、运算结果并不依赖变量的当前值，或者能够确保只有单一的线程会修改变量的值。
+2、变量不需要与其他状态变量共同参与不变约束。
 
 
 
@@ -5978,13 +6128,20 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 - LoadStore
 - StoreLoad
 
-　　内存屏障防止Volatile修饰的关键字指令不会重排序,底层是loadfence/storefence原语指令
+内存屏障防止Volatile修饰的关键字指令不会重排序,底层是loadfence/storefence原语指令
 
 
 
-实现机制
+**实现机制**
 
 把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
+
+
+
+1.在每个volatile写操作前插入StoreStore屏障；对于这样的语句Store1; StoreLoad; Store2，在Store2及后续写入操作执行前，保证Store1的写入操作对其它处理器可见。
+2.在每个volatile写操作后插入StoreLoad屏障；对于这样的语句Store1; StoreLoad; Load2，在Load2及后续所有读取操作执行前，保证Store1的写入对所有处理器可见。
+3.在每个volatile读操作前插入LoadLoad屏障；对于这样的语句Load1;LoadLoad; Load2，在Load2及后续读取操作要读取的数据被访问前，保证Load1要读取的数据被读取完毕。
+4.在每个volatile读操作后插入LoadStore屏障；对于这样的语句Load1; LoadStore; Store2，在Store2及后续写入操作被刷出前，保证Load1要读取的数据被读取完毕。
 
 
 
@@ -5992,12 +6149,12 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 
 
 
-| volatile                   | synchronized               |
-| -------------------------- | -------------------------- |
-| 轻量级实现                 |                            |
-| **只能用于变量**           | **可以修饰方法以及代码块** |
-| ==变量在多线程间的可见性== | 访问资源的同步性           |
-| 不保证原子性               | 可见+原子性                |
+| volatile                              | synchronized         |
+| ------------------------------------- | -------------------- |
+| 不是锁,性能高                         | 锁机制               |
+| **只能用于变量**                      | **方法/代码块/变量** |
+| ==变量可见性==,内存屏障->禁止指令重排 | 访问资源的同步性     |
+| 不保证原子性                          | 原子性               |
 
 
 
@@ -6007,17 +6164,17 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 
 ```java
 public static volatile int c = 0;
-    
-    public static void main(String[] args) throws InterruptedException {
-        for (int i = 0; i < 100000; i++) {
-            new Thread(() -> {
-                c++;	//非原子性操作
-                System.out.println(c);
-            }
-            ).start();
-        }
-        Thread.sleep(5000);
+
+public static void main(String[] args) throws InterruptedException {
+  for (int i = 0; i < 100000; i++) {
+    new Thread(() -> {
+      c++;	//非原子性操作
+      System.out.println(c);
     }
+              ).start();
+  }
+  Thread.sleep(5000);
+}
 
 volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1，已经存在了多步操作。所以c具有原子性，但是c++不具有原子性
 ```
@@ -6032,11 +6189,17 @@ volatile变量具有原子性- > c具有原子性，但c++不具有 -> c = c + 1
 
 
 
-**悲观+不公平+可重入	无锁/自旋/互斥信号量**	既保证了原子性,也保证可见性
+**悲观+不公平+可重入	无锁/自旋/互斥信号量**
 
 让没有得到锁资源的线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，==退出或异常时自动释放锁==
 
-尽管JAVA 1.6锁升级:**偏向锁、轻量级锁、自旋锁、适应性自旋锁、锁消除、锁粗化**减少锁操作的开销,但在最终转变为重量级锁之后，性能仍比较低,面对这种情况可以使用“**原子操作类**”
+
+
+**有序性**
+
+synchronized无法禁止[指令重排](#指令重排)和处理器优化,需要依赖volatile保证完整的有序性
+
+
 
 
 
@@ -7619,7 +7782,7 @@ CachedThreadPool,核心线程数量0,不会有核心线程存活阻止线程池�
 
 
 
-```
+```java
 int getCorePoolSize()：获取核心线程数
 int getLargestPoolSize()：历史峰值线程数
 int getMaximumPoolSize()：最大线程数(线程池线程容量)
@@ -7743,12 +7906,6 @@ static final class RunnableAdapter<T> implements Callable<T> {
     }
 }
 ```
-
-
-
-
-
-
 
 
 
@@ -9420,6 +9577,22 @@ JVM定义了8个操作来完成主内存和工作内存的交互
 
 
 
+#### 缓存一致性协议
+
+
+
+处理器通过**嗅探技术**在总线上传播的数据来检查缓存值是否过期，当处理器发现缓存行对应的内存地址被修改，就会将当前缓存行置为无效，重新从系统内存里把数据读到处理器缓存里
+
+
+
+
+
+
+
+
+
+
+
 
 
 ### 内存模型三大特性
@@ -10334,16 +10507,22 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 
 
 
-| 基本类型 | 大小(字节)            | 默认值         | 封装类    |                           |
-| -------- | --------------------- | -------------- | --------- | ------------------------- |
-| byte     | 1                     | (byte)0        | Byte      | -128~127                  |
-| short    | 2                     | (short)0       | Short     | -32768~32767              |
-| int      | 4                     | 0              | Integer   | -2^31^~2^31^-1            |
-| long     | 8                     | 0L             | Long      |                           |
-| float    | 1符号+8指数+23尾数=4  | 0.0f           | Float     | -3.4e^45^~3.4e^38^        |
-| double   | 1符号+11指数+52尾数=8 | 0.0d           | Double    | -1.79e^308^ ~ +1.79e^308^ |
-| boolean  | 1                     | false          | Boolean   |                           |
-| char     | 2                     | \u0000  (null) | Character |                           |
+| 基本类型            | 大小(字节)            | 默认值         | 封装类    |                           |
+| ------------------- | --------------------- | -------------- | --------- | ------------------------- |
+| byte                | 1                     | (byte)0        | Byte      | -128~127                  |
+| short               | 2                     | (short)0       | Short     | -32768~32767              |
+| int                 | 4                     | 0              | Integer   | -2^31^~2^31^-1            |
+| long                | 8                     | 0L             | Long      |                           |
+| float               | 1符号+8指数+23尾数=4  | 0.0f           | Float     | -3.4e^45^~3.4e^38^        |
+| double              | 1符号+11指数+52尾数=8 | 0.0d           | Double    | -1.79e^308^ ~ +1.79e^308^ |
+| [boolean](#boolean) | 1                     | false          | Boolean   |                           |
+| char                | 2                     | \u0000  (null) | Character |                           |
+
+
+
+<a name="boolean">boolean虽然可以被1bit存储,但JVM在编译时转换为 int</a>
+
+
 
 
 
@@ -10361,6 +10540,56 @@ float f =(float)3.4	或 float f =3.4F		//正确
 
 
 
+
+## 包装类型
+
+
+
+大多被final修饰,无法被继承/实现
+
+
+
+
+
+### Integer
+
+
+
+
+
+### valueOf
+
+优先从IntegerCache取对象引用,不同于new Integer()的每次创建
+
+```java
+public static Integer valueOf(int i) {
+  if (i >= IntegerCache.low && i <= IntegerCache.high)
+    return IntegerCache.cache[i + (-IntegerCache.low)];
+  return new Integer(i);
+}
+```
+
+
+
+
+
+### IntegerCache
+
+下界-128，上界默认127
+
+通过 -XX:AutoBoxCacheMax=&lt;size&gt; 指定上界
+
+```java
+private static class IntegerCache {
+  static final int low = -128;
+  static final int high;
+  static final Integer cache[];
+
+  static {
+    int h = 127;
+    .......
+  }
+```
 
 
 
@@ -10485,6 +10714,8 @@ toLowerCase()
 
 
 
+
+
 ## String
 
 
@@ -10505,10 +10736,6 @@ public String() {this.value = "".value; }//对于new String(),仅仅是分配了
 
 
 ==不存在返回-1	空字符串返回0==
-
- 
-
-
 
 ```java
 //对于空字符串的下标获取,先赋0的初始下标
@@ -10692,9 +10919,13 @@ public synchronized StringBuffer append(String str) {	//同步了append,线程�
 
 ### String为什么final
 
-* 若允许被继承，则其高度的被使用率可能会降低程序的性能
 
-* 为了安全。JDK中的核心类比如 String，内部很多方法的实现都不是 java 编写的，只是==调用操作系统的 API，也就是本地方法调用==，如果这种类可以被继承并重写，将导致操作系统面临风险
+
+若允许被继承，则其高度的被使用率可能会降低程序的性能
+
+为了安全。JDK中的核心类比如 String，内部很多方法的实现都不是 java 编写的，只是==调用操作系统的 API，也就是本地方法调用==，如果这种类可以被继承并重写，将导致操作系统面临风险
+
+
 
 
 
@@ -11596,3 +11827,6 @@ String string = "Hello";
 
 
 
+
+
+[####缓存一致性协议]:
