@@ -69,7 +69,9 @@
 
 超类和子类 成员变量名称相同
 
-不会重写父类成员变量,**子类中将有两个相同名称的变量**
+不会重写父类成员变量,**子类中将有两个相同名称的变量**4
+
+==子类重写父类的方法，访问级别不允许低于父类== -> 里氏替换
 
 ```java
 public class A {  
@@ -506,14 +508,14 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 * 相同
   * 抽象类和接口均包含抽象方法，类必须实现所有的抽象方法
-* **都不能实例化**，位于继承树的顶端，用来被继承和实现
+  * **都不能实例化**，位于继承树的顶端，用来被继承和实现
   * 都不全为abstract,接口也可以有default
 
 * 不同
   * 接口中只能定义全局静态常量，不能定义变量。抽象类中可以定义常量和变量
   * **接口不能定义构造方法/成员变量**,抽象类中可以有构造方法，但不能用来实例化
   * 单继承多接口
-  * 子类和抽象类是is-a关系，和接口是like-a关系
+  * 接口只能public,抽象可以自定义访问权限
 
  
 
@@ -527,7 +529,7 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 *  接口  接口定义“做什么”，实现类负责“怎么做”，功能和实现分离。**has-a **
 
-*  抽象类体现继承关系，目的是复用代码，定义了各子类的相同代码，可以认为父类是实现了部分功能的“中间产品”，而子类是“最终产品”。**is-a**
+*  抽象类体现继承关系，父类是实现部分功能的“中间产品”，子类是“最终产品”。**is-a**
 
 
 
@@ -535,10 +537,15 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 
 
-抽象也可以实现多态，但有两个问题
+## 重写 VS 重载
 
-1. 单继承的局限
-2. 暴露过多method
+
+
+重写（Override）	访问权限<=父类方法,返回值相同,异常类型为父类异常或异常的子类
+
+重载（Overload）	参数类型、个数、顺序至少一个不同
+
+
 
 
 
@@ -884,20 +891,14 @@ class SubList<E> extends AbstractList<E> {
 
 
 ```java
-//RandomAccess标记性接口，用来快速随机存取，在实现了该接口时普通的for循环性能更高，没有实现该接口的话，Iterator性能更高(linkedList)。这个标记性只是为了让使用者知道应选用什么遍历方式
-//Cloneable接口
+//RandomAccess快速随机存取的标记性接口，实现了该接口时普通的for循环性能更高，没有实现该接口则Iterator性能高
 public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
-		//初始大小10
-  	private static final int DEFAULT_CAPACITY = 10;
-    // 空对象数组
+		
+  	private static final int DEFAULT_CAPACITY = 10;	//初始大小10
     private static final Object[] EMPTY_ELEMENTDATA = {};
-    // 缺省空对象数组
     private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
-    // 元素数组
     transient Object[] elementData;
-    // 实际元素大小，默认0
     private int size;
-    // 最大数组容量
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 }
 ```
@@ -935,10 +936,6 @@ public ArrayList(Collection<? extends E> c) {
 
 
 
-minCapacity = size+1,代表插入操作所需要的最小容量
-
-
-
 原数组是空的，add()时数组容量变为10
 
 原数组不为空，扩容1.5倍
@@ -947,10 +944,8 @@ minCapacity = size+1,代表插入操作所需要的最小容量
 
 ```java
 public boolean add(E e) {    
-  //确定内部容量是否够
-  ensureCapacityInternal(size + 1);
-  //插入，并size++
-  elementData[size++] = e;
+  ensureCapacityInternal(size + 1);	//决定是否需要扩容
+  elementData[size++] = e;	//插入，并size++
   return true;
 }
 
@@ -967,9 +962,7 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
   return minCapacity;
 }
 
-//数组容量检查，不够时则进行扩容，只供类内部使用 
-// minCapacity 想要的最小容量
-private void ensureExplicitCapacity(int minCapacity) {
+private void ensureExplicitCapacity(int minCapacity) {	// minCapacity 想要的最小容量
   modCount++;
   //最小容量>数组缓冲区当前长度
   if (minCapacity - elementData.length > 0)
@@ -978,15 +971,13 @@ private void ensureExplicitCapacity(int minCapacity) {
 
 private void grow(int minCapacity) {
   int oldCapacity = elementData.length;
-  // 1.5倍扩容
-  int newCapacity = oldCapacity + (oldCapacity >> 1);
+  int newCapacity = oldCapacity + (oldCapacity >> 1);	// 1.5倍扩容
 
   //扩容后的容量 < 想要的最小容量		再次扩容为想要的最小容量
   if (newCapacity - minCapacity < 0)   newCapacity = minCapacity;
   //扩容后大于临界值，进行大容量分配
   if (newCapacity - MAX_ARRAY_SIZE > 0)    newCapacity = hugeCapacity(minCapacity);
 
-  //copyof(原数组，新的数组长度)
   elementData = Arrays.copyOf(elementData, newCapacity);
 }
 
@@ -1245,50 +1236,36 @@ public void clear() {
 
 
 
-
-
-
-
-
-
 ### CopyOnWriteArrayList
 
 
 
-**读多写少**的场景,比如黑白名单，商品类目的访问
+**适合读多写少**,比如黑白名单，商品类目的访问
 
 
 
-减少扩容次数
+**读写分离**,提高并发能力
 
-==使用批量添加==,减少添加次数,每次添加都会进行复制，损耗性能
-
-
+==使用批量添加==,减少添加次数,添加时的复制损耗性能
 
 **内存占用问题**。在写操作时，内存里同时存在新旧两个对象，可能造成频繁GC
 
-
-
-**数据一致性问题**。CopyOnWrite容器只保证最终一致性，不保证实时一致性
+**数据一致性问题**。CopyOnWrite容器**只保证最终一致性**，读操作无法读取实时性的数据
 
 
 
 ```java
 public class CopyOnWriteArrayList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
 
-    final transient ReentrantLock lock = new ReentrantLock();
-
-    //维护了transient(序列化) volatile(可见)的数组
-    private transient volatile Object[] array;
+  final transient ReentrantLock lock = new ReentrantLock();
+  private transient volatile Object[] array;
 ```
 
 
 
 #### add
 
-
-
-add()需要加锁，否则会Copy出N个副本
+需要加锁，否则会Copy出N个副本
 
 ```java
 public boolean add(E e) {
@@ -1359,6 +1336,24 @@ CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读�
 
 
 
+#### Node
+
+基于双向链表实现
+
+```java
+private static class Node<E> {
+  E item;
+  Node<E> next;
+  Node<E> prev;
+
+  Node(Node<E> prev, E element, Node<E> next) {
+    this.item = element;
+    this.next = next;
+    this.prev = prev;
+  }
+}
+```
+
 
 
 
@@ -1373,15 +1368,23 @@ CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读�
 
 **在方法中进行了同步,线程安全**
 
-**扩容为2倍**,适合数据量大的存储
+**2倍扩容**,适合数据量大的存储
 
 
 
+```java
+public synchronized boolean add(E e) {
+  modCount++;
+  ensureCapacityHelper(elementCount + 1);
+  elementData[elementCount++] = e;
+  return true;
+}
 
-
-
-
-
+public synchronized E get(int index) {
+  if (index >= elementCount)	throw new ArrayIndexOutOfBoundsException(index);
+  return elementData(index);
+}
+```
 
 
 
@@ -1405,6 +1408,30 @@ CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读�
 | ConcurrentHashMap | **不允许null** | **不允许null** | AbstractMap | 锁分段技术(CAS) |
 | TreeMap           | 不允许null     | **允许null**   | AbstractMap | 不安全          |
 | HashMap           | **允许null**   | **允许null**   | AbstractMap | 不安全          |
+
+
+
+### HashTable
+
+
+
+双数组
+
+线程安全,效率低
+
+get/put等加了synchronized**锁住整个table**,导致性能低
+
+
+
+#### size()为什么要做同步
+
+
+
+同一时间只能有一条线程执行固定类的同步方法，但是对于类的非同步方法，可以多条线程同时访问。所以，这样就有问题了，可能线程A在执行Hashtable的put方法添加数据，线程B则可以正常调用size()方法读取Hashtable中当前元素的个数，那读取到的值可能不是最新的，可能线程A添加了完了数据，但是没有对size++，线程B就已经读取size了，那么对于线程B来说读取到的size一定是不准确的。
+
+**而给size()方法加了同步之后，意味着线程B调用size()方法只有在线程A调用put方法完毕之后才可以调用，这样就保证了线程安全性**
+
+
 
 
 
@@ -1523,6 +1550,69 @@ final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
       K key = e.getKey();
       V value = e.getValue();
       putVal(hash(key), key, value, false, evict);
+```
+
+
+
+#### <a name="HashMap.Node">Node</a>
+
+
+
+```java
+static class Node<K,V> implements Map.Entry<K,V> {
+  final int hash;
+  final K key;
+  V value;
+  Node<K,V> next;
+
+  Node(int hash, K key, V value, Node<K,V> next) {
+    this.hash = hash;
+    this.key = key;
+    this.value = value;
+    this.next = next;
+  }
+
+  public final K getKey()        { return key; }
+  public final V getValue()      { return value; }
+  public final String toString() { return key + "=" + value; }
+
+  public final int hashCode() {
+    return Objects.hashCode(key) ^ Objects.hashCode(value);
+  }
+
+  public final V setValue(V newValue) {
+    V oldValue = value;
+    value = newValue;
+    return oldValue;
+  }
+
+  public final boolean equals(Object o) {
+    if (o == this)
+      return true;
+    if (o instanceof Map.Entry) {
+      Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+      if (Objects.equals(key, e.getKey()) &&
+          Objects.equals(value, e.getValue()))
+        return true;
+    }
+    return false;
+  }
+}
+```
+
+
+
+#### TreeNode
+
+==HashMap.TreeNode 不继承自己的内部类 Node，却继承 LinkedHashMap.Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力(多态)==
+
+
+
+==TreeNode的大小约是Node的2倍==，仅在桶中包含足够多的节点时才被使用。当桶中的节点数量变少时，TreeNode被转成 Node,当hashCode具有良好分布性时,不会转为红黑树，TreeNode将很少被使用
+
+```java
+static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
+}
 ```
 
 
@@ -2168,56 +2258,40 @@ CAS + 同步锁 + Node + 红黑树
 
 ![](image.assets/ConcurrentHashMap.png)
 
-
-
-#### CAS无锁定算法
-
-
-
-
-
 1.7- 的ConcurrentHashMap中是锁定了Segment
 
-jdk1.8+ 锁定的是Node头节点，减小了锁的粒度，性能和冲突都会减少
+jdk1.8+ 锁定的是Node头节点，减小了锁的粒度，性能和冲突都会减少;还使用CAS支持更高的并发,在CAS失败时使用内置锁 synchronized
 
 
 
-
-
-
-
-#### 成员变量
-
-
-
-ConcurrentHashMap的并发度就是segment的大小，默认为16，这意味着最多同时可以有16条线程操作ConcurrentHashMap，这也是ConcurrentHashMap对Hashtable的最大优势
+ConcurrentHashMap的并发度就是segment的大小，默认为16，支持16条线程并发
 
 ```java
-//
-private static int RESIZE_STAMP_BITS = 16;
+public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements ConcurrentMap<K,V>, Serializable {
+  private static int RESIZE_STAMP_BITS = 16;
 
-private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
+  private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
 
-private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
+  private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
+  
+  private transient volatile int sizeCtl;	//1:table正在初始化	n:3种含义:有n-1个线程正在进行扩容/需要初始化的大小/table的容量
 
-// 可用处理器数量
-static final int NCPU = Runtime.getRuntime().availableProcessors();
+  static final int NCPU = Runtime.getRuntime().availableProcessors();	//可用处理器数量
 
-//MOVED代表该节点是forwarding Node，已被其他线程处理过了
-static final int MOVED   = -1;
-static final int TREEBIN = -2;
+  //MOVED代表该节点是forwarding Node，已被其他线程处理过了
+  static final int MOVED   = -1;
+  static final int TREEBIN = -2;
 
-//sizeCtl标志控制符
-//未初始化:	 0  未指定初始容量		> 0  初始容量的最近的2次幂
-//初始化中： -1  正在初始化			-N  高15位是指定容量标识，低16为并行扩容线程数+1 (见resizeStamp())
-//初始化完成：table.length * 0.75  0.75的扩容阈值
-private transient volatile int sizeCtl;
+  //sizeCtl标志控制符
+  //未初始化:	 0  未指定初始容量		> 0  初始容量的最近的2次幂
+  //初始化中： -1  正在初始化			-N  高15位是指定容量标识，低16为并行扩容线程数+1 (见resizeStamp())
+  //初始化完成：table.length * 0.75  0.75的扩容阈值
+  private transient volatile int sizeCtl;
 
-//3种Node: TreeBin		ForwardingNode 扩容时存放的结点		Node 普通结点，表示链表头结点
-transient volatile Node<K,V>[] table;
-
-//扩容时用于存放数据的变量，扩容完成后置为null
-private transient volatile Node<K,V>[] nextTable;
+  //3种Node: TreeBin		ForwardingNode 扩容时存放的结点		Node 普通结点，表示链表头结点
+  transient volatile Node<K,V>[] table;
+  private transient volatile Node<K,V>[] nextTable;	//扩容时存放数据，扩容后置为null
+}
 ```
 
 
@@ -2232,13 +2306,72 @@ Node
 static class Node<K,V> implements Map.Entry<K,V> {
   final int hash;
   final K key;
-  //用volatile修饰value/next，使得value和next具有可见性和有序性，保证线程安全
-  volatile V val;
+  volatile V val;	//用volatile使val和next具有可见性和有序性，保证线程安全
   volatile Node<K,V> next;
 
   //setValue（）方法直接抛出异常，禁止用该方法设置value
   public final V setValue(V value) {   throw new UnsupportedOperationException();  }
 ```
+
+
+
+ForwardingNode
+
+只在扩容时使用,作为占位符放在table中,表示当前节点为null或则已被移动
+
+```java
+static final class ForwardingNode<K,V> extends Node<K,V> {
+  final Node<K,V>[] nextTable;
+  ForwardingNode(Node<K,V>[] tab) {
+    super(MOVED, null, null, null);	//MOVED状态
+    this.nextTable = tab;
+  }
+
+  Node<K,V> find(int h, Object k) {
+    outer: for (Node<K,V>[] tab = nextTable;;) {
+      Node<K,V> e; int n;
+      if (k == null || tab == null || (n = tab.length) == 0 ||
+          (e = tabAt(tab, (n - 1) & h)) == null)
+        return null;
+      for (;;) {
+        int eh; K ek;
+        if ((eh = e.hash) == h &&
+            ((ek = e.key) == k || (ek != null && k.equals(ek))))
+          return e;
+        if (eh < 0) {
+          if (e instanceof ForwardingNode) {
+            tab = ((ForwardingNode<K,V>)e).nextTable;
+            continue outer;
+          }
+          else
+            return e.find(h, k);
+        }
+        if ((e = e.next) == null)
+          return null;
+      }
+    }
+  }
+}
+```
+
+
+
+
+
+
+
+Segment 分段锁
+
+每个分段锁维护着几个桶，多个线程可以同时访问不同分段锁上的桶,使得并发数量=桶的数量
+
+```java
+static class Segment<K,V> extends ReentrantLock implements Serializable {
+    final float loadFactor;
+    Segment(float lf) { this.loadFactor = lf; }
+}
+```
+
+
 
 
 
@@ -2281,7 +2414,6 @@ static final class ForwardingNode<K,V> extends Node<K,V> {
   }
 
   Node<K,V> find(int h, Object k) {
-    // loop to avoid arbitrarily deep recursion on forwarding nodes
     outer: for (Node<K,V>[] tab = nextTable;;) {
       Node<K,V> e; int n;
       if (k == null || tab == null || (n = tab.length) == 0 ||
@@ -2307,38 +2439,44 @@ static final class ForwardingNode<K,V> extends Node<K,V> {
 
 
 
+
+
+
+
+
+
 #### initTable
 
 
 
 ==在链表初始化中没有加锁==
 
+初始化操作在第一次put时进行，并且只会执行一次
+
 ```java
 private final Node<K,V>[] initTable() {
-    Node<K,V>[] tab; int sc;
-    while ((tab = table) == null || tab.length == 0) {
-      	//sizeCtl<0代表当前table正在被其他线程初始化,当前线程yield礼让
-        if ((sc = sizeCtl) < 0)    Thread.yield();
-      
-      	//初始化前,CAS将sizeCtl置为-1,让其他线程让出cpu
-        else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
-            try {
-                if ((tab = table) == null || tab.length == 0) {
-                  	//DEFAULT_CAPACITY:16
-                    int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
-                    Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
-                    table = tab = nt;
-                  	//扩容阈值0.75
-                    sc = n - (n >>> 2);
-                }
-            } finally {
-              	//扩容保护
-                sizeCtl = sc;
-            }
-            break;
+  Node<K,V>[] tab; int sc;
+  while ((tab = table) == null || tab.length == 0) {
+    //sizeCtl<0代表当前table正在被其他线程初始化,当前线程yield礼让
+    if ((sc = sizeCtl) < 0)    Thread.yield();
+
+    //初始化前,CAS将sizeCtl置为-1,让其他线程让出cpu
+    else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+      try {
+        if ((tab = table) == null || tab.length == 0) {
+          //DEFAULT_CAPACITY:16
+          int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
+          Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+          table = tab = nt;
+          sc = n - (n >>> 2);	//扩容阈值0.75
         }
+      } finally {
+        sizeCtl = sc;	//扩容保护
+      }
+      break;
     }
-    return tab;
+  }
+  return tab;
 }
 ```
 
@@ -2349,8 +2487,6 @@ private final Node<K,V>[] initTable() {
 
 
 用于对指定位置的节点进行操作,CAS保证了线程安全
-
-
 
 ABASE表示table中首个元素的内存偏移地址，所以((long)i << ASHIFT) + ABASE为table[i]的内存偏移地址
 
@@ -2369,6 +2505,9 @@ static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
 ```
 
 
+
+
+
 #### spread
 
 
@@ -2377,8 +2516,8 @@ static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
 static final int HASH_BITS = 0x7fffffff;//01111111_11111111_11111111_11111111
 
 static final int spread(int h) {
-    //无符号右移加入高位影响，与HASH_BITS做与操作保留对hash有用的比特位，有让hash>0的意思
-    return (h ^ (h >>> 16)) & HASH_BITS;
+  //无符号右移加入高位影响，与HASH_BITS做与操作保留对hash有用的比特位，有让hash>0的意思
+  return (h ^ (h >>> 16)) & HASH_BITS;
 }
 ```
 
@@ -2418,8 +2557,8 @@ public V get(Object key) {
 
 
 1. 单线程新建nextTable，新容量一般为原table容量的两倍。
-2. 每个线程想增/删元素时，如果访问的桶是ForwardingNode节点，则表明当前正处于扩容状态，协助一起扩容完成后再完成相应的数据更改操作
-3. 扩容时将原table的所有桶倒序分配，每个线程每次最小分配16个桶，防止资源竞争导致的效率下降。单个桶内元素的迁移是加锁的，但桶范围处理分配可以多线程，在没有迁移完成所有桶之前每个线程需要重复获取迁移桶范围，直至所有桶迁移完成
+2. 每个线程想增/删元素时，如果访问的桶是ForwardingNode节点，表明正在扩容，协助扩容
+3. 扩容时将原table的所有桶倒序分配，每个线程每次最小分配16个桶，防止资源竞争。单个桶内元素的迁移是加锁的，但桶范围处理分配可以多线程，在没有迁移完成所有桶之前每个线程需要重复获取迁移桶范围，直至所有桶迁移完成
 4. 一个旧桶内的数据迁移完成但不是所有桶都迁移完成时，查询数据委托给ForwardingNode结点查询nextTable完成
 5. 迁移过程中sizeCtl用于记录参与扩容线程的数量，全部迁移完成后sizeCtl更新为新table容量的0.75倍。
 
@@ -2647,16 +2786,9 @@ final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
     * 遍历检查是否有相同的key?更新:插入
     * 链表>8?树:void
   * 桶为红黑树
-    * 插入
-    * 自平衡
-
+    * 插入+自平衡
+  
 * 插入后,map已存储数量+1,==在addCount方法中判断是否需要扩容==
-
-
-
-![](image.assets/ConcurrentHashMap的Put.png)
-
-
 
 
 
@@ -2668,18 +2800,13 @@ public V put(K key, V value) {
 final V putVal(K key, V value, boolean onlyIfAbsent) {
   if (key == null || value == null) throw new NullPointerException();
   int hash = spread(key.hashCode());
-  //结点数,检查是否要转为树
-  int binCount = 0;
-  //CAS经典写法，不成功无限重试，再次循环进行相应操作
-  for (Node<K,V>[] tab = table;;) {
+  int binCount = 0;	//结点数,检查是否要转为树
+  for (Node<K,V>[] tab = table;;) {	//CAS
     Node<K,V> f; int n, i, fh;
-    //检查是否需要初始化
-    if (tab == null || (n = tab.length) == 0)   tab = initTable();
-    //table对应下标处为null
-    else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
-      //创建Node对象做为链表首结点
-      if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))
-        break;
+    
+    if (tab == null || (n = tab.length) == 0)   tab = initTable();	//初始化
+    else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {	//table对应下标处为null
+      if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))	break;//创建Node做为链表首结点
     }
     //当前结点正在扩容(MOVED状态)
     else if ((fh = f.hash) == MOVED)
@@ -2876,97 +3003,56 @@ private final void tryPresize(int size) {
 
 
 
-
-
-### HashTable
-
-
-
-双数组
-
-线程安全,效率低
-
-所有涉及多线程都加上了synchronized关键字来**锁住整个table**
-
-
-
-
-
-#### size()为什么要做同步
-
-
-
-同一时间只能有一条线程执行固定类的同步方法，但是对于类的非同步方法，可以多条线程同时访问。所以，这样就有问题了，可能线程A在执行Hashtable的put方法添加数据，线程B则可以正常调用size()方法读取Hashtable中当前元素的个数，那读取到的值可能不是最新的，可能线程A添加了完了数据，但是没有对size++，线程B就已经读取size了，那么对于线程B来说读取到的size一定是不准确的。
-
-**而给size()方法加了同步之后，意味着线程B调用size()方法只有在线程A调用put方法完毕之后才可以调用，这样就保证了线程安全性**
-
-
-
-
-
-
-
 ### LinkedHashMap
 
 
 
 ==有序==,用HashMap操作数据结构，用LinkedList维护顺序
 
+accessOrder:true LRU访问顺序排序	false 插入顺序排序
+
 ```java
-LinkedHashMap<K,V> extends HashMap<K,V>  implements Map<K,V>
+LinkedHashMap<K,V> extends HashMap<K,V>  implements Map<K,V>{
+  transient LinkedHashMap.Entry<K,V> head;	//最久访问或最先插入的节点
+  transient LinkedHashMap.Entry<K,V> tail;	//最近访问的或最近插入的节点
+  final boolean accessOrder;	//默认false插入顺序存储		true查询顺序存储
+
+  public LinkedHashMap() {
+    super();	//调用hashmap的构造
+    accessOrder = false;	//默认插入顺序排序
+  }
+
+  public LinkedHashMap(Map<? extends K, ? extends V> m) {
+    super();
+    accessOrder = false;
+    putMapEntries(m, false);
+  }
+}
 ```
 
 
 
-只定义了3个属性
-
-```java
-//最久访问的节点或最先插入的节点
-transient LinkedHashMap.Entry<K,V> head;
-//尾部为最近访问的或最近插入的节点
-transient LinkedHashMap.Entry<K,V> tail;
-//false插入顺序存储		true查询顺序存储		默认false
-final boolean accessOrder;
-```
 
 
+#### Entry
 
-构造器，**默认都采用插入顺序存储**,都通过调用父类来创建对象
+<img src="image.assets/image-20201113235444857.png"  />
 
-```java
-public LinkedHashMap() {
-  super();
-  accessOrder = false; }
-
-//map参数
-public LinkedHashMap(Map<? extends K, ? extends V> m) {
-  super();
-  accessOrder = false;
-  putMapEntries(m, false);}
-```
-
-
-
-Entry
 ```java
 static class Entry<K,V> extends HashMap.Node<K,V> {
-  //维护Entry的先后顺序
-  Entry<K,V> before, after;
-  //kv,next,hash都继承自HashMap
-  Entry(int hash, K key, V value, Node<K,V> next) { super(hash, key, value, next);    }}
+  Entry<K,V> before, after;	//维护顺序
+  //k,v,next,hash都继承自HashMap
+  Entry(int hash, K key, V value, Node<K,V> next) { 
+    super(hash, key, value, next);    
+  }
+}
 ```
 
-![](image.assets/image-20201113235444857.png)
-
-LinkedHashMap 内部类 Entry 继承自 HashMap 内部类 Node，并新增了两个属性before 和 afte用于维护双向链表
-
-==HashMap 的内部类 TreeNode 不继承自己的内部类 Node，却继承自 LinkedHashMap 内部类 Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力(多态)==
 
 
+LinkedHashMap.Entry 继承自 [HashMap.Node](#HashMap.Node)，并新增了before/after用于维护双向链表
 
-==TreeNode的大小约是Node对象的2倍==，仅在桶中包含足够多的节点时才被使用。当桶中的节点数量变少时，TreeNode会被转成 Node=
 
-当用户实现的 hashCode 方法具有良好分布性时,不会转为红黑树，TreeNode将很少被使用
 
 
 
@@ -3037,7 +3123,7 @@ void afterNodeRemoval(Node<K,V> e) { // unlink
 
 
 
-#### 维护访问顺序
+#### get
 
 ```
 get/getOrDefault/replace	3种改变顺序的方法
@@ -3049,40 +3135,116 @@ get/getOrDefault/replace	3种改变顺序的方法
 ```java
 // LinkedHashMap 中覆写
 public V get(Object key) {
-    Node<K,V> e;
-    if ((e = getNode(hash(key), key)) == null)
-        return null;
-//accessOrder==true，按访问顺序排序
-    if (accessOrder)
-        afterNodeAccess(e);
-    return e.value;
+  Node<K,V> e;
+  if ((e = getNode(hash(key), key)) == null)
+    return null;
+  //accessOrder==true，按访问顺序排序
+  if (accessOrder)
+    afterNodeAccess(e);
+  return e.value;
 }
-
-    void afterNodeAccess(Node<K,V> e) { // move node to last
-        LinkedHashMap.Entry<K,V> last;
-        if (accessOrder && (last = tail) != e) {
-            LinkedHashMap.Entry<K,V> p =
-                (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
-            p.after = null;
-            if (b == null)
-                head = a;
-            else
-                b.after = a;
-            if (a != null)
-                a.before = b;
-            else
-                last = b;
-            if (last == null)
-                head = p;
-            else {
-                p.before = last;
-                last.after = p;
-            }
-            tail = p;
-            ++modCount;    }}
 ```
 
 
+
+#### afterNodeAccess
+
+accessOrder=true时，在访问节点后将节点移到链表尾部，使得链表首部就是最久未使用的节点
+
+```java
+void afterNodeAccess(Node<K,V> e) {
+  LinkedHashMap.Entry<K,V> last;
+  if (accessOrder && (last = tail) != e) {
+    LinkedHashMap.Entry<K,V> p =
+      (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
+    p.after = null;
+    if (b == null)
+      head = a;
+    else
+      b.after = a;
+    if (a != null)
+      a.before = b;
+    else
+      last = b;
+    if (last == null)
+      head = p;
+    else {
+      p.before = last;
+      last.after = p;
+    }
+    tail = p;
+    ++modCount;   
+  }
+}
+```
+
+
+
+#### afterNodeInsertion
+
+put后，当removeEldestEntry()返回 true时,移除链表头节点
+
+evict 只有在构建 Map 的时候才为 false，在这里为 true。
+
+```java
+void afterNodeInsertion(boolean evict) {//evict只在构建Map时为false
+    LinkedHashMap.Entry<K,V> first;
+    if (evict && (first = head) != null && removeEldestEntry(first)) {
+        K key = first.key;
+        removeNode(hash(key), key, null, false, true);
+    }
+}
+```
+
+
+
+#### removeEldestEntry
+
+默认返回false，可以继承 LinkedHashMap 并且重写,从而实现 LRU 的缓存，通过移除最近最久未使用的节点，从而保证缓存空间足够，并且缓存的数据都是热点数据
+
+```java
+protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+  return false;
+}
+```
+
+
+
+#### LRU缓存
+
+
+
+以下是使用 LinkedHashMap 实现的一个 LRU 缓存：
+
+- 设定最大缓存空间 MAX_ENTRIES  为 3；
+- 使用 LinkedHashMap 的构造函数将 accessOrder 设置为 true，开启 LRU 顺序；
+- 覆盖 removeEldestEntry() 方法实现，在节点多于 MAX_ENTRIES 就会将最近最久未使用的数据移除。
+
+```java
+class LRUCache<K, V> extends LinkedHashMap<K, V> {
+  private static final int MAX_ENTRIES = 3;
+
+  protected boolean removeEldestEntry(Map.Entry eldest) {
+    return size() > MAX_ENTRIES;
+  }
+
+  LRUCache() {
+    super(MAX_ENTRIES, 0.75f, true);
+  }
+}
+```
+
+```java
+public static void main(String[] args) {
+  LRUCache<Integer, String> cache = new LRUCache<>();
+  cache.put(1, "a");
+  cache.put(2, "b");
+  cache.put(3, "c");
+  cache.get(1);
+  cache.put(4, "d");
+  System.out.println(cache.keySet());	//[3, 1, 4]
+}
+```
 
 
 
@@ -3114,7 +3276,63 @@ public int compare(Entry<String, String> o1, Entry<String, String> o2) {
 
 
 
+### WeakHashMap
 
+
+
+WeakHashMap 的 Entry 继承自 WeakReference，被 WeakReference 关联的对象在下一次垃圾回收时会被回收。
+
+WeakHashMap 主要用来实现缓存，通过使用 WeakHashMap 来引用缓存对象，由 JVM 对这部分缓存进行回收。
+
+```java
+private static class Entry<K,V> extends WeakReference<Object> implements Map.Entry<K,V>
+```
+
+#### ConcurrentCache
+
+Tomcat 中的 ConcurrentCache 使用了 WeakHashMap 来实现缓存功能。
+
+ConcurrentCache 采取的是分代缓存：
+
+- 经常使用的对象放入 eden 中，eden 使用 ConcurrentHashMap 实现，不用担心会被回收（伊甸园）；
+- 不常用的对象放入 longterm，longterm 使用 WeakHashMap 实现，这些老对象会被垃圾收集器回收。
+- 当调用  get() 方法时，会先从 eden 区获取，如果没有找到的话再到 longterm 获取，当从 longterm 获取到就把对象放入 eden 中，从而保证经常被访问的节点不容易被回收。
+- 当调用 put() 方法时，如果 eden 的大小超过了 size，那么就将 eden 中的所有对象都放入 longterm 中，利用虚拟机回收掉一部分不经常使用的对象。
+
+```java
+public final class ConcurrentCache<K, V> {
+
+    private final int size;
+
+    private final Map<K, V> eden;
+
+    private final Map<K, V> longterm;
+
+    public ConcurrentCache(int size) {
+        this.size = size;
+        this.eden = new ConcurrentHashMap<>(size);
+        this.longterm = new WeakHashMap<>(size);
+    }
+
+    public V get(K k) {
+        V v = this.eden.get(k);
+        if (v == null) {
+            v = this.longterm.get(k);
+            if (v != null)
+                this.eden.put(k, v);
+        }
+        return v;
+    }
+
+    public void put(K k, V v) {
+        if (this.eden.size() >= size) {
+            this.longterm.putAll(this.eden);
+            this.eden.clear();
+        }
+        this.eden.put(k, v);
+    }
+}
+```
 
 
 
@@ -3556,12 +3774,14 @@ FD	文件描述符，指向该进程打开文件的记录表。当程序打开/�
 
 
 对于一次IO（以read举例），数据会先被拷贝到内核的缓冲区中，再拷贝到应用程序的地址空间,经历两个阶段：
+
 1. 等待数据准备 (Waiting for the data to be ready)
 2. 将数据从内核拷贝到进程中 (Copying the data from the kernel to the process)
 
 
 
 linux五种网络模式
+
 - 阻塞 I/O（blocking IO）
 - 非阻塞 I/O（nonblocking IO）
 - I/O 多路复用（ IO multiplexing）
@@ -5601,6 +5821,7 @@ ThreadLocal和Synchronized都是为了解决变量的访问冲突问题
 Synchronized通过线程等待	时间换空间
 
 ThreadLocal通过每个线程单独保存一份存储空间	空间换时间，**具有线程隔离效果，只有在线程内才能获取到对应的值**
+
 - 正因为线程隔离特性，当数据是以线程为作用域并且不同线程具有不同的数据副本的时候,就可以考虑采用ThreadLocal
 
 
@@ -9140,7 +9361,7 @@ Session session2 = declaredConstructor.newInstance();
 
 
 * @Target	作用范围
-  
+
 * ```shell
   Type：作用于类
   METHOD：作用于方法
@@ -9156,19 +9377,19 @@ Session session2 = declaredConstructor.newInstance();
   ```
 
 * @Retention：描述注解被保留的阶段
-  
+
   * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到	**默认**
-  
+
   * RetentionPolicy.SOURCE：注解只保留在源文件，当Java文件编译成class文件的时候，注解被遗弃
-  
+
   * RetentionPolicy.CLASS：注解被保留到class文件，但jvm加载class文件时候被遗弃
-  
+
     生命周期长度 SOURCE < CLASS < RUNTIME
-  
+
     需要在运行时动态获取注解信息，那只能用RUNTIME注解，比如@Deprecated使用RUNTIME注解
      在编译时进行预处理操作，比如生成一些辅助代码（如 ButterKnife），就用 CLASS注解；
      只是检查性的操作，比如 @Override 和 @SuppressWarnings，使用SOURCE 注解。
-  
+
 * @Documented：描述注解是否被抽取到javadoc中
 
 * @Inherited：描述注解是否可以被继承
@@ -9335,39 +9556,45 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 
 
+![img](image.assets/8442519f-0b4d-48f4-8229-56f984363c69.png)
+
+
+
 * 虚拟机栈==大小在编译时确定==
 
   * ==基本类型,指令地址==
 
   * ==对象引用和局部变量==(大小固定,运行期间不变)
-    
+
     * **32位**(JOL规定)的变量槽（Slot），Slot至少能存放一个boolean、byte、char、short、int、float、reference类型的数据
     * **局部变量不会被被赋初值**,不像类变量在加载过程中有准备阶段
-    
+
   * ==操作数栈==(工作空间)
 
-      * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
-      * Jvm的解释执行引擎就是基于操作数栈
+    * 方法在执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
+    * Jvm的解释执行引擎就是基于操作数栈
 
   * ==动态连接==
+
     * 指向方法区中的方法表,从而支持方法调用过程中的动态连接
     * class文件的常量池中有大量的符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
-    
+
   * ==方法返回地址(出口)==
 
-      * 正常出口：执行引擎遇到返回的字节码指令，将返回值传递给上层的方法调用者
-      * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，上层调用者不会得到任何返回值
-      * ==方法退出:当前栈帧出栈。恢复上层方法的局部变量表和操作数栈，把返回值压入调用者的操作数栈，调整PC计数器,执行下一条指令==
+    * 正常出口：执行引擎遇到返回的字节码指令，将返回值传递给上层的方法调用者
+    * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，上层调用者不会得到任何返回值
+    * ==方法退出:当前栈帧出栈。恢复上层方法的局部变量表和操作数栈，把返回值压入调用者的操作数栈，调整PC计数器,执行下一条指令==
 
-      一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
+    一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
 
   * 线程私有，生命周期与线程相同,有专门的寄存器存放栈的地址，压栈出栈有专门指令
 
   * 按先后定义的顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
 
   * **线程请求的栈深度大于虚拟机所允许的深度，StackOverflowError**
+
 * 本地方法栈
-  
+
   * 提供本地方法服务（native）
 
 ==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
@@ -9486,10 +9713,19 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 * 只有1个,共享
 * ==已被虚拟机加载的class信息(编译后的代码),类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
-* ==永久代,GC主要进行常量池回收，类型卸载==
 * 方法表
   * 实现动态调用的核心,存放在方法区中的类型信息中
   * 方法区的类型信息指向方法表，方法表指向具体方法,这些方法中包括从父类继承/自身重写
+
+
+
+==方法区GC==
+
+常量池回收	可达性分析
+
+类卸载	所有实例/加载该类的ClassLoader/Class对象被GC
+
+
 
 
 
@@ -9516,12 +9752,6 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-**方法区主要回收**
-
-废弃常量	可达性
-
-无用的类	所有实例/加载该类的ClassLoader/Class对象被GC
-
 
 
 
@@ -9538,7 +9768,7 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
   * 执行的是 native的话，程序计数器记录的是 undefined 地址，只有执行的是 Java 代码时程序计数器记录的才是下一条指令的地址
 * **不会OutofMemoryError**
 
-
+ 执行本地方法时计数器保存的地址为空
 
 
 
@@ -10557,7 +10787,7 @@ float f =(float)3.4	或 float f =3.4F		//正确
 
 
 
-### valueOf
+#### valueOf
 
 优先从IntegerCache取对象引用,不同于new Integer()的每次创建
 
@@ -10573,7 +10803,7 @@ public static Integer valueOf(int i) {
 
 
 
-### IntegerCache
+#### IntegerCache
 
 下界-128，上界默认127
 
@@ -10593,6 +10823,243 @@ private static class IntegerCache {
 
 
 
+
+
+
+
+### String
+
+
+
+
+
+```java
+private final char value[];
+
+public String() {this.value = "".value; }//对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
+```
+
+ 
+
+
+
+**final的好处**
+
+可以缓存hash值,也可以缓存字符串常量池
+
+若允许被继承，其高度的被使用率会降低性能
+
+核心类如果被继承并重写，会导致操作系统面临风险
+
+final天生的线程安全
+
+
+
+
+
+#### indexof("")
+
+
+
+==不存在返回-1	空字符串返回0==
+
+```java
+//对于空字符串的下标获取,先赋0的初始下标
+public int indexOf(String str) {return indexOf(str, 0);}
+
+public int indexOf(String str, int fromIndex) {
+  return indexOf(value, 0, value.length, str.value, 0, str.value.length, fromIndex);}
+
+static int indexOf(char[] source, int sourceOffset, int sourceCount,
+                   char[] target, int targetOffset, int targetCount,
+                   int fromIndex) {
+
+  //空字符串时,fromIndex =sourceCount=0,返回0
+  if (fromIndex >= sourceCount) {
+    return (targetCount == 0 ? sourceCount : -1);
+  }
+  if (fromIndex < 0) {
+    fromIndex = 0;
+  }
+  if (targetCount == 0) {
+    return fromIndex; }
+}
+```
+
+
+
+
+
+#### 编码转换
+
+
+
+newString("".getBytes("GB2312"), "ISO-8859-1");
+
+
+
+
+
+#### 编译优化
+
+字符串对象创建有两种形式，
+
+1.字面量形式，String str = "aa"	存进字符串常量池
+
+2.new 							存进堆
+
+ 
+
+对于字符串，其对象的引用都是存储在栈中的，如果是编译期已经创建好的就存储在常量池中(双引号定义的或final修饰并且能在编译期就能确定的)，如果是运行期才能确定的就存储在堆中（如：new关键字创建出来的）。
+
+==对于equals相等的字符串，在常量池中永远只有一份，在堆中有多份==
+
+ 
+
+```java
+String a="hello2";
+
+String b="hello"+2;
+
+System.out.println((a==b));
+
+输出为：true。因为 ”hello” +2在编译期就已经被优化成 “hello2”，因此在运行期变量 a 和 b 指向的是同一个对象(在字符串常量池)
+
+String a="hello2";
+
+String b="hello";
+
+String c=b+2;
+
+System.out.println((a==c));
+
+输出为 false。由于有符号引用的存在，所以String c=b+2不会在编译期间被优化，不会把 b+2 当做字面量处理，因此生成的对象是保存在堆上的。所以a和c不是指向同一个对象。
+```
+
+
+
+#### AbstractStringBuilder
+
+
+
+```java
+abstract class AbstractStringBuilder implements Appendable, CharSequence {
+
+  char[] value;	//不是final
+  int count;	//数组长度
+}
+```
+
+
+
+##### <a name="AbstractStringBuilder.append">append</a>
+
+```java
+public AbstractStringBuilder append(String str) {
+    if (str == null)	return appendNull();
+    int len = str.length();
+    ensureCapacityInternal(count + len);
+    str.getChars(0, len, value, count);
+    count += len;	//非原子性,不安全的原因
+    return this;
+}
+```
+
+count的非原子性操作将导致**ArrayIndexOutOfBoundsException**
+
+
+
+
+
+
+
+##### StringBuilder
+
+
+
+##### [append](#AbstractStringBuilder.append)
+
+```java
+@Override
+public StringBuilder append(String str) {
+    super.append(str);
+    return this;
+}
+```
+
+
+
+##### StringBuffer
+
+
+
+```java
+public final class StringBuffer extends AbstractStringBuilder implements java.io.Serializable, CharSequence{
+
+  private transient char[] toStringCache;	//缓存toString,当数组被修改,缓存实效
+  
+  @Override
+  public synchronized String toString() {
+    if (toStringCache == null) {
+      toStringCache = Arrays.copyOfRange(value, 0, count);
+    }
+    return new String(toStringCache, true);
+  }
+}
+```
+
+
+
+
+
+##### [append](#AbstractStringBuilder.append)
+
+```java
+@Override
+public synchronized StringBuffer append(String str) {	//同步了append,线程安全
+    toStringCache = null;	//清空缓存
+    super.append(str);
+    return this;
+}
+```
+
+
+
+
+
+
+
+#### String/Builder/Buffer区别
+
+* 相同点：
+  * 都用 final 修饰，不能派生子类
+* 操作的相关方法类似
+
+* 不同点：
+  * String只读，内容不能改变，StringBuffer和StringBuilder类表示的字符串对象可以直接进行修改，在修改的同时地址值不会发生改变。
+  * StringBuilder是JDK1.5新特性，和StringBuffer的方法完全相同，线程不安全,性能高。
+  * ==String、Buffer、Builder 类型不同，无法用 equals()方法比较内容==
+  * Builder线程不安全
+
+
+
+#### Splitter
+
+
+
+```
+ Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
+    List<String> list = splitter.splitToList("1,,,1,1    ,");
+```
+
+
+
+
+
+
+
+
+
 ## Object
 
 
@@ -10605,7 +11072,7 @@ public native int hashCode() 	获取哈希码
 public String toString()
 public final native Class getClass() 		获取类结构信息
 protected void finalize() throws Throwable 	垃圾回收前执行的方法
-protected native Object clone() throws CloneNotSupportedException 	克隆
+protected native Object clone() throws CloneNotSupportedException	//protected,必须重写才能调用
 public final native void wait(long timeout) throws InterruptedException;//释放对象锁 && 挂起，由于无参,需要配合synchronized指定需要释放的锁对象
   
   
@@ -10710,236 +11177,6 @@ isUpperCase()	是否是大写字母
 isLowerCase()	是否是小写字母
 toUpperCase()	转化为大写
 toLowerCase()
-```
-
-
-
-
-
-## String
-
-
-
-调用构造器创造string，性能低下且内存开销大
-
-```java
-//底层维护字符数组
-private final char value[];
-
-public String() {this.value = "".value; }//对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
-```
-
- 
-
-### indexof("")
-
-
-
-==不存在返回-1	空字符串返回0==
-
-```java
-//对于空字符串的下标获取,先赋0的初始下标
-public int indexOf(String str) {return indexOf(str, 0);}
-
-public int indexOf(String str, int fromIndex) {
-  return indexOf(value, 0, value.length, str.value, 0, str.value.length, fromIndex);}
-
-static int indexOf(char[] source, int sourceOffset, int sourceCount,
-                   char[] target, int targetOffset, int targetCount,
-                   int fromIndex) {
-
-  //空字符串时,fromIndex =sourceCount=0,返回0
-  if (fromIndex >= sourceCount) {
-    return (targetCount == 0 ? sourceCount : -1);
-  }
-  if (fromIndex < 0) {
-    fromIndex = 0;
-  }
-  if (targetCount == 0) {
-    return fromIndex; }
-}
-```
-
-
-
-
-
-### 编码转换
-
-
-
-newString("".getBytes("GB2312"), "ISO-8859-1");
-
-
-
-
-
-### 编译优化
-
-字符串对象创建有两种形式，
-
-1.字面量形式，String str = "aa"	存进字符串常量池
-
-2.new 							存进堆
-
- 
-
-对于字符串，其对象的引用都是存储在栈中的，如果是编译期已经创建好的就存储在常量池中(双引号定义的或final修饰并且能在编译期就能确定的)，如果是运行期才能确定的就存储在堆中（如：new关键字创建出来的）。
-
-==对于equals相等的字符串，在常量池中永远只有一份，在堆中有多份==
-
- 
-
-```java
-String a="hello2";
-
-String b="hello"+2;
-
-System.out.println((a==b));
-
-输出为：true。因为 ”hello” +2在编译期就已经被优化成 “hello2”，因此在运行期变量 a 和 b 指向的是同一个对象(在字符串常量池)
-
-String a="hello2";
-
-String b="hello";
-
-String c=b+2;
-
-System.out.println((a==c));
-
-输出为 false。由于有符号引用的存在，所以String c=b+2不会在编译期间被优化，不会把 b+2 当做字面量处理，因此生成的对象是保存在堆上的。所以a和c不是指向同一个对象。
-```
-
-
-
-### AbstractStringBuilder
-
-
-
-```java
-abstract class AbstractStringBuilder implements Appendable, CharSequence {
-
-  char[] value;	//不是final
-  int count;	//数组长度
-}
-```
-
-
-
-#### <a name="AbstractStringBuilder.append">append</a>
-
-```java
-public AbstractStringBuilder append(String str) {
-    if (str == null)	return appendNull();
-    int len = str.length();
-    ensureCapacityInternal(count + len);
-    str.getChars(0, len, value, count);
-    count += len;	//非原子性,不安全的原因
-    return this;
-}
-```
-
-count的非原子性操作将导致**ArrayIndexOutOfBoundsException**
-
-
-
-
-
-
-
-#### StringBuilder
-
-
-
-##### [append](#AbstractStringBuilder.append)
-
-```java
-@Override
-public StringBuilder append(String str) {
-    super.append(str);
-    return this;
-}
-```
-
-
-
-#### StringBuffer
-
-
-
-```java
-public final class StringBuffer extends AbstractStringBuilder implements java.io.Serializable, CharSequence{
-
-  private transient char[] toStringCache;	//缓存toString,当数组被修改,缓存实效
-  
-  @Override
-  public synchronized String toString() {
-    if (toStringCache == null) {
-      toStringCache = Arrays.copyOfRange(value, 0, count);
-    }
-    return new String(toStringCache, true);
-  }
-}
-```
-
-
-
-
-
-##### [append](#AbstractStringBuilder.append)
-
-```java
-@Override
-public synchronized StringBuffer append(String str) {	//同步了append,线程安全
-    toStringCache = null;	//清空缓存
-    super.append(str);
-    return this;
-}
-```
-
-
-
-
-
-
-
-### String/Builder/Buffer区别
-
-* 相同点：
-  * 都用 final 修饰，不能派生子类
-* 操作的相关方法类似
-
-* 不同点：
-  * String只读，内容不能改变，StringBuffer和StringBuilder类表示的字符串对象可以直接进行修改，在修改的同时地址值不会发生改变。
-  * StringBuilder是JDK1.5新特性，和StringBuffer的方法完全相同，线程不安全,性能高。
-  * ==String、Buffer、Builder 类型不同，无法用 equals()方法比较内容==
-  * Builder线程不安全
-
-
-
-### String为什么final
-
-
-
-若允许被继承，则其高度的被使用率可能会降低程序的性能
-
-为了安全。JDK中的核心类比如 String，内部很多方法的实现都不是 java 编写的，只是==调用操作系统的 API，也就是本地方法调用==，如果这种类可以被继承并重写，将导致操作系统面临风险
-
-
-
-
-
-
-
-
-
-### Splitter
-
-
-
-```
- Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-    List<String> list = splitter.splitToList("1,,,1,1    ,");
 ```
 
 
@@ -11326,8 +11563,8 @@ Optional<User> result = Optional.ofNullable(user).filter(u -> u.getEmail() != nu
 
 *  Exception (CheckedException   强制调用方对该异常进行处理,否则不能编译通过 )
 *  RuntimeException (unchecked exception,编译器不会检查它，没try-catch/throws也会编译通过)
-* Error:是**程序无法处理的错误**，表示运行应用程序中较严重问题。
-  * 大多数错误与代码编写者执行的操作无关。例如，Java虚拟机运行错误/OutOfMemoryError。错误发生时，Java虚拟机（JVM）一般会选择线程终止。
+*  Error:是**程序无法处理的错误**，表示运行应用程序中较严重问题。
+   * 大多数错误与代码编写者执行的操作无关。例如，Java虚拟机运行错误/OutOfMemoryError。错误发生时，Java虚拟机（JVM）一般会选择线程终止。
 
 
 
@@ -11543,10 +11780,10 @@ protected方式继承的非private成员 	只有子类及子类的子类(非priv
 
 
 
-* 不能修饰构造方法。**修饰的类不能被继承，方法不能被重写**
-* 修饰基本类型变量，值不能改变
-
-* **修饰引用类型变量，栈内存中的引用不能改变**，但堆内存中对象的属性值可以改变
+* 不能修饰构造方法
+* **修饰的类不能被继承，方法不能被重写**
+* 修饰基本类型，值不能改变,**修饰引用类型，引用不能改变**
+* 天生的==线程安全==
 
 ```java
  final Dog dog = new Dog("aa");
@@ -11568,25 +11805,27 @@ protected方式继承的非private成员 	只有子类及子类的子类(非priv
 
 
 
-* 生命周期不同。
+* 生命周期不同
   * 成员变量随对象的创建而存在，随着对象的被回收而释放
   * 静态变量随类的加载而存在，随着类的消失而消失
 
-* 调用方式不同。
-  * 成员变量只能被对象调用。
-  * 静态变量可以被对象调用，还可以被类名调用。
+* 调用方式不同
+  * 成员变量只能被对象调用
+  * 静态变量可以被对象调用，还可以被类名调用
 
-* 数据存储位置不同。
+* 数据存储位置不同
   * 成员变量在堆
-  * 静态变量在方法区的静态区
+  * **静态变量在方法区的静态区**
 
 * 内存拷贝不同
   * 成员变量可以在内存有多个拷贝
   * 静态变量只能1个
 
+静态方法在类加载的时候就存在了，不依赖于任何实例,所以必须有实现
 
 
-static并不代表不可修改,它是能够时刻保持最新的值的静态变量
+
+static不代表不可修改,它是能够时刻保持最新的值的静态变量
 
 ==静态是指不会随着函数的调用/退出发生变化==。下次调用时，这个值与上次调用一致
 
@@ -11749,11 +11988,11 @@ String string = "Hello";
 
 
 
-不能访问外部类的普通成员变量，但是可以访问静态成员变量和静态方法（包括private）
+**不能访问外部类的非静态成员变量/方法**，但是可以访问静态成员变量和静态方法（包括private）
 
 
 
-他可以不依赖内部类而实例，而通常的内部类需要实例化外部类，从而实例化。静态内部类不可以有与外部类有相同的类名
+==不依赖外部类而实例==，必须与外部类不同类名
 
 
 
