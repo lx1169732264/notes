@@ -777,46 +777,43 @@ Module只要编译引入到Redis中就能轻松的实现我们某些需求的功
 
 
 
-## java
+## 缓存位置
 
 
 
-```java
-## Jedis
-<dependency>
-    <groupId>redis.clients</groupId>
-    <artifactId>jedis</artifactId>
-    <version>3.1.0</version>
-</dependency>
-```
+### 浏览器
 
+当 HTTP 响应允许进行缓存时，浏览器会将 HTML、CSS、JavaScript、图片等静态资源进行缓存。
 
+### ISP
 
-主从复制
+网络服务提供商（ISP）是网络访问的第一跳，通过将数据缓存在 ISP 中能够大大提高用户的访问速度。
 
-```java
-public class TestReidsMS {
-    public static void main(String[] args) throws InterruptedException {
-        // 创建连接
-        Jedis jedis_M = new Jedis("192.168.186.128", 6379);
-        Jedis jedis_S = new Jedis("192.168.186.128", 6380);
-        jedis_S.slaveof("127.0.0.1", 6379);
-        jedis_M.set("k6", "v6");
-        Thread.sleep(500);
-        System.out.println(jedis_S.get("k6"));
-        jedis_M.close();
-        jedis_S.close();   }}
-```
+### 反向代理
 
+反向代理位于服务器之前，请求与响应都需要经过反向代理。通过将数据缓存在反向代理，在用户请求反向代理时就可以直接使用缓存进行响应。
 
+### 本地缓存
 
-==JedisPool==
+使用 Guava Cache 将数据缓存在服务器本地内存中，服务器代码可以直接读取本地内存中的缓存，速度非常快。
 
- 1，获取Jedis实例需要从JedisPool中获取
+### 分布式缓存
 
- 2，用完Jedis实例需要返还给JedisPool
+使用 Redis、Memcache 等分布式缓存将数据缓存在分布式缓存系统中。
 
- 3，如果Jedis在使用过程中出错，则也需要还给JedisPool
+相对于本地缓存来说，分布式缓存单独部署，可以根据需求分配硬件资源。不仅如此，服务器集群都可以访问分布式缓存，而本地缓存需要在服务器集群之间进行同步，实现难度和性能开销上都非常大。
+
+### 数据库缓存
+
+MySQL 等数据库管理系统具有自己的查询缓存机制来提高查询效率。
+
+### Java 内部的缓存
+
+Java 为了优化空间，提高字符串、基本数据类型包装类的创建效率，设计了字符串常量池及 Byte、Short、Character、Integer、Long、Boolean 这六种包装类缓冲池。
+
+### CPU 多级缓存
+
+CPU 为了解决运算速度与主存 IO 速度不匹配的问题，引入了多级缓存结构，同时使用 MESI 等缓存一致性协议来解决多核 CPU 缓存数据一致性的问题。
 
 
 
@@ -1047,7 +1044,7 @@ public class RedisConfig {
 
 
 
-# 键值设计
+## 键值设计
 
 
 
@@ -1069,6 +1066,32 @@ public class RedisConfig {
 common:sys:sex:1 男
 
 user:1 {id:1.name:小明}
+
+
+
+## ~~事务~~
+
+
+
+Redis的单线程决定了它并不需要事务
+
+```shell
+Discard	取消事务,放弃事务块中存储的所有指令
+Exec	执行事务块中所有指令
+Multi	标记事务块的开始
+Watch key	监视若干个key,如果在事务前key发生修改,打断事务
+Unwatch	取消对key的监视
+	 Watch指令类似乐观锁，事务提交时，如果Key的值已被别的客户端改变，比如某个list已被别的客户端push/pop过了,这个key的版本号就高于提交的版本号,被乐观锁锁住，整个事务队列都不会被执行
+   通过WATCH命令在事务执行之前监控了多个Keys，倘若在WATCH之后有任何Key的值发生了变化， EXEC命令执行的事务都将被放弃，同时返回Nullmulti-bulk应答以通知调用者事务执行失败
+```
+
+
+
+**3大特性**
+
+* 单独的隔离操作：事务中的所有命令都会序列化、按顺序地执行。事务在执行的过程中，不会被其他客户端发送来的命令请求所打断。
+* 没有隔离级别的概念：队列中的命令没有提交之前都不会实际的被执行，因为事务提交前任何指令都不会被实际执行， 也就不存在”事务内的查要看到事务里的更新，在事务外查询不能看到”这个让人万分头痛的问题
+* 不保证原子性：redis同一个事务中如果有一条命令执行失败，其后的命令仍然会被执行，==不支持回滚=
 
 
 
@@ -1143,22 +1166,28 @@ value不随机将导致:
 
 
 
-* 缓存穿透	缓存和数据库中都没有的数据被恶意请求
+
+
+# 缓存带来的问题
+
+
+
+* 缓存穿透	缓存/数据库中都没有的数据被恶意请求
   * 对查询结果为空的情况也缓存，过期时间短
-  * 对一定不存在的key进行过滤。把所有的可能存在的key放到一个大的Bitmap中，查询时通过该bitmap过滤
+  * 对一定不存在的key进行过滤。把所有的可能存在的key放到Bitmap，查询时通过bitmap过滤
   * 布隆过滤器bloom filter
   * mutex。在缓存失效时，先用缓存工具的某些带成功操作返回值的操作去set一个mutex key，当操作返回成功时，再进行load db的操作并回设缓存；否则，就重试整个get缓存的方法
 
-* 缓存雪崩     Redis重启/集体失效
+* 缓存雪崩     Redis重启/集体失效,导致大量请求到数据库
   * 互斥锁/排队 控制读/写线程数量。对某个key只允许单线程查询/写入，其他线程等待
   * 二级缓存，A1为原始缓存，A2为拷贝缓存，A1失效时，可以访问A2，**A1缓存失效时间设置为短期，A2设置为长期**
   * 不同key不同过期时间，让缓存失效时间点均匀
 
-* ==缓存预热==  启动后,将相关的缓存数据直接加载到缓存系统
-  * 数据量小,工程启动时进行加载缓存
-  * 数据量大,设定定时脚本,进行缓存刷新
-  * 数据量过大,优先保证热点数据提前加载到缓存
-
+  * ==缓存预热==  启动后,将相关的缓存数据直接加载到缓存系统
+    * 数据量小,工程启动时进行加载缓存
+    * 数据量大,设定定时脚本,进行缓存刷新
+    * 数据量过大,优先保证热点数据提前加载到缓存
+  
 * 缓存降级
   * 缓存失效或缓存服务器宕机时,也不去访问数据库,直接返回默认数据
 
@@ -1166,42 +1195,29 @@ value不随机将导致:
   * 这里的并发指的是多个redis的client同时set key
   * 把set操作放在队列中使其串行化，或者加锁
 
+* 缓存一致性
+  * 数据更新时立即去更新缓存；
+  * 读缓存之前先判断缓存是否是最新的，如果不是最新的先进行更新。
+
+### 缓存无底洞
+
+指的是为了满足业务要求添加了大量缓存节点，但是性能不但没有好转反而下降了的现象
+
+产生原因：缓存系统通常采用 hash 函数将 key 映射到对应的缓存节点，随着缓存节点数目的增加，键值分布到更多的节点上，导致客户端一次批量操作会涉及多次网络操作，这意味着批量操作的耗时会随着节点数目的增加而不断增大。此外，网络连接数变多，对节点的性能也有一定影响。
+
+- 优化批量数据操作命令；
+- 减少网络通信次数；
+- 降低接入成本，使用长连接 / 连接池，NIO
 
 
 
 
-先拿setnx来争抢锁，抢到之后，再用expire给锁加一个过期时间防止锁忘记了释放
-
-。**如果在setnx之后执行expire之前进程意外crash或者要重启维护了，那会怎么样？**set指令有非常复杂的参数，这个应该是可以同时把setnx和expire合成一条指令来用的！
 
 
 
 
 
 
-
-# 事务(基本不用)
-
-
-
-Redis的单线程决定了它并不需要事务
-
-```shell
-Discard	取消事务,放弃事务块中存储的所有指令
-Exec	执行事务块中所有指令
-Multi	标记事务块的开始
-Watch key	监视若干个key,如果在事务前key发生修改,打断事务
-Unwatch	取消对key的监视
-	 Watch指令类似乐观锁，事务提交时，如果Key的值已被别的客户端改变，比如某个list已被别的客户端push/pop过了,这个key的版本号就高于提交的版本号,被乐观锁锁住，整个事务队列都不会被执行
-   通过WATCH命令在事务执行之前监控了多个Keys，倘若在WATCH之后有任何Key的值发生了变化， EXEC命令执行的事务都将被放弃，同时返回Nullmulti-bulk应答以通知调用者事务执行失败
-```
-
-
-
-* 3大特性
-  * 单独的隔离操作：事务中的所有命令都会序列化、按顺序地执行。事务在执行的过程中，不会被其他客户端发送来的命令请求所打断。
-  * 没有隔离级别的概念：队列中的命令没有提交之前都不会实际的被执行，因为事务提交前任何指令都不会被实际执行， 也就不存在”事务内的查要看到事务里的更新，在事务外查询不能看到”这个让人万分头痛的问题
-  * 不保证原子性：redis同一个事务中如果有一条命令执行失败，其后的命令仍然会被执行，==不支持回滚==
 
 
 
@@ -1388,28 +1404,6 @@ mem_fragmentation_ratio：内存碎片比率，used_memory_rss / used_memory
 
 
 
-## Redis没有直接使用C字符串
-
-(即以空字符’\0’结尾的字符数组)作为默认的字符串表示，而是使用了SDS(简单动态字符串)(Simple Dynamic String),并加入了加入了free和len字段
-
-
-
-
-
-
-
-
-
-
-
-## **43.redis通讯协议**
-
-RESP 是redis客户端和服务端之前使用的一种通讯协议
-
-RESP 的特点：实现简单、快速解析、可读性好
-
-
-
 
 
 ## **45.Redis做异步队列**
@@ -1441,25 +1435,135 @@ RESP 的特点：实现简单、快速解析、可读性好
 
 ## LRU 算法
 
-```text
-class LRUCache<K, V> extends LinkedHashMap<K, V> {
-    private final int CACHE_SIZE;
 
-    /**
-     * 传递进来最多能缓存多少数据
-     *
-     * @param cacheSize 缓存大小
-     */
-    public LRUCache(int cacheSize) {
-        // true 表示让 linkedHashMap 按照访问顺序来进行排序，最近访问的放在头部，最老访问的放在尾部。
-        super((int) Math.ceil(cacheSize / 0.75) + 1, 0.75f, true);
-        CACHE_SIZE = cacheSize;
+
+基于 双向链表 + HashMap 的 LRU 算法实现
+
+- 访问某个节点时，将其从原来的位置删除，并重新插入到链表头部。这样就能保证链表尾部存储的就是最近最久未使用的节点，当节点数量大于缓存最大空间时就淘汰链表尾部的节点
+- 为了使删除操作时间复杂度为 O(1)，就不能采用遍历的方式找到某个节点。HashMap 存储着 Key 到节点的映射，通过 Key 就能以 O(1) 的时间得到节点，然后再以 O(1) 的时间将其从双向队列中删除
+
+```java
+public class LRU<K, V> implements Iterable<K> {
+
+    private Node head;
+    private Node tail;
+    private HashMap<K, Node> map;
+    private int maxSize;
+
+    private class Node {
+
+        Node pre;
+        Node next;
+        K k;
+        V v;
+
+        public Node(K k, V v) {
+            this.k = k;
+            this.v = v;
+        }
     }
 
+
+    public LRU(int maxSize) {
+
+        this.maxSize = maxSize;
+        this.map = new HashMap<>(maxSize * 4 / 3);
+
+        head = new Node(null, null);
+        tail = new Node(null, null);
+
+        head.next = tail;
+        tail.pre = head;
+    }
+
+
+    public V get(K key) {
+
+        if (!map.containsKey(key)) {
+            return null;
+        }
+
+        Node node = map.get(key);
+        unlink(node);
+        appendHead(node);
+
+        return node.v;
+    }
+
+
+    public void put(K key, V value) {
+
+        if (map.containsKey(key)) {
+            Node node = map.get(key);
+            unlink(node);
+        }
+
+        Node node = new Node(key, value);
+        map.put(key, node);
+        appendHead(node);
+
+        if (map.size() > maxSize) {
+            Node toRemove = removeTail();
+            map.remove(toRemove.k);
+        }
+    }
+
+
+    private void unlink(Node node) {
+
+        Node pre = node.pre;
+        Node next = node.next;
+
+        pre.next = next;
+        next.pre = pre;
+
+        node.pre = null;
+        node.next = null;
+    }
+
+
+    private void appendHead(Node node) {
+        Node next = head.next;
+        node.next = next;
+        next.pre = node;
+        node.pre = head;
+        head.next = node;
+    }
+
+
+    private Node removeTail() {
+
+        Node node = tail.pre;
+
+        Node pre = node.pre;
+        tail.pre = pre;
+        pre.next = tail;
+
+        node.pre = null;
+        node.next = null;
+
+        return node;
+    }
+
+
     @Override
-    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-        // 当 map中的数据量大于指定的缓存个数的时候，就自动删除最老的数据。
-        return size() > CACHE_SIZE;
+    public Iterator<K> iterator() {
+
+        return new Iterator<K>() {
+            private Node cur = head.next;
+
+            @Override
+            public boolean hasNext() {
+                return cur != tail;
+            }
+
+            @Override
+            public K next() {
+                Node node = cur;
+                cur = cur.next;
+                return node.k;
+            }
+        };
     }
 }
 ```
@@ -1474,7 +1578,17 @@ class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
 
 
-# 三种删除策略
+# 淘汰策略
+
+
+
+- FIFO（First In First Out）：先进先出策略，在实时性的场景下，需要经常访问最新的数据，那么就可以使用 FIFO，使得最先进入的数据（最晚的数据）被淘汰
+
+- LRU（Least Recently Used）：最近最久未使用策略，优先淘汰最久未使用的数据，也就是上次被访问时间距离现在最久的数据。该策略可以保证内存中的数据都是热点数据，也就是经常被访问的数据，从而保证缓存命中率
+
+- LFU（Least Frequently Used）：最不经常使用策略，优先淘汰一段时间内使用次数最少的数据
+
+
 
 
 
@@ -1482,9 +1596,7 @@ class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
 
 
-在设置键的过期时间的同时，创建定时任务，当键达到过期时间时，立即执行对键的删除操作
-
-
+在设置键的过期时间的同时创建定时任务，当键达到过期时间，立即执行对键的删除操作
 
 - **优点：**对内存友好，及时释放
 - **缺点：**对cpu不友好，影响服务器的响应时间和吞吐量
@@ -1511,34 +1623,8 @@ class LRUCache<K, V> extends LinkedHashMap<K, V> {
 
 放任键过期不管，每次从键空间获取键时，检查键是否过期，过期则删除键
 
-
-
 - **优点：**对cpu友好，在每次从键空间获取键时进行过期键检查并是否删除，删除目标也仅限当前处理的键，这个策略不会在其他无关的删除任务上花费任何cpu时间
 - **缺点：**对内存不友好，过期键过期可能不会被删除，所占的内存也不会释放,导致内存泄露
 
 
-
-
-
-
-
-## **60.Redis 到底是怎么实现“附近的人”**
-
-
-
-### **使用方式**
-
-```text
-GEOADD key longitude latitude member [longitude latitude member ...]
-```
-
-将给定的位置对象（纬度、经度、名字）添加到指定的key。其中，key为集合名称，member为该经纬度所对应的对象。在实际运用中，当所需存储的对象数量过多时，可通过设置多key(如一个省一个key)的方式对对象集合变相做sharding，避免单集合数量过多。
-
-成功插入后的返回值：
-
-```text
-(integer) N
-```
-
-其中N为成功插入的个数。
 

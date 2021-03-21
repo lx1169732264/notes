@@ -2278,8 +2278,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements Concurre
 
   static final int NCPU = Runtime.getRuntime().availableProcessors();	//可用处理器数量
 
-  //MOVED代表该节点是forwarding Node，已被其他线程处理过了
-  static final int MOVED   = -1;
+  static final int MOVED   = -1;//代表该节点是forwarding Node，已被其他线程处理过了
   static final int TREEBIN = -2;
 
   //sizeCtl标志控制符
@@ -2510,7 +2509,7 @@ static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
 
 #### spread
 
-
+与hashMap类似
 
 ```java
 static final int HASH_BITS = 0x7fffffff;//01111111_11111111_11111111_11111111
@@ -2520,7 +2519,6 @@ static final int spread(int h) {
   return (h ^ (h >>> 16)) & HASH_BITS;
 }
 ```
-
 
 
 
@@ -2571,36 +2569,31 @@ public V get(Object key) {
 数组桶中的3种存储情况：空，链表头，TreeBin头
 
 1. 数组中某个值为空，放置**forwordingNode**
-2. 不为空，是链表头结点，就拆分为两个链表，存储到nextTable对应的两个位置
-3. 不为空，是TreeBin头结点，先判断需不需要把树转链表，再把对应的结果存储在nextTable的对应两个位置
+2. 不为空，是Node，就拆分为两个链表，存储到nextTable对应的两个位置
+3. 不为空，是TreeBin头结点，先判断树转链表，再把对应的结果存储在nextTable的对应两个位置
 
 
 
 ==拆分为两个链表的原因==:由hash()和扩容策略决定
 
-在原先数组中，下标的计算是(lenth-1) & hash()，哈希值相同的都会在同一个链表中，而且lenth都是2的倍数
+在原先数组中，下标的计算是(lenth-1) & hash()，哈希值相同会在同一个链表中
 
-扩容会扩大原先数组的两倍，如容量8（0111）二进制，扩大一倍(1111)，只有1个高位不一样
+两倍扩容后，8（0111）->1111，只有1个高位不一样
 
-9&7=1，1&7=1,扩容后，9&15=9，1&15=1，只有第四位不一样，原先在1位置的元素重新hash之后，只能得到1或则9(1+length)的位置，是对称的
+9&7=0001，1&7=0001,扩容后，9&15=1001，1&15=0001，只有1位不一样，原先在1位置的元素重新hash之后，只能得到1或9(1+length)的位置，是对称的
 
 
 
 ```java
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
-  //stride每个线程处理桶的最小数目
-  int n = tab.length, stride;
-  //判断CPU数量，如果cpu<16则stride直接赋值16
+  int n = tab.length, stride;//stride每个线程处理桶的最小数目
   if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
-    stride = MIN_TRANSFER_STRIDE;
-  if (nextTab == null) {            // initiating只能有一个线程进行构造nextTable，如果别的线程进入发现不为空就不用构造nextTable了
+    stride = MIN_TRANSFER_STRIDE;//cpu数量<16则stride直接赋值16
+  if (nextTab == null) {//只能有一个线程进行构造nextTable
     try {
-      //扩容2倍
-      Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
-      nextTab = nt;
+      nextTab = (Node<K,V>[])new Node<?,?>[n << 1];//构造扩容2倍的nextTab
     } catch (Throwable ex) {
-      //扩容保护
-      sizeCtl = Integer.MAX_VALUE;
+      sizeCtl = Integer.MAX_VALUE;//扩容保护
       return;
     }
     nextTable = nextTab;
@@ -2609,24 +2602,19 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
   int nextn = nextTab.length;
   //构造ForwardingNode处理多线程间的共同扩容情况
   ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
-   //当前线程是否需要继续寻找下一个可处理的节点
-  boolean advance = true;
-  //所有桶是否都已迁移完成
-  boolean finishing = false;
+  boolean advance = true;//当前线程是否需要继续寻找下一个可处理的节点
+  boolean finishing = false;//所有桶是否都已迁移完成
 
   for (int i = 0, bound = 0;;) {
     Node<K,V> f; int fh;
     //此循环的作用是确定当前线程要迁移的桶的范围或通过更新i的值确定当前范围内下一个要处理的节点。
     while (advance) {
       int nextIndex, nextBound;
-      if (--i >= bound || finishing)
-        advance = false;
-      //迁移总进度<=0，表示所有桶都迁移完成
-      else if ((nextIndex = transferIndex) <= 0) {
+      if (--i >= bound || finishing)	advance = false;
+      else if ((nextIndex = transferIndex) <= 0) {	//迁移总进度<=0，表示所有桶都迁移完成
         i = -1;
         advance = false;
       }
-      //下面就是一个CAS计算
       else if (U.compareAndSwapInt(this, TRANSFERINDEX, nextIndex,nextBound = (nextIndex > stride ? nextIndex - stride : 0))) {
         //确定当前线程每次分配的待迁移桶的范围为[bound, nextIndex)
         bound = nextBound;
@@ -2736,34 +2724,28 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
             advance = true;
           }
         }
-   
-//添加、删除节点之处都会检测到table的第i个桶是ForwardingNode的话会调用helpTransfer()方法。
-final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
-        Node<K,V>[] nextTab; int sc;
-        if (tab != null && (f instanceof ForwardingNode) &&
-            (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
+
+        //添加、删除节点之处都会检测到table的第i个桶是ForwardingNode的话会调用helpTransfer()方法。
+        final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
+          Node<K,V>[] nextTab; int sc;
+          if (tab != null && (f instanceof ForwardingNode) &&
+              (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
             int rs = resizeStamp(tab.length);
             while (nextTab == nextTable && table == tab &&
                    (sc = sizeCtl) < 0) {
-                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                    sc == rs + MAX_RESIZERS || transferIndex <= 0)
-                    break;
-                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
-                    transfer(tab, nextTab);
-                    break;
-                }
+              if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                  sc == rs + MAX_RESIZERS || transferIndex <= 0)
+                break;
+              if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
+                transfer(tab, nextTab);
+                break;
+              }
             }
             return nextTab;
+          }
+          return table;
         }
-        return table;
-    }
 ```
-
-
-
-
-
-
 
 
 
@@ -2792,6 +2774,8 @@ final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
 
 
 
+定位索引的方式 (n - 1) & hash
+
 ```java
 public V put(K key, V value) {
   return putVal(key, value, false);
@@ -2804,26 +2788,22 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
   for (Node<K,V>[] tab = table;;) {	//CAS
     Node<K,V> f; int n, i, fh;
     
-    if (tab == null || (n = tab.length) == 0)   tab = initTable();	//初始化
+    if (tab == null || (n = tab.length) == 0)   tab = initTable();	//懒初始化
     else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {	//table对应下标处为null
       if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))	break;//创建Node做为链表首结点
     }
-    //当前结点正在扩容(MOVED状态)
-    else if ((fh = f.hash) == MOVED)
-      //helpTransfer()协助扩容，扩容完毕后tab指向新table
-      tab = helpTransfer(tab, f); 
+    
+    else if ((fh = f.hash) == MOVED)	//当前结点正在扩容(MOVED状态)
+      tab = helpTransfer(tab, f); //helpTransfer()协助扩容，扩容完毕后tab指向新table
     else {
       V oldVal = null;
       synchronized (f) {
-        //双重检查i处结点未变化
-        if (tabAt(tab, i) == f) {
-          //fh为f的hash值,hash>=0即spread()方法计算而来
+        if (tabAt(tab, i) == f) {	//双重检查i处结点
           if (fh >= 0) {
             binCount = 1;
             for (Node<K,V> e = f;; ++binCount) {
               K ek;
-              if (e.hash == hash &&((ek = e.key) == key ||
-                   (ek != null && key.equals(ek)))) {
+              if (e.hash == hash &&((ek = e.key) == key || (ek != null && key.equals(ek)))) {
                 oldVal = e.val;
                 //onlyIfAbsent表示是新元素才加入，旧值不替换，默认fase
                 if (!onlyIfAbsent)    e.val = value;
@@ -2863,7 +2843,19 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 
 
 
+#### tabAt
 
+获取table对应的索引元素f
+
+```java
+static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+  return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
+}
+```
+
+不用table[index]的原因跟ConcurrentHashMap的弱一致性有关。虽然table是volatile的，但不能保证线程每次都拿到table中的最新元素
+
+**Unsafe.getObjectVolatile可以直接获取指定内存的数据**，保证每次拿到数据都是最新的
 
 
 
@@ -4710,7 +4702,11 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 **适用场景**:
 
-有一个任务想要往下执行，但必须要等到其他的任务执行完毕后才可以继续往下执行。假如我们这个想要继续往下执行的任务调用一个CountDownLatch对象的await()方法，其他的任务执行完自己的任务后调用同一个CountDownLatch对象上的countDown()方法，这个调用await()方法的任务将一直阻塞等待，直到这个CountDownLatch对象的计数值减到0为止
+1.多个线程await,一个线程countDown通知并发运行
+
+2.一个线程await,多个线程countDown
+
+
 
 ```java
 //需求:要求6个线程都执行完了,mian线程最后执行
@@ -4719,6 +4715,15 @@ for (int i = 1; i <= 6; i++) {
   new Thread(() -> countDownLatch.countDown(), i + "").start();
 }
 countDownLatch.await();
+
+
+//需求:6个子线程阻塞,mian线程通知并发执行
+CountDownLatch countDownLatch = new CountDownLatch(1);
+for (int i = 1; i <= 6; i++) {
+  new Thread(() -> countDownLatch.await()).start();
+}
+wait(5000);
+countDownLatch.countDown();
 ```
 
 
@@ -9607,11 +9612,9 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 
 
-只有1个,被所有线程共享,虚拟机启动时创建
+只有1个,被所有线程共享,虚拟机启动时创建,存储==对象和class对象==,是**gc主要区域**
 
-存储==对象和class对象(操作指令)==
-
-==gc主要区域==
+堆的申请和释放工作由程序员控制，容易**内存泄漏**(己动态分配的堆内存未释放或无法释放)
 
 * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
 * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC，Eden和使用区里都存在需要回收的对象,导致碎片
@@ -9628,7 +9631,6 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
     * GC后,使用/空闲区互换,**年龄+1**
 * 年老代  存活时间较久，较大的对象
 
-* 堆的申请和释放工作由程序员控制，容易**内存泄漏** -> 己动态分配的堆内存未释放或无法释放
 
 
 
@@ -9814,6 +9816,30 @@ JVM定义了8个操作来完成主内存和工作内存的交互
 处理器通过**嗅探技术**在总线上传播的数据来检查缓存值是否过期，当处理器发现缓存行对应的内存地址被修改，就会将当前缓存行置为无效，重新从系统内存里把数据读到处理器缓存里
 
 
+
+### 内存分配策略
+
+1. 对象优先在 Eden 分配，当 Eden 空间不够时，发起 Minor GC。
+
+2. 大对象直接进入老年代
+
+大对象是指需要连续内存空间的对象，最典型的大对象是那种很长的字符串以及数组。
+
+经常出现大对象会提前触发垃圾收集以获取足够的连续空间分配给大对象。
+
+3. 长期存活的对象进入老年代
+
+为对象定义年龄计数器，对象在 Eden 出生并经过 Minor GC 依然存活，将移动到 Survivor 中，年龄就增加 1 岁，增加到一定年龄则移动到老年代中。
+
+4. 动态对象年龄判定
+
+虚拟机并不是永远要求对象的年龄必须达到 MaxTenuringThreshold 才能晋升老年代，如果在 Survivor 中相同年龄所有对象大小的总和大于 Survivor 空间的一半，则年龄大于或等于该年龄的对象可以直接进入老年代，无需等到 MaxTenuringThreshold 中要求的年龄。
+
+5. 空间分配担保
+
+在发生 Minor GC 之前，虚拟机先检查老年代最大可用的连续空间是否大于新生代所有对象总空间，如果条件成立的话，那么 Minor GC 可以确认是安全的。
+
+如果不成立的话虚拟机会查看 HandlePromotionFailure 的值是否允许担保失败，如果允许那么就会继续检查老年代最大可用的连续空间是否大于历次晋升到老年代对象的平均大小，如果大于，将尝试着进行一次 Minor GC；如果小于，或者 HandlePromotionFailure 的值不允许冒险，那么就要进行一次 Full GC。
 
 
 
@@ -10397,6 +10423,143 @@ Generational Collection
 
 
 
+### 垃圾收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/c625baa0-dde6-449e-93df-c3a67f2f430f.jpg" width=""/> </div><br>
+
+以上是 HotSpot 虚拟机中的 7 个垃圾收集器，连线表示垃圾收集器可以配合使用。
+
+- 单线程与多线程：单线程指的是垃圾收集器只使用一个线程，而多线程使用多个线程；
+- 串行与并行：串行指的是垃圾收集器与用户程序交替执行，这意味着在执行垃圾收集的时候需要停顿用户程序；并行指的是垃圾收集器和用户程序同时执行。除了 CMS 和 G1 之外，其它垃圾收集器都是以串行的方式执行。
+
+#### 1. Serial 收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/22fda4ae-4dd5-489d-ab10-9ebfdad22ae0.jpg" width=""/> </div><br>
+
+Serial 翻译为串行，也就是说它以串行的方式执行。
+
+它是单线程的收集器，只会使用一个线程进行垃圾收集工作。
+
+它的优点是简单高效，在单个 CPU 环境下，由于没有线程交互的开销，因此拥有最高的单线程收集效率。
+
+它是 Client 场景下的默认新生代收集器，因为在该场景下内存一般来说不会很大。它收集一两百兆垃圾的停顿时间可以控制在一百多毫秒以内，只要不是太频繁，这点停顿时间是可以接受的。
+
+#### 2. ParNew 收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/81538cd5-1bcf-4e31-86e5-e198df1e013b.jpg" width=""/> </div><br>
+
+它是 Serial 收集器的多线程版本。
+
+它是 Server 场景下默认的新生代收集器，除了性能原因外，主要是因为除了 Serial 收集器，只有它能与 CMS 收集器配合使用。
+
+#### 3. Parallel Scavenge 收集器
+
+与 ParNew 一样是多线程收集器。
+
+其它收集器目标是尽可能缩短垃圾收集时用户线程的停顿时间，而它的目标是达到一个可控制的吞吐量，因此它被称为“吞吐量优先”收集器。这里的吞吐量指 CPU 用于运行用户程序的时间占总时间的比值。
+
+停顿时间越短就越适合需要与用户交互的程序，良好的响应速度能提升用户体验。而高吞吐量则可以高效率地利用 CPU 时间，尽快完成程序的运算任务，适合在后台运算而不需要太多交互的任务。
+
+缩短停顿时间是以牺牲吞吐量和新生代空间来换取的：新生代空间变小，垃圾回收变得频繁，导致吞吐量下降。
+
+可以通过一个开关参数打开 GC 自适应的调节策略（GC Ergonomics），就不需要手工指定新生代的大小（-Xmn）、Eden 和 Survivor 区的比例、晋升老年代对象年龄等细节参数了。虚拟机会根据当前系统的运行情况收集性能监控信息，动态调整这些参数以提供最合适的停顿时间或者最大的吞吐量。
+
+#### 4. Serial Old 收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/08f32fd3-f736-4a67-81ca-295b2a7972f2.jpg" width=""/> </div><br>
+
+是 Serial 收集器的老年代版本，也是给 Client 场景下的虚拟机使用。如果用在 Server 场景下，它有两大用途：
+
+- 在 JDK 1.5 以及之前版本（Parallel Old 诞生以前）中与 Parallel Scavenge 收集器搭配使用。
+- 作为 CMS 收集器的后备预案，在并发收集发生 Concurrent Mode Failure 时使用。
+
+#### 5. Parallel Old 收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/278fe431-af88-4a95-a895-9c3b80117de3.jpg" width=""/> </div><br>
+
+是 Parallel Scavenge 收集器的老年代版本。
+
+在注重吞吐量以及 CPU 资源敏感的场合，都可以优先考虑 Parallel Scavenge 加 Parallel Old 收集器。
+
+#### 6. CMS 收集器
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/62e77997-6957-4b68-8d12-bfd609bb2c68.jpg" width=""/> </div><br>
+
+CMS（Concurrent Mark Sweep），Mark Sweep 指的是标记 - 清除算法。
+
+分为以下四个流程：
+
+- 初始标记：仅仅只是标记一下 GC Roots 能直接关联到的对象，速度很快，需要停顿。
+- 并发标记：进行 GC Roots Tracing 的过程，它在整个回收过程中耗时最长，不需要停顿。
+- 重新标记：为了修正并发标记期间因用户程序继续运作而导致标记产生变动的那一部分对象的标记记录，需要停顿。
+- 并发清除：不需要停顿。
+
+在整个过程中耗时最长的并发标记和并发清除过程中，收集器线程都可以与用户线程一起工作，不需要进行停顿。
+
+具有以下缺点：
+
+- 吞吐量低：低停顿时间是以牺牲吞吐量为代价的，导致 CPU 利用率不够高。
+- 无法处理浮动垃圾，可能出现 Concurrent Mode Failure。浮动垃圾是指并发清除阶段由于用户线程继续运行而产生的垃圾，这部分垃圾只能到下一次 GC 时才能进行回收。由于浮动垃圾的存在，因此需要预留出一部分内存，意味着 CMS 收集不能像其它收集器那样等待老年代快满的时候再回收。如果预留的内存不够存放浮动垃圾，就会出现 Concurrent Mode Failure，这时虚拟机将临时启用 Serial Old 来替代 CMS。
+- 标记 - 清除算法导致的空间碎片，往往出现老年代空间剩余，但无法找到足够大连续空间来分配当前对象，不得不提前触发一次 Full GC。
+
+#### 7. G1 收集器
+
+G1（Garbage-First），它是一款面向服务端应用的垃圾收集器，在多 CPU 和大内存的场景下有很好的性能。HotSpot 开发团队赋予它的使命是未来可以替换掉 CMS 收集器。
+
+堆被分为新生代和老年代，其它收集器进行收集的范围都是整个新生代或者老年代，而 G1 可以直接对新生代和老年代一起回收。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/4cf711a8-7ab2-4152-b85c-d5c226733807.png" width="600"/> </div><br>
+
+G1 把堆划分成多个大小相等的独立区域（Region），新生代和老年代不再物理隔离。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/9bbddeeb-e939-41f0-8e8e-2b1a0aa7e0a7.png" width="600"/> </div><br>
+
+通过引入 Region 的概念，从而将原来的一整块内存空间划分成多个的小空间，使得每个小空间可以单独进行垃圾回收。这种划分方法带来了很大的灵活性，使得可预测的停顿时间模型成为可能。通过记录每个 Region 垃圾回收时间以及回收所获得的空间（这两个值是通过过去回收的经验获得），并维护一个优先列表，每次根据允许的收集时间，优先回收价值最大的 Region。
+
+每个 Region 都有一个 Remembered Set，用来记录该 Region 对象的引用对象所在的 Region。通过使用 Remembered Set，在做可达性分析的时候就可以避免全堆扫描。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/f99ee771-c56f-47fb-9148-c0036695b5fe.jpg" width=""/> </div><br>
+
+如果不计算维护 Remembered Set 的操作，G1 收集器的运作大致可划分为以下几个步骤：
+
+- 初始标记
+- 并发标记
+- 最终标记：为了修正在并发标记期间因用户程序继续运作而导致标记产生变动的那一部分标记记录，虚拟机将这段时间对象变化记录在线程的 Remembered Set Logs 里面，最终标记阶段需要把 Remembered Set Logs 的数据合并到 Remembered Set 中。这阶段需要停顿线程，但是可并行执行。
+- 筛选回收：首先对各个 Region 中的回收价值和成本进行排序，根据用户所期望的 GC 停顿时间来制定回收计划。此阶段其实也可以做到与用户程序一起并发执行，但是因为只回收一部分 Region，时间是用户可控制的，而且停顿用户线程将大幅度提高收集效率。
+
+具备如下特点：
+
+- 空间整合：整体来看是基于“标记 - 整理”算法实现的收集器，从局部（两个 Region 之间）上来看是基于“复制”算法实现的，这意味着运行期间不会产生内存空间碎片。
+- 可预测的停顿：能让使用者明确指定在一个长度为 M 毫秒的时间片段内，消耗在 GC 上的时间不得超过 N 毫秒
+
+
+
+
+
+### Full GC 的触发条件
+
+对于 Minor GC，其触发条件非常简单，当 Eden 空间满时，就将触发一次 Minor GC。而 Full GC 则相对复杂，有以下条件：
+
+#### 1. 调用 System.gc()
+
+只是建议虚拟机执行 Full GC，但是虚拟机不一定真正去执行。不建议使用这种方式，而是让虚拟机管理内存。
+
+#### 2. 老年代空间不足
+
+老年代空间不足的常见场景为前文所讲的大对象直接进入老年代、长期存活的对象进入老年代等。
+
+为了避免以上原因引起的 Full GC，应当尽量不要创建过大的对象以及数组。除此之外，可以通过 -Xmn 虚拟机参数调大新生代的大小，让对象尽量在新生代被回收掉，不进入老年代。还可以通过 -XX:MaxTenuringThreshold 调大对象进入老年代的年龄，让对象在新生代多存活一段时间。
+
+#### 3. 空间分配担保失败
+
+使用复制算法的 Minor GC 需要老年代的内存空间作担保，如果担保失败会执行一次 Full GC
+
+#### 5. Concurrent Mode Failure
+
+执行 CMS GC 的过程中同时有对象要放入老年代，而此时老年代空间不足（可能是 GC 过程中浮动垃圾过多导致暂时性的空间不足），便会报 Concurrent Mode Failure 错误，并触发 Full GC
+
+
+
 
 
 ## 类生命周期
@@ -10415,11 +10578,15 @@ Generational Collection
 
 实例 : 类加载器 : class文件 = n​ : m : ​1
 
-Class文件由类装载器装载后，在JVM中形成class对象(类的结构信息：构造函数，属性和方法等),==借由class对象间接调用类方法->反射==
+类在第一次使用时动态加载，而不是运行时一次性加载所有类,避免占用大量内存 -> 类加载只有一次,实例化有多次
+
+**加载 验证 准备 解析 初始化**	5个阶段
+
+Class文件被类装载器装载后，在JVM中形成class对象(类的结构信息：构造函数，属性和方法等),==借由class对象间接调用类方法->反射==
 
 
 
-**类初始化在实例化前进行，但不意味着只有类初始化结束后才能进行实例化**: 先实例化,发现类未初始化 -> 加载/连接/初始化 -> 继续实例化
+**类初始化在实例化前进行，但不意味着只有类初始化结束后才能进行实例化**: 先实例化,发现类未初始化 -> 加载+连接+类初始化 -> 继续实例化
 
 
 
@@ -10427,7 +10594,7 @@ Class文件由类装载器装载后，在JVM中形成class对象(类的结构信
 
 负责读取 Java 字节码，并转换成Class对象
 
-**类相同前提是被同一个类加载器加载**,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
+每个类加载器都有独立的类名称空间,==类相同前提是被同一个类加载器加载==,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
 
 
 
@@ -10456,8 +10623,8 @@ Class文件由类装载器装载后，在JVM中形成class对象(类的结构信
 
 通过自定义类加载器参与加载(**类加载唯一能控制的部分**,其余动作完全由JVM控制)
 
-1. 通过类的全限定名(com.xxx.class)获取定义此类的二进制字节流 
-2. 将字节流所代表的静态存储结构转化为方法区的运行时数据结构
+1. 通过类的完全限定名(com.xxx.class)获取类的二进制字节流 
+2. 将字节流代表的静态存储结构转化为方法区的运行时数据结构
 3. 在堆中生成Class对象, 作为方法区数据的访问入口
 
 
@@ -10473,11 +10640,9 @@ Class文件由类装载器装载后，在JVM中形成class对象(类的结构信
 
 
 
-#### 连接
 
 
-
-##### 验证
+#### 验证
 
 检查Class文件正确性
 
@@ -10489,20 +10654,22 @@ Class文件由类装载器装载后，在JVM中形成class对象(类的结构信
 
 
 
-##### 准备
+#### 准备
 
-1. 为static变量分配内存 ==(半初始化)==
-2. 赋初值
+1. 为static变量分配方法区内存 ==(半初始化)==	可见**实例化不属于类加载的过程**
+2. static变量赋初值    static final变量赋指定的值
 
-final变量在编译时生成ConstantValue属性，在准备阶段赋ConstantValue值(**不赋初值**)
+```java
+public static final int value = 123;	//在准备阶段被赋值123而不是0
+```
 
 
 
-##### 解析
+#### 解析
 
-可以与初始化调换顺序 -> 指令重排
+为了支持Java**动态绑定**,解析可与初始化调换顺序 -> 指令重排
 
-将常量池中符号引用转为直接引用,比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 节约资源
+将常量池中**符号引用转为直接引用**,比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 节约资源
 
 
 
@@ -10510,20 +10677,20 @@ final变量在编译时生成ConstantValue属性，在准备阶段赋ConstantVal
 
 #### 初始化
 
+
+
+JVM执行构造方法的过程,JVM保证构造器在多线程时被正确的加锁/同步，同时只有一个线程去执行构造器
+
 对类变量依序赋值
-
-
-
-实例化时,JVM保证构造器在多线程时被正确的加锁/同步，同时只有一个线程去执行构造器
 
 
 
 **初始化时机：**
 
-1. 遇到new、getstatic、putstatic或invokestatic这四条字节码指令
-2. 使用java.lang.reflect包的方法对类进行反射调用
-3. 当类初始化时，如果发现其父类还没有初始化，先初始化父类
-4. JVM启动时，先初始化包含main()的主类
+1. new、getstatic、putstatic或invokestatic四条字节码指令
+2. 反射调用
+3. 当类初始化时，先初始化父类
+4. JVM启动时，先初始化main()的主类
 
 
 
@@ -10656,8 +10823,6 @@ public class Singleton2 {
 
 ### 卸载
 
-
-
 [等同方法区GC](##运行时常量池)
 
 
@@ -10697,14 +10862,6 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 5. 反序列化，调用 java.io.ObjectInputStream 对象的readObject()
 
 1/2/3显式调用构造 4/5不调用构造
-
-
-
-
-
-
-
-
 
 
 
