@@ -584,7 +584,7 @@ for (let i of list) {} // "4", "5", "6"
 
 
 
-之前通过回调函数解决处理异步的问题,但容易进入回调地狱,且维护较为困难
+回调函数容易陷入回调地狱,维护较为困难
 
 而Promise是对象,可以保存状态,创建后立即执行,**无法取消**
 
@@ -605,11 +605,34 @@ pending -> fulfilled    pending -> rejected
 
 
 
-resolve
-
-将Promise对象的状态从“未完成”变为“成功”
+## resolve
 
 
+
+将现有对象转为Promise对象
+
+```js
+var jsPromise = Promise.resolve($.ajax('/whatever.json'));//将 jQuery 生成 deferred 对象，转为ES6  Promise 对象
+```
+
+
+
+如果 resolve 的入参，不是具有 then()的对象（thenable对象），则返回状态为fulfilled的新Promise对象
+
+```js
+var p = Promise.resolve('Hello');
+p.then(function (s){  console.log(s) }); // Hello
+```
+
+
+
+上面代码生成一个新的Promise对象的实例p，它的状态为fulfilled，所以回调函数会立即执行，Promise.resolve方法的参数就是回调函数的参数。
+
+如果Promise.resolve方法的参数是一个Promise对象的实例，则会被原封不动地返回。
+
+Promise.reject(reason)方法也会返回一个新的Promise实例，该实例的状态为rejected。Promise.reject方法的参数reason，会被传递给实例的回调函数。
+
+var p = Promise.reject('出错了');  p.then(null, function (s){  console.log(s) }); // 出错了
 
 
 

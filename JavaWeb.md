@@ -1528,6 +1528,14 @@ spring.jackson.time-zone
 
 
 
+套接字是同一台主机中**应用层与传输层**间的接口,进程通过套接字这个软件接口,从网络收发报文
+
+开发者可以自定义套接字在应用层的一切,但无法干预传输层
+
+套接字 = 四元组 = 发送方IP:端口 + 接收方IP:端口
+
+
+
 为保证两个相互通信的进程之间既互不干扰又协调一致工作，操作系统为进程通信提供了相应设施
 
 UNIX BSD：管道（pipe）、命名管道（named pipe）软中断信号（signal）
@@ -2817,7 +2825,7 @@ IoC容器后，把创建和查找依赖对象的控制权交给容器，由容�
 
 　　理解了IoC和DI的概念后，一切都将变得简单明了，剩下的工作只是在spring的框架中堆积木而已。
 
-## 三、我对IoC**(控制反转)**和DI**(依赖注入)**的理解
+## IoC**(控制反转)**DI**(依赖注入)**
 
 　　在平时的java应用开发中，我们要实现某一个功能或者说是完成某个业务逻辑时至少需要两个或以上的对象来协作完成，在没有使用Spring的时候，每个对象在需要使用他的合作对象时，自己均要使用像new object() 这样的语法来将合作对象创建出来，这个合作对象是由自己主动创建出来的，创建合作对象的主动权在自己手上，自己需要哪个合作对象，就主动去创建，创建合作对象的主动权和创建时机是由自己把控的，而这样就会使得对象间的耦合度高了，A对象需要使用合作对象B来共同完成一件事，A要使用B，那么A就对B产生了依赖，也就是A和B之间存在一种耦合关系，并且是紧密耦合在一起，而使用了Spring之后就不一样了，创建合作对象B的工作是由Spring来做的，Spring创建好B对象，然后存储到一个容器里面，当A对象需要使用B对象时，Spring就从存放对象的那个容器里面取出A要使用的那个B对象，然后交给A对象使用，至于Spring是如何创建那个对象，以及什么时候创建好对象的，A对象不需要关心这些细节问题(你是什么时候生的，怎么生出来的我可不关心，能帮我干活就行)，A得到Spring给我们的对象之后，两个人一起协作完成要完成的工作即可。
 
@@ -2827,57 +2835,47 @@ IoC容器后，把创建和查找依赖对象的控制权交给容器，由容�
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## 事务传播机制
-
-
-
-*  原子性（Atomicity）：事务是一个原子操作，由一系列动作组成。事务的原子性确保动作要么全部完成，要么完全不起作用。
-
-*  一致性（Consistency）：一旦事务完成（不管成功还是失败），系统必须确保它所建模的业务处于一致的状态，而不会是部分完成部分失败。在现实中的数据不应该被破坏。
-
-*  隔离性（Isolation）：可能有许多事务会同时处理相同的数据，因此每个事务都应该与其他事务隔离开来，防止数据损坏。
-
-*  持久性（Durability）：一旦事务完成，无论发生什么系统错误，它的结果都不应该受到影响，这样就能从任何系统崩溃中恢复过来。通常情况下，事务的结果被写到持久化存储器中
-
-
-
-```
-事务的传播性一般用在事务嵌套的场景，事务方法里调用了另外一个事务方法，需要事务传播机制的配置确定两个方法是各自作为独立的方法提交还是内层的事务合并到外层的事务一起提交
-
-PROPAGATION_REQUIRED	默认		外层有事务，则加入外层事务。没有则新建一个事务执行
-
-PROPAGATION_REQUES_NEW		外层事务挂起，开启新事务，当前事务执行完毕，恢复上层事务的执行。如果外层没有事务，执行当前新开的事务
-
-PROPAGATION_SUPPORT			外层有事务，则加入外层事务，外层没有事务，以非事务方式执行。完全依赖外层的事务
-
-PROPAGATION_NOT_SUPPORT		不支持事务，如果外层有事务则挂起，执行完当前代码，则恢复外层事务，无论是否异常都不会回滚当前的代码
-
-PROPAGATION_NEVER			不支持外层事务，即如果外层有事务就抛出异常
-
-PROPAGATION_MANDATORY		与NEVER相反，如果外层没有事务则抛出异常
-
-PROPAGATION_NESTED		可以保存状态保存点，当前事务回滚到某一个点，从而避免所有的嵌套事务都回滚，前提是子事务没有把异常吃掉
-```
-
-
-
 ## Spring事务的配置方式
+
+
+
+@Transactional使用JDBC事务来进行事务控制,只能配置在public方法/类上,并且类内部的调用不支持事务
+
+事务开始时，通过AOP机制，生成代理connection对象，并将其放入 DataSource 实例的某个与 DataSourceTransactionManager 相关的容器中
+
+
+
+
+
+spring 所有的事务管理策略类都继承自 PlatformTransactionManager
+
+```java
+public interface PlatformTransactionManager extends TransactionManager {
+  TransactionStatus getTransaction(@Nullable TransactionDefinition var1);
+
+  void commit(TransactionStatus var1) throws TransactionException;
+
+  void rollback(TransactionStatus var1) throws TransactionException;
+}
+```
+
+
+
+
+
+### 回滚原则
+
+
+
+spring事务管理器会捕捉未处理的异常,根据规则决定是否回滚
+
+默认配置下,spring只在unchecked异常时回滚
+
+
+
+
+
+
 
 
 
@@ -2899,13 +2897,49 @@ PROPAGATION_NESTED		可以保存状态保存点，当前事务回滚到某一个
 
 
 
+### 事务传播机制
+
+通过`TransactionDefinition.XXX`配置
+
+事务嵌套时，事务调用了另外一个事务，需要依赖传播机制决定各自提交/内层的事务合并到外层提交
+
+PROPAGATION_REQUIRED	默认		加入外层/新建事务执行
+
+PROPAGATION_REQUES_NEW		外层挂起，新建事务，当前事务执行完毕，恢复上层事务的执行。如果外层没有事务，执行当前新开的事务
+
+PROPAGATION_SUPPORT			加入外层/非事务执行
+
+PROPAGATION_NOT_SUPPORT		外层挂起，不支持事务地执行内层代码,内层不会回滚
+
+PROPAGATION_NEVER			外层有事务就抛出异常
+
+PROPAGATION_MANDATORY		外层没有事务则抛出异常
+
+PROPAGATION_NESTED		支持状态保存点，当前事务回滚到某一个点，前提是子事务没有把异常吃掉
+
+
+
+
+
+### 隔离级别
+
+通过``isolation =XXX``配置
+
+| Isolation.READ_UNCOMMITTED | 读未提交 |
+| -------------------------- | -------- |
+| Isolation.READ_COMMITTED   | 读提交   |
+| Isolation.REPEATABLE_READ  | 可重复读 |
+| Isolation.SERIALIZABLE     | 串行     |
+
+
+
 
 
 
 
 ## 只读
 
-如果一个事务只对数据库执行读操作，那么该数据库就可能利用那个事务的只读特性，采取某些优化措施。通过把一个事务声明为只读，可以给后端数据库一个机会来应用那些它认为合适的优化措施。由于只读的优化措施是在一个事务启动时由后端数据库实施的， 因此，只有对于那些具有可能启动一个新事务的传播行为（REQUIRES_NEW、EQUIRED、NESTED）的方法来说，将事务声明为只读才有意义
+如果一个事务只对数据库执行读操作，那么该数据库就可能利用那个事务的只读特性，采取某些优化措施。通过把一个事务声明为只读，可以给后端数据库一个机会来应用那些它认为合适的优化措施。由于只读的优化措施是在一个事务启动时由后端数据库实施的，对具有可能启动一个新事务的传播行为（REQUIRES_NEW、EQUIRED、NESTED）的方法来说，将事务声明为只读才有意义
 
 
 
