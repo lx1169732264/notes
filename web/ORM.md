@@ -132,6 +132,28 @@ UUID	全局唯一（UUID）
 
 # JPA
 
+Java Persistence API Java持久层API
+
+使得应⽤程序以统⼀的⽅式访问持久层
+
+
+
+JPA中的持久化上下⽂是EntityManager
+
+内部实现使⽤了Hibernate Session（使⽤Hibernate作为持久化provider） 
+
+持久化上下⽂包括三部分
+
+1、事务的切⾯ 事务的切⾯是⼀个“around（环绕）”切⾯，在注解的业务⽅法前后都可以被调⽤。实现切⾯的具体类是 TransactionInterceptor。 事务的切⾯有两个主要职责： 在’before’时，切⾯提供⼀个调⽤点，来决定被调⽤业务⽅法应该在正在进⾏事务的范围内运⾏，还是开 始⼀个新的独⽴事务。 在’after’时，切⾯需要确定事务被提交，回滚或者继续运⾏。
+
+2、事务管理器 事务管理器需要解决下⾯两个问题： 新的Entity Manager是否应该被创建？是否应该开始新的事务？这些需要事务切⾯’before’逻辑被调⽤时 决定。事务管理器的决策基于以下两点： 事务是否正在进⾏ 事务⽅法的propagation属性（⽐如REQUIRES_NEW总要开始新事务） 如果事务管理 器确定要创建新事务，那么将创建⼀个新的entity manager，entity manager绑定到当前线程，从数据 库连接池中获取连接，将连接绑定到当前线程，使⽤ThreadLocal变量将entity manager和数据库连接 都绑定到当前线程。事务运⾏时他们存储在线程中，当它们不再被使⽤时，事务管理器决定是否将他们 清除。程序的任何部分如果需要当前的entity manager和数据库连接都可以从线程中获取
+
+3、EntityManager proxy 隔离级别
+
+脏读 不可重复读 幻读 未提交读(RUC) 是 是 是 已提交读(RC) 否 是 是 可重复读(RR) 否 否 是 可串⾏化 否 否 否 当业务⽅法调⽤entityManager.persist()时，这不是由entity manager直接调⽤的。⽽是业务⽅法调⽤ 代理，代理从线程获取当前的entity manager，事务管理器将entity manager绑定到线程
+
+
+
 
 
 8种锁

@@ -3765,20 +3765,186 @@ FD	文件描述符，指向该进程打开文件的记录表。当程序打开/�
 
 
 
-对于一次IO（以read举例），数据会先被拷贝到内核的缓冲区中，再拷贝到应用程序的地址空间,经历两个阶段：
-
-1. 等待数据准备 (Waiting for the data to be ready)
-2. 将数据从内核拷贝到进程中 (Copying the data from the kernel to the process)
 
 
+## 五种IO模型
 
-linux五种网络模式
 
-- 阻塞 I/O（blocking IO）
-- 非阻塞 I/O（nonblocking IO）
-- I/O 多路复用（ IO multiplexing）
-- 信号驱动 I/O（ signal driven IO）
-- 异步 I/O（asynchronous IO）
+
+==输入操作的2个阶段==
+
+1. 等待数据从网络中到达,然后复制到内核中的某个缓冲区
+2. 将数据从内核拷贝到进程中
+
+| 同步             | 异步       |
+| ---------------- | ---------- |
+| BIO : select     | 信号驱动   |
+| NIO : poll       | 异步IO     |
+| 事件驱动 : epoll |            |
+| ==第一阶段阻塞== | ==不阻塞== |
+
+
+
+![](image.assets/1492928105791_3.png)
+
+
+
+### BIO:select
+
+
+
+应用进程阻塞，直到数据从内核缓冲区复制到应用进程缓冲区中
+
+被阻塞进程的cpu占用时间低 -> cpu利用率高
+
+
+
+select 允许应用程序监视一组文件描述符，等待1~N个描述符成为就绪状态，从而完成 I/O 操作
+
+```c
+int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
+//成功调用返回结果大于 0，出错返回结果为 -1，超时返回结果为 0
+```
+
+
+
+fd_set 数组，固定大小:FD_SETSIZE -> 只能监听部分描述符
+
+三种类型描述符：readset、writeset、exceptset，分别对应读、写、异常条件的描述符集合
+
+timeout 超时参数
+
+
+
+recvfrom() 用于接收 Socket 传来的数据，并复制到应用进程的缓冲区中
+
+```c
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+```
+
+
+
+![](image.assets/1492928416812_4.png)
+
+
+
+### NIO:poll
+
+应用进程执行系统调用之后，内核返回错误码。应用进程继续执行，但需要==轮循polling==IO是否完成
+
+轮循 -> CPU 处理更多系统调用 -> CPU利用率↓
+
+
+
+```c
+int poll(struct pollfd *fds, unsigned int nfds, int timeout);
+```
+
+poll 功能与 select 类似，也是等待一组描述符中的一个成为就绪状态
+
+
+
+poll 中的描述符是 pollfd 类型的数组
+
+```c
+struct pollfd {
+  int   fd;         /* file descriptor */
+  short events;     /* requested events */
+  short revents;    /* returned events */
+};
+```
+
+
+
+
+
+![](image.assets/1492929000361_5.png)
+
+
+
+### select VS poll
+
+
+
+|            | select                                                   | poll                                                     |
+| ---------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| 修改描述符 | 会                                                       | 不会                                                     |
+| 描述符数量 | 1024数组                                                 | 无界                                                     |
+|            |                                                          | 事件类型多,描述符利用率高                                |
+|            | 速度慢，需要将全部描述符从应用进程缓冲区复制到内核缓冲区 | 速度慢，需要将全部描述符从应用进程缓冲区复制到内核缓冲区 |
+| 移植性     | 高                                                       | 新系统才支持                                             |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 多路复用/事件驱动 epoll
+
+IO multiplexing多路复用		Event Driven事件驱动
+
+
+
+用select/poll阻塞等待多个套接字其中一个变为可读,使得单进程具有处理多个 I/O 事件的能力，用 recvfrom 把数据从内核复制到进程
+
+
+
+```c
+int epoll_create(int size);
+int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event)；
+int epoll_wait(int epfd, struct epoll_event * events, int maxevents, int timeout);
+```
+
+epoll_ctl() 用于向内核注册新的描述符或者是改变某个文件描述符的状态。已注册的描述符在内核中会被维护在一棵红黑树上，通过回调函数内核会将 I/O 准备好的描述符加入到一个链表中管理，进程调用 epoll_wait() 便可以得到事件完成的描述符。
+
+从上面的描述可以看出，epoll 只需要将描述符从进程缓冲区向内核缓冲区拷贝一次，并且进程不需要通过轮询来获得事件完成的描述符。
+
+
+
+epoll 比 select 和 poll 更加灵活而且没有描述符数量限制。
+
+epoll 对多线程编程更有友好，一个线程调用了 epoll_wait() 另一个线程关闭了同一个描述符也不会产生像 select 和 poll 的不确定情况。
+
+
+
+![](image.assets/1492929444818_6.png)
+
+
+
+### 信号驱动
+
+signal driven IO
+
+应用进程 系统调用sigaction ，内核立即返回不阻塞应用进程。内核在**数据到达**时向应用进程发送 SIGIO 信号，通知应用进程调用 recvfrom 将数据从内核复制到应用进程中
+
+相比于NIO的轮询方式，信号驱动 I/O 的 CPU 利用率更高
+
+![](image.assets/1492929553651_7.png)
+
+
+
+### 异步
+
+asynchronous IO
+
+应用进程 系统调用aio_read ,内核立即返回不阻塞应用进程，内核在**所有操作完成**后向应用进程发送信号
+
+异步 I/O 与信号驱动 I/O 的区别在于，异步 通知应用进程 I/O 完成，而信号驱动 I/O 的信号是通知应用进程可以开始 I/O
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/1492930243286_8.png"/> </div><br>
+
+
+
+
 
 
 
@@ -3788,9 +3954,9 @@ linux五种网络模式
 
 
 
-select
+select	应用程序监视一组文件描述符，等待1~N个描述符就绪，从而完成 I/O 操作
 
-单个进程可监视的fd数量被限制，即能监听端口的大小有限
+单进程可监视的fd数量被限制 -> 监听端口的数量有限
 
 需要维护一个用来存放大量fd的数据结构，这样会使得用户空间和内核空间在传递该结构时复制开销大
 
@@ -3865,6 +4031,54 @@ epoll有EPOLLLT和EPOLLET两种触发模式，LT是默认的模式，ET是“高
 
 
 
+## IO 复用
+
+select/poll/epoll 都是 I/O 多路复用的具体实现
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 工作模式
+
+epoll 的描述符事件有两种触发模式：LT（level trigger）和 ET（edge trigger）。
+
+#### 1. LT 模式
+
+当 epoll_wait() 检测到描述符事件到达时，将此事件通知进程，进程可以不立即处理该事件，下次调用 epoll_wait() 会再次通知进程。是默认的一种模式，并且同时支持 Blocking 和 No-Blocking。
+
+#### 2. ET 模式
+
+和 LT 模式不同的是，通知之后进程必须立即处理事件，下次再调用 epoll_wait() 时不会再得到事件到达的通知。
+
+很大程度上减少了 epoll 事件被重复触发的次数，因此效率要比 LT 模式高。只支持 No-Blocking，以避免由于一个文件句柄的阻塞读/阻塞写操作把处理多个文件描述符的任务饿死。
+
+### 应用场景
+
+很容易产生一种错觉认为只要用 epoll 就可以了，select 和 poll 都已经过时了，其实它们都有各自的使用场景
+
+
+
+|                    | select     | poll | epoll      |
+| ------------------ | ---------- | ---- | ---------- |
+| timeout实时性      | **微秒**   | 毫秒 | 毫秒       |
+| 移植性             | **√**      |      | linux专用  |
+| 最大描述符数量限制 | **无限制** | 1024 | **无限制** |
+
 
 
 
@@ -3879,7 +4093,7 @@ epoll有EPOLLLT和EPOLLET两种触发模式，LT是默认的模式，ET是“高
 
 
 
-每个连接对应一个线程,服务器:客户端=1:n
+每个连接对应一个线程,服务器:客户端 = 1:n
 
 根本原因在于阻塞
 
