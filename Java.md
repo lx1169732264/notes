@@ -2250,7 +2250,7 @@ map.forEach((key, value) -> {
 
 CAS + 同步锁 + Node + 红黑树
 
-对桶进行分段，每个分段用锁保护,**锁只加在数组头节点**，锁粒度小，并发性能高
+对桶进行分段，每个分段用锁保护,**锁只加在数组头节点**，粒度小，并发高
 
 ==不接受空key/value==
 
@@ -2258,9 +2258,9 @@ CAS + 同步锁 + Node + 红黑树
 
 ![](image.assets/ConcurrentHashMap.png)
 
-1.7- 的ConcurrentHashMap中是锁定了Segment
+1.7- 锁定Segment
 
-jdk1.8+ 锁定的是Node头节点，减小了锁的粒度，性能和冲突都会减少;还使用CAS支持更高的并发,在CAS失败时使用内置锁 synchronized
+jdk1.8+ 锁定Node头节点，减小锁粒度;还支持CAS,在CAS失败时使用内置锁 synchronized
 
 
 
@@ -2299,13 +2299,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements Concurre
 
 
 
-Node
+##### Node
 
 ```java
 static class Node<K,V> implements Map.Entry<K,V> {
   final int hash;
   final K key;
-  volatile V val;	//用volatile使val和next具有可见性和有序性，保证线程安全
+  volatile V val;	//volatile使val和next具有可见性和有序性，保证线程安全
   volatile Node<K,V> next;
 
   //setValue（）方法直接抛出异常，禁止用该方法设置value
@@ -2314,9 +2314,9 @@ static class Node<K,V> implements Map.Entry<K,V> {
 
 
 
-ForwardingNode
+##### ForwardingNode
 
-只在扩容时使用,作为占位符放在table中,表示当前节点为null或则已被移动
+只在扩容时使用,作为占位符,表示当前节点为null或则已被移动
 
 ```java
 static final class ForwardingNode<K,V> extends Node<K,V> {
@@ -2789,13 +2789,14 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
     Node<K,V> f; int n, i, fh;
     
     if (tab == null || (n = tab.length) == 0)   tab = initTable();	//懒初始化
-    else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {	//table对应下标处为null
-      if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))	break;//创建Node做为链表首结点
+    else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {	//插入下标处为null
+      if (casTabAt(tab, i, null,new Node<K,V>(hash, key, value, null)))//创建Node做为链表首结点
+        break;
     }
     
-    else if ((fh = f.hash) == MOVED)	//当前结点正在扩容(MOVED状态)
-      tab = helpTransfer(tab, f); //helpTransfer()协助扩容，扩容完毕后tab指向新table
-    else {
+    else if ((fh = f.hash) == MOVED)	//当前结点正在MOVED扩容状态
+      tab = helpTransfer(tab, f); //协助扩容，扩容完毕后tab指向新table
+    else {	//hash冲突
       V oldVal = null;
       synchronized (f) {
         if (tabAt(tab, i) == f) {	//双重检查i处结点
