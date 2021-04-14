@@ -98,6 +98,16 @@ DBMS	Database Management System 数据库管理系统
 
 
 
+### 函数依赖
+
+记 A-\>B 表示 A 函数决定 B，也可以说 B 函数依赖于 A
+
+如果 {A1，A2，... ，An} 是关系的一个或多个属性的集合，该集合函数决定了关系的其它所有属性并且是最小的，那么该集合就称为键码
+
+对于 A-\>B，如果能找到 A 的真子集 A'，使得 A'-\> B，那么 A-\>B 就是部分函数依赖，否则就是完全函数依赖
+
+
+
 **部分依赖	AB->C, A->C**
 
 **传递依赖	A->B ,B->C**
@@ -256,15 +266,24 @@ cascade和set null是容错能力比较强，并不是很严格，但可能会�
 
 ### 整数
 
-TINYINT, SMALLINT, MEDIUMINT, INT, BIGINT 分别使用 8, 16, 24, 32, 64 位存储空间
+|           |      |      |
+| --------- | ---- | ---- |
+| TINYINT   | 1    |      |
+| SMALLINT  | 2    |      |
+| MEDIUMINT | 3    |      |
+| Int       | 4    |      |
+| BigInt    | 8    |      |
+|           |      |      |
 
-可选的UNSIGNED属性,表示不允许负值,将使正数的上限提高一倍
+
+
+可选的UNSIGNED属性,表示不允许负值,将使正数的上限翻倍
 
 Tinyint.UNSIGNED 0~255		Tinyint -128~127
 
 
 
-INT(11)	**为整数类型指定长度不会限制值的范围**,只限定显示字符的个数,对存储和计算来说不影响
+**为整数类型指定长度不会限制值的范围**,只限定显示字符的个数,不影响存储和计算
 
 
 
@@ -289,6 +308,10 @@ Decimal只作为存储格式,在计算时会转化成Double
 
 
 Float 4字节,在存储相同范围的值时,会比Decimal使用更少的空间
+
+float和double在存储的时候，存在精度丢失。如果存储的数据范围超过decimal的范围，建议将数据拆成整数和小数分开存储
+
+
 
 
 
@@ -318,7 +341,7 @@ Float 4字节,在存储相同范围的值时,会比Decimal使用更少的空间
 
 | Char                                                     | Varchar                                                      |
 | -------------------------------------------------------- | ------------------------------------------------------------ |
-| 定长,**不容易产生碎片**,自动删除所有末尾空格,最长255字符 | 在磁盘上为定长存储,==加载到内存为变长==                      |
+| 定长,**不容易产生碎片**,自动删除所有末尾空格,最长255字符 | 在磁盘上为定长存储,==加载到内存为变长==,5000+的长度考虑用text,并将数据拆成独立的表 |
 |                                                          | **额外需要1/2字节记录长度**: 长度 < 255字节? 1:2 字节        |
 | 即使是null也会占用字节 -> 大量null的列,varchar更适合     |                                                              |
 |                                                          | 适合于字符串列的最大长度比平均长度大很多,列的更新少          |
@@ -554,6 +577,38 @@ InnoDB会把表空间作为虚拟的文件系统,在其中管理所有表内容,
 
 
 
+
+
+## 缓冲区策略
+
+
+
+steal：允许在事务commit前把内存中的数据写入磁盘。此时**需要undo**，因为系统在commit之前崩溃时，已经有数据写入磁盘，要恢复到崩溃前的状态，必须undo这些写入操作，否则磁盘上存在脏数据
+
+no steal：不允许事务commit前把内存中的数据写入磁盘。不需要undo
+
+force：内存中的数据最晚在commit的时候写入磁盘。不需要redo
+
+no force：内存中的数据可以一直保留，在commit后延迟写入磁盘。此时需要redo，因为数据在系统崩溃的时候可能还没写入到磁盘，如果不redo，磁盘上的数据就是不完整的。
+
+
+
+Mysql为steal/no force组合,能保证内存调度的灵活性，提高系统性能，但需要undo和redo
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## 连接池
 
 
@@ -694,7 +749,7 @@ mysql主从是基于**binlog，主需开启binlog才能进行主从**
 
 
 
-## Mysql架构
+## 架构
 
 
 
@@ -735,10 +790,6 @@ select = SELECT = SeLeCt
 
 
 数据库/表/视图名取决于文件系统的命名方式
-
-
-
-
 
 
 
@@ -1380,7 +1431,7 @@ CREATE VIEW "VIEW_NAME" AS "Sql";
 
 MySQL服务器层不管理事务，由下层的存储引擎实现
 
-如果在事务中混合使用了事务/非事务的表,在需要回滚时，非事务型表无法撤销，导致数据不一致
+事务中混合使用了事务/非事务的表,回滚时非事务表无法撤销
 
 
 
@@ -1393,18 +1444,6 @@ Set AUTOCOMMIT = 1/ON 启用(默认)	0/OFF禁用
 禁用自动提交时,所有查询都在一个事务中,直到显式COMMIT/ROLLBACK,事务才结束并开启新事务
 
 回滚包括事务的提交状态,在事务前自动提交,事务中关闭自动提交,则Rollback后依然是自动提交
-
-
-
-**隐式/显式锁**
-
-隐式锁	根据隔离级别在需要的时候自动加锁
-
-显式锁	
-
-SELECT … LOCK IN SHARE MODE
-
-SELECT … FOR UPDATE
 
 
 
@@ -1431,11 +1470,11 @@ Commit;
 
 
 
-* A 原子性：全完成/全不完成。发生错误就回滚
+* A 原子性：全完成/全不完成
 
-* C 一致性：事务前后，数据**完整性**没被破坏
+* C 一致性：保持数据**完整性/可见性**
 
-* I 隔离性：**允许并发事务**，防止交叉执行导致数据不一致
+* I 隔离性：**允许并发事务的数据一致**
 
 * D 持久性：事务提交后，对数据的**修改是永久**的，即便系统故障也不会丢失
 
@@ -1461,23 +1500,74 @@ SET [GLOBAL|SESSION] TRANSACTION ISOLATION LEVEL {level};	#设置隔离等级
 
 
 
-* 读未提交      脏读、不可重复读、幻读
-* 读提交  **SQLServer/Oracle默认**     不可重复读、幻读
-  * 快照 使得无锁查询也能==避免脏读==
-* 可重复读	MySql默认             幻读
-  * 快照+==事务== 避免“不可重复读”
-* 串行化  避免“脏读”、“不可重复读”、“幻读”
+| 读未提交 | 读提交                        | 可重复读                     | 串行化                     |
+| -------- | ----------------------------- | ---------------------------- | -------------------------- |
+|          | ~~脏读~~                      | ~~脏读、不可重复读~~         | ~~脏读、不可重复读、幻读~~ |
+|          | SQLServer/Oracle              | Mysql                        |                            |
+|          | 快照 无锁查询也能==避免脏读== | 快照+==事务== 避免不可重复读 |                            |
 
 
 
-**RR下读数据的两种方式**
+**可重复读和读提交是矛盾的**。在同一个事务里，如果保证了可重复读，就看不到其他事务的提交，违背了读提交；如果保证了读提交，就会导致前后两次读到的结果不一致，违背可重复读
 
-快照读：在MVCC下，事物开启执行第一个SELECT语句后会获取一个数据快照，直到事物结束读取到的数据都是一致的
-普通select	快照读	不加锁
 
-普通 insert、update、delete	隐式加写锁
-select… lock in share mode	读锁
-select… for update			写锁
+
+
+
+
+
+
+
+### 幻读
+
+
+
+Mysql提供两种事务隔离技术避免幻读	==只有加锁读才能真正避免幻读==
+
+| MVCC                              | NK锁 |
+| --------------------------------- | ---- |
+| 不加锁,生成读视图                 | 加锁 |
+| 不是即时数据,依靠历史数据避免幻读 | 及时 |
+| 并发高                            |      |
+
+
+
+| 事务A                                               | 事务B            |
+| --------------------------------------------------- | ---------------- |
+| select -> 结果集A                                   |                  |
+|                                                     | insert && commit |
+| select -> 结果集B == A                              |                  |
+| 对所有行记录update -> 所有行的**事务id被更新**      |                  |
+| **select -> 结果集C 包含了事务B插入的数据 -> 幻读** |                  |
+
+
+
+### 丢失更新(ABA)
+
+
+
+#### 回滚覆盖
+
+属于第一类丢失更新,**所有的数据库都不允许回滚覆盖**
+
+事务的回滚操作影响了另已提交的事务
+
+![img](image.assets/706730614.png)
+
+
+
+### ABA
+
+属于第二类丢失更新
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1504,7 +1594,7 @@ I 增量锁 Incremental locks
 
 **一级封锁协议**	读提交
 
-修改数据加X锁，直到T结束才释放锁	解决ABA问题，不会覆盖修改
+修改数据加X锁，直到T结束才释放锁	解决ABA问题，不会丢失修改
 
 **二级封锁协议**	可重复读
 
@@ -1524,9 +1614,7 @@ Two Phase Locking Protocal
 
 
 
-加锁/解锁分两个阶段进行
-
-根据隔离级别在需要的时候自动加锁,**加锁时不能解锁,解锁时不能加锁** -> 加解锁原子性 -> 隔离性
+加锁/解锁分两个阶段进行,**加锁时不能解锁,解锁时不能加锁** -> 加解锁原子性 -> 隔离性
 
 
 
@@ -1628,7 +1716,39 @@ Mysql中各个存储引擎是完全独立(参与者),所以跨存储引擎的事
 
 
 
-### 二进制日志(binlog)
+
+
+```shell
+innodb_max_undo_log_size#控制最大undo tablespace文件的大小，启动innodb_undo_log_truncate 时，undo tablespace 超过innodb_max_undo_log_size 阀值时才会尝试truncate。该值默认大小为1G，truncate后的大小默认为10M
+
+innodb_undo_tablespaces	#undo的独立表空间个数,当DB写压力大时，通过独立表空间，把UNDO写入高速磁盘，提高写入性能
+
+
+```
+
+
+
+
+
+
+
+
+
+### Log buffer
+
+
+
+### log file
+
+
+
+
+
+
+
+
+
+### bin
 
 
 
@@ -1646,6 +1766,24 @@ Mysql中各个存储引擎是完全独立(参与者),所以跨存储引擎的事
 
 * 索引文件（后缀.index）,记录所有的二进制文件
 * 日志文件（后缀.00000*）记录数据库所有的DDL和DML(除查询)语句事件
+
+
+
+
+
+| Server | InnoDb存储引擎 专属 |
+| ------ | ------------------- |
+| binlog | undo                |
+| relay  | redo                |
+| error  |                     |
+
+
+
+
+
+
+
+
 
 
 
@@ -1685,7 +1823,7 @@ sync_binlog=N	每N个事务提交会进行一次binlog刷新(数据丢失)
 
 
 
-binlog是多文件存储，定位一个LogEvent需要通过binlog filename +  binlog position，进行定位
+binlog是多文件存储，定位一个LogEvent需要通过binlog filename +  binlog position进行定位
 
 
 
@@ -1697,21 +1835,281 @@ binlog是多文件存储，定位一个LogEvent需要通过binlog filename +  bi
 
 逻辑日志
 
-维护数据修改前的值,保证事务==可见性,原子性==,,存放在系统表空间(ibdata)中,5.6+可以使用独立的Undo表空间	**随机IO**
+维护数据修改前的值,保证==原子性==,存放在系统表空间(ibdata)中,5.6+可以使用独立的Undo表空间	**随机IO**
 
-undo使得多版本的数据快照无需保存多份数据文件
+undo使快照无需保存事务开启时行记录的历史状态 -> `delete`时，记录`相反的insert`记录;`update`时，记录`相反的update`记录。rollback根据undo的记录进行回滚
 
-当`delete`时，undo log记录`对应的insert`记录;当`update`时，记录`相反的update`记录。当rollback时，从undo log中的逻辑记录`读取到相应`的内容并回滚
 
-`行版本控制`也是通过undo log来实现的：当读取的某一行被其他事务锁定时，从undo log中分析出该行记录的`历史数据`是什么，让用户实现`非锁定一致性`读取
+
+
+
+记录undo的操作本身也会有对应的redo
+
+
+
+由于数据库的steal策略，事务在更新一个页面后，==数据库可以把未提交的数据刷入磁盘,并利用undo的版本链实现MVCC的行版本控制,维护未提交数据的可见性==，这时发生崩溃，==恢复时也通过undo中到数据的历史状态==
+
+
+
+在事务提交前,undo一直在内存中,提交时落盘(**所有数据在落盘前都先经过内存**)
+
+`行版本控制`也是通过undo log来实现的：当读取的某一行被其他事务锁定时，从undo log中倒推历史数据，实现`非锁定一致性`读取
+
+
+
+
+
+
+Undo保证了事务失败或主动abort时的机能，除此之外，系统崩溃恢复时，也确保数据库状态能恢复到一致。
+
+系统恢复时，Undo需要Redo的配合来实现，或者说二者是一套机制的两个方面。因为在Redo日志有commit或abort记录的事务是无需undo的。
+假设以静止的检查点为日志类型，以<CKPT (t0,…,tn)>做检查点，期间不接受新事务进入，整个Undo过程可以描述如下：
+1.以进行检查点时记录的活跃事务(t0,…,tn)为undo-list
+2.在Redo阶段，发现<T,START>记录，就将T加入undo-list，发现<T,END>或<T,ABORT>记录，就将T移出undo-list
+4.最后undo-list中的事务都是些未提交也没回滚的事务，系统如同普通的事务回滚样进行具体的undo操作
+5.当undo-list中发现<T,START>时，说明完成了具体的回滚操作，系统写入一个<T,ABORT>记录，并从undo-list中删除T。
+6.直到undo-list为空，撤销阶段完成
+
+ 
+
+Undo的原语表示可以如下：
+![](image.assets/360077-20191231145606328-1689697598.png)
+
+ 
+
+**1.4 写日志**
+写日志有2种处理：一是等待一次IO，直接写入到存储介质。二是先写入到缓冲，在之后的某一时间点统一写入磁盘
+
+fsync() VS sync()
+fsync函数等待磁盘操作结束，然后返回，它能确保数据持久化到存储介质，而不是停留在OS或存储的写缓冲中
+sync则把修改过的块缓冲区排入OS的写队列后就返回。fsync能确保数据写入，同时，这也意味着一次IO及性能消耗
+
+
+
+不同的数据库部件有各自的设计目的，负责不同的命令，Read和Write由事务发起，Input和Output由缓冲区管理器发出。也就是说，日志记录响应的是写入内存的write命令，而不是写入磁盘的output命令，除非显示的控制
+
+具体的实现上会有很多策略，但应保证一些原则：
+
+针对Undo
+1.如果事务T改变了数据库元素X，那么必须保证对应的一条Undo记录在X的新值写入磁盘之前落盘。
+2.如果发生commit，那么该条commit记录写入磁盘前，所有之前的修改能确保先行落盘。
+
+针对Redo，先写日志规则（Write-Ahead Logging，WAL）:
+1.对数据库元素X的修改被写入磁盘前，一条对应的Redo日志保证先行落盘。
+2.提交时，修改的数据库元素在写入磁盘前，一条commit记录保证落盘。
+
+注意这里说的数据库元素X，不是事务层面的更新记录集，通常假定是一个最小的原子处理单位，一个磁盘块。当某块在output时，不能有对该块的write。为此在某块输出时可以在块上设置排他锁，这种短期持有的闩锁（latch）与事务并发控制的锁无关，按照非两阶段的方式释放这样的锁对于事务可串行性没有影响。如果数据库元素小于单个块，一个糟糕的情景是不同事务的2个数据元素位于同一块，这时候一个事务对块的写磁盘动作可能导致另一个事务违反写入规则，一个建议是以块作为数据库元素。
+
+
+
+在InnoDB的实现中，并不严格按照WAL规则，而是通过一种事务的序列编号LSN保证逻辑上的WAL。下面对InnoDB的一些实现细节尝试分析下。
+
+ 
+
+**2.MySQL InnoDB中的实现
+
+**
+
+**2.1 redo log**
+每个Innodb存储引擎至少有一个重做日志文件组(group)，每个文件组下至少有2个重做日志文件，如默认的ib_logfile0和ib_logfile1，其默认路径位于引擎的数据目录。
+
+ 
+
+设置多个日志文件时，其名字以ib_logfile[num]形式命名。多个日志文件循环利用，第一个文件写满时，换到第二个日志文件，最后一个文件写满时，回到第一个文件，组成逻辑上无限大的空间。在Innodb1.2.x前，重做日志文件的总大小不能大于等于4GB，1.2.x版本该限制以扩大到512GB.
+
+ 
+
+重做日志文件设置的越大，越可以减少checkpoint刷新脏页的频率，这有时候对提升MySQL的性能非常重要，但缺点是增加了恢复时的耗时；如果设置的过小，则可能需要频繁地切换文件，甚至一个事务的日志要多次切换文件，导致性能的抖动。
+
+ 
+
+Innodb中各种不同的操作有着不同类型的重做日志，类型数量有几十种，但记录条目的基本格式可以如下表示：
+
+![img](image.assets/360077-20200103202310809-148368254.png)
+图2.1
+
+
+
+ 
+
+在存储结构上，redo log文件以block块来组织，每个block大小为512字节。每个文件的开头有一个2k大小的File Header区域用来保存一些控制信息，File Header之后就是连续的block。虽然每个redo log文件在头部划出了File Header区域，但实际存储信息的只有group中第一个redo log文件。
+
+![img](image.assets/360077-20200103202741021-1479399536.png)
+
+图2.2
+
+ 
+
+当redo log实际由mtr（Mini transaction）产生时，首先位于mtr的cache，之后输出到redo log 缓冲区，再从缓冲区写入到磁盘。Log buffer与文件中的block大小对应，以512字节为单位对齐，一个mtr日志可能不足一个block，也可能跨block。
+
+ 
+
+**File Header**
+File Header位于每个redo log文件的开始，大小为2k，格式如下：
+![img](image.assets/360077-20200103203032242-1722062623.png)
+
+图2.3
+
+log group中的第一个文件实际存储这些信息，其他文件仅保留了空间。在写入日志时，除了完成block部分，还要更新File Header里的信息，这些信息对Innodb引擎的恢复操作非常关键。
+
+
+
+**Block**
+一个block块有512字节大小，每块中还有块头和块尾，中间是日志本身。其中块头Block Header占有12字节大小，块尾Block Trailer占有4字节大小，中间实际的日志存储容量为496字节(512-12-4)：
+
+![img](image.assets/360077-20200103203319731-2109921920.png)
+图2.4
+
+ 
+
+LOG_BLOCK_HDR_NO
+在log buffer内部，可以看成是单位大小是512字节的log block组成的数组，LOG_BLOCK_HDR_NO就用来标记数组中的位置。其根据该块的LSN计算转换而来，递增且循环使用，占有4个字节，第一位用来判断是否flush bit，所以总容量是2G。(LSN在之后一段说明)
+
+LOG_BLOCK_HDR_DATA_LEN
+标识写入本block的日志长度，占有2个字节，当写满时用0X200表示，即有512字节。
+
+LOG_BLOCK_FIRST_REC_GROUP
+占有2个字节，记录本block中第一个记录的偏移量。如果该值与LOG_BLOCK_HDR_DATA_LEN
+相同，说明此block被单一记录占有，不包含新的日志。如果有新日志写入，LOG_BLOCK_FIRST_REC_GROUP就是新日志的位置。
+
+![img](image.assets/360077-20200103203502621-1542672235.png)图2.5
+
+ 
+
+LOG_BLOCK_CHECKPOINT_NO
+占有4字节，记录该block最后被写入时检查点第4字节值。
+
+LOG_BLOCK_TRL_NO
+Block trailer中只由这1个部分组成。记录本block中的checksum值，与LOG_BLOCK_HDR_NO值相同。
+
+ 
+
+**LSN**
+LSN是Log Sequence Number的缩写，占有8字节，单调递增，记录重做日志写入的字节总量，也表示日志序列号。
+
+LSN除了记录在redo日志中，还存于每个页中。页的头部有一个FIL_PAGE_LSN用于记录该页的LSN，反应的是页的当前版本。
+
+LSN同样也用于记录checkpoint的位置。使用SHOW ENGINE INNODB STATUS命令查看LSN情况时，Log sequence number是当前LSN，Log flushed up to 是刷新到重做日志文件的LSN，Last checkpoint at 是刷新到磁盘的LSN。
+
+由于LSN具有单调增长性，如果重做日志中的LSN大于当前页中LSN，说明页是滞后的，如果日志记录的LSN对应的事务已经提交，那么当前页需要重做恢复。
+如果页被新事务修改了，页中LSN记录的是新写入的结束点的LSN，大于重做日志中的LSN，那么当前页是新数据，是脏页。
+脏页根据提交情况可能需要加入flush list中，此时flush list上的所以脏页也是以LSN排序。
+
+写redo log时是追加写，需要保证写入顺序，或者说应保证LSN的有序。当并发写时可以通过加锁来控制顺序但效率低下，8.0中使用了无锁的方式完成并发写，mtr写时已经提前知道自己在log buffer上的区间位置，不必等待直接写入log buffer就可。这样大的LSN值可能先写到log buffer上，而小的LSN还没写入，即log buffer上有空洞。所以有一个单独的线程log_write，负责不断的扫描log buffer，检测新的连续内容并进行刷新，是真正的写线程。
+
+ 
+
+2.2 Undo
+
+undo是逻辑日志，在事务回滚时对数据库进行一些补偿性的修改，以使数据在逻辑上回到修改前的样子，它并不幂等
+在Innodb中使用表空间，回滚段，页等多级概念结构实现undo功能，并随版本多次改进，为方便讨论，下面放一张5.7版本的大致结构图，在此基础上进行描述：
+
+![img](image.assets/360077-20200103212507447-294605537.png)
+图2.6
+
+ 
+
+\1. 在undo这部分，MySQL 5.7版本在5.6(InnoDB 1.2)的基础上主要增加有innodb_undo_log_truncate 收缩等功能，但在大致结构方面5.6可以参考上面5.7的图。
+
+\2. 在5.5(Innodb1.1)版本之前，只有一个undo回滚段(rollback segment)，支持1024个事务同时在线。
+
+3.在5.5版中，支持最大128个回滚段，理论上支持128*1024个事务同时在线。
+
+4.在之前的版本中，回滚段都存储于共享表空间中，一个常见的问题是ibdata膨胀。在5.6版本(Innodb1.2)时，可以对回滚段做更多的设置：
+innodb_undo_directory
+innodb_undo_logs
+innodb_undo_tablespaces
+这3个参数分别用来设置
+（1）回滚段文件所在位置，这意味着回滚段可以存储到共享表空降值外，能使用独立的表空间。
+（2）回滚段的数量，默认是128个。
+（3）回滚段文件的数量。如设置为3个，则在上面指定的directory文件生成3个undo为前缀的文件：undo001，undo002，undo003，默认的128个回滚段将被依次平均分配到这3个文件中。具体分配时，总是从第一个space开始轮询，所以如果将回滚段的数量依次递增到128，那所有的段都将落入undo001中。
+
+
+\5. 如上图，共享表空间偏移量为5的页记录有所有回滚段的指向信息，这页的类型为FIL_PAGE_TYPE_SYS（trx_sys）。 0号回滚段被预留在ibdata中，1~32号的32个回滚段是临时表的回滚段，存储于ibtmpl文件，其余从33号开始的回滚段才是可配置的，因此InnoDB实际支出96*1024个普通事务同时在线。
+
+6.每个回滚段的头部维护着一个段头页，该页中划分了1024个槽位slot（TRX_RSEG_N_SLOTS），每个slot可以对应一个undo log对象，这也是为什么说一个回滚段支持1024个事务。
+
+7.MySQL8.0中，每个Undo tablespace都可以创建128个回滚段，所以总共可以有总共有innodb_rollback_segments * innodb_undo_tablespaces个回滚段。
+
+ 
+
+**结构体**
+回滚段的信息以数组的形式存放，数组大小为128，数组位于trx_sys->rseg_array
+rseg_array数组中的元素类型是trx_rseg_t，表示一个回滚段。
+每个trx_rseg_t中管理着许多trx_undo_t，这些trx_undo_t同时也属于多个链表，不同的链表有着不同的功能，如insert_undo_list或update_undo_list等。
+![img](image.assets/360077-20200103210946397-1192489016.png)
+
+图2.7
+
+ 
+
+
+**undo log格式**
+
+
+Innodb中undo log可以分为两种：
+inser undo log
+update undo log
+
+
+insert undo log是insert操作中产生的undo log，因为只对本事务可见，该类undo log在事务提交后就可以删除，不需要进行purge操作。格式如下：
+![img](image.assets/360077-20200103211111316-1268543300.png)
+
+图2.8
+
+ 
+
+update undo log是delete和update操作产生的undo log。此类undo log是MVCC的基础，在本事务提交后不能简单的删除，需要放入purge队列purge_sys->purge_queue
+等待purge线程进行最后的删除。格式如下：
+
+![img](image.assets/360077-20200103211223378-18625767.png)图2.9
+
+图上可见update undo log的格式比insert undo log复杂，同名的部分功能类似，其中的type_cmpl部分，由于update undo log本身还有分类，所以值可能有：
+TRX_UNDO_DEL_MARK_REC，将记录标记为delete
+TRX_UNDO_UPD_DEL_REC，将delete的记录标记为not delete
+TRX_UNDO_UPD_EXIST_REC，更新未被标记delete的记录
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+innodb对undo的操作是，如果你update 一条记录，那么就先把记录cp到undo中，记录undo的redo，加锁，修改数据，记录page的redo，事务提交，判断是否有事务引用undo log，有等待，没有则回收undo log。
+
+如果在事务进行中崩溃了，那么就需要redo进行恢复，并检测redo中有没有该事务的提交信息，如果有，那么前滚，undo log就没用了，如果没有提交信息，就需要进行回滚，这时候需要把undo log中的记录信息在cp回去。所以undo log也需要落盘把。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 #### 存储
 
-MySQL5.5以后可以支持128个rollback segment，即支持128*1024个undo操作，还可以通过变量`innodb_undo_logs` (5.6版本以前该变量是 innodb_rollback_segments )`自定义`多少个`rollback segment`，`默认值为128`。undo log`默认存放`在`共享表空间`中。如果开启了`innodb_file_per_table` ，将放在每个表的`.ibd`文件中。
+UNDO内部由128个回滚段Rollback segment组成,即支持128*1024个undo操作，通过`innodb_undo_logs` 设置回滚段个数。undo log`默认存放`在`共享表空间`中。如果开启了`innodb_file_per_table` ，将放在每个表的`.ibd`文件中。
 
-在MySQL5.6中，undo的存放位置还可以通过变量 `innodb_undo_directory` 来`自定义存放目录`，默认值为"."表示datadir。
+在MySQL5.6中，undo的存放位置还可以通过变量 `innodb_undo_directory` 来`自定义存放目录`，默认值为"."表示datadir
 
 默认rollback segment全部写在一个文件中，但可以通过设置变量 `innodb_undo_tablespaces` 平均分配到多少个文件中。该变量`默认值为0`，即`全部写入一个表空间文件`。该变量为静态变量，只能在数据库示例停止状态下修改，如写入配置文件或启动时带上对应参数。但是innodb存储引擎在启动过程中提示，`不建议修改为非0`的值
 
@@ -1744,9 +2142,11 @@ update流程
 
 
 
-1. rseg0预留在系统表空间ibdata中
-2. rseg 1~rseg 32这32个回滚段存放于临时表的系统表空间中
-3. rseg33~ 则根据配置存放到独立undo表空间中（如果没有打开独立Undo表空间，则存放于ibdata中）
+rseg0		预留给系统表空间
+
+rseg 1~32	预留给临时表空间，每次数据库重启的时候，都会重建临时表空间
+
+rseg 33~127	则根据配置存放到独立undo表空间中（如果没有打开独立Undo表空间，则存放于ibdata中）
 
 
 
@@ -1758,9 +2158,9 @@ update流程
 
 为了便于管理和使用undo记录，在内存中维护关键结构体对象：
 
-1. 所有回滚段都记录在trx_sys->rseg_array，数组大小为128，分别对应不同的回滚段；
-2. rseg_array数组类型为trx_rseg_t，用于维护回滚段相关信息；
-3. 每个回滚段对象trx_rseg_t还要管理undo log信息，对应结构体为trx_undo_t，使用多个链表来维护trx_undo_t信息;
+1. 所有回滚段都记录在trx_sys->rseg_array，数组大小为128，分别对应不同的回滚段
+2. rseg_array数组类型为trx_rseg_t，用于维护回滚段相关信息
+3. 每个回滚段对象trx_rseg_t还要管理undo log信息，对应结构体为trx_undo_t，使用多个链表来维护trx_undo_t信息
 4. 事务开启时，会专门给他指定一个回滚段，以后该事务用到的undo log页，就从该回滚段上分配
 5. 事务提交后，需要purge的回滚段会被放到purge队列上(purge_sys->purge_queue)
 
@@ -1782,15 +2182,157 @@ update流程
 
 物理日志
 
-链式记录数据被修改后的值,保证事务==持久性==	**顺序IO**,数据库运行时不需要对redo log进行读取
-
-Force Log at commit机制:事务提交时，必须将所有日志写入redo进行持久化,再调用一次fsync
+链式记录数据每次修改前的备份 -> ==原子性== -> **顺序IO**,数据库运行时不需要对redo log进行读取
 
 
 
+Force Log at commit机制
+
+事务提交前持久化redo,再调用fsync刷新内存;数据本身不需要在提交时完成持久化 -> ==持久性==
 
 
 
+#### 操作数据原语
+
+Input(X)：将X值从存储介质读入缓冲区
+Read(X,t)：将X值从缓冲区读入事务内的变量t，如果缓冲中不存在，则触发Input
+Write(X,t): 将事务内的t写入到缓冲区X块，如果缓冲中X不存在，则触发Input(X)，再完成write
+Output(X)：将缓冲区X写入到存储中
+
+![](image.assets/360077-20191231144542432-753158298.png)
+
+
+
+
+
+Redo日志往往是由多个事务交织在一起的，错误也随时能发生
+
+![](image.assets/360077-20191231144439062-1454724302.png)
+
+(a) 事务未提交&&宕机,需要重做redo
+
+(b) 日志中T0已经提交了，必须要对T0 进行Redo，而部分T1也需要Redo
+(c) 日志中T0已经提交了，必须要对T0进行Redo,而T1虽然abort也需要Redo
+
+
+
+对于已commit的事务,宕机时必须重做Redo，但未提交的事务可以不必进行Redo，但这样会增加Redo阶段的复杂性，Mysql**根据Redo全部重做，之后的撤销工作交给Undo来进行 -> **Redo事务无关性
+
+
+
+#### Checkpoint
+
+原则上，系统恢复时可以通过检查整个日志来完成
+
+但日志过长时
+
+1. 搜索慢
+2. 全部redo都重做慢
+3. 事务commit日志记录写入磁盘后,恢复时不再需要这部分的undo.但由于其他事务可能在使用Undo中的旧值。为此需要checkpoint来处理这些当前活跃的事务
+
+
+
+##### 简单检查点
+（1）**停止接受新的事务**
+（2）等待当前所有活跃事务完成或中止，并在日志中写入commit或abort记录
+（3）将当前位于内存的日志缓冲块刷新到磁盘
+（4）写入日志记录<CKPT>，并再次刷新到磁盘
+（5）重新开始接受事务
+系统恢复时，可以从日志尾端反向搜索，直到找到第一个<CKPT>标志，而没有必要处理<CKPT>之前的记录
+
+
+
+**非静止检查点**
+简单检查点期间需要停止响应，非静止检查点允许进行检查点时接受新事务进入，步骤如下：
+（1）写入日志记录<START CKPT(t1,…tn)>，其中t1,…tn是当前活跃的事务
+（2）等待t1,…tn所有事务提交或中止，但仍接受新事务的进入
+（3）当t1,…tn所有事务都已完成，写入日志记录<END CKPT>
+
+ 
+
+当使用非静止检查点技术，恢复时的也是从日志尾向前扫描，可能先遇到<START CKPT>标志，也可能先遇到<END CKPT>标志：
+1.先遇到<START CKPT(t1,…tn)>时，说明系统在检查点过程中崩溃，未完成事务包括2部分：(t1,…tn)记录的部分及<START>标志后新进入部分。这部分事务中最早那个事务的开始点就是扫描的截止点，再往前可以不必扫描。
+
+2.先遇到<END CKPT>，说明系统完成了上一个周期的检查点，新的检查点还没开始。需要处理2部分事务：<END CKPT>标志之后到系统崩溃时这段时间内的事务及上一个<START>，<END>区间内新接受的事务。为此扫描到上一个检查点<START CKPT()>就可以截止。
+
+多说一句，很容易发现，非静止检查点是将一个点扩展为一个处理区间了，类似的设计其他技术也有，如JVM的GC处理，从stop the world到安全区的处理
+
+ 
+
+ 
+
+
+
+
+
+
+
+
+
+数据修改时，先把数据页从磁盘读到buffer pool中并进行修改，导致buffer pool中数据页与磁盘上数据页内容不一致,此时Mysql宕机会导致，buffer pool中的内存数据丢失
+
+buffer pool的数据页变更后，修改记录**顺序IO**至redo log，那么当Mysql恢复时，根据redo内容，**找到需要重新刷新到磁盘文件的记录**
+
+如果在buffer pool的数据页变更后直接flush到disk file，是随机IO -> 事务提交慢
+
+
+
+修改表中 id=2的行数据’B’-> B2’，那么redo记录‘B2’ -> ‘B’，如果这个修改在flush到磁盘文件时异常，可以使用redo实现重做，保证持久性
+
+
+
+#### redo VS bin
+
+redo log 是存储引擎层产生的，而binary log是数据库层产生的
+
+事务执行过程中不断往redo顺序IO，而bin不作处理，直到事务提交，一次性地写入bin
+
+
+
+```mysql
+innodb_log_files_in_group	#redo文件个数，命名方式如：ib_logfile0，iblogfile1… iblogfilen。默认2个，最大100个
+innodb_log_file_size	#文件大小(所有redo之和)，默认值48M，最大值512G
+innodb_log_group_home_dir	#文件存放路径
+
+innodb_log_buffer_size	#Redo Buffer，默认8M，可设置1-8M。延迟事务日志写入磁盘，把redo log 放到该缓冲区，然后根据 innodb_flush_log_at_trx_commit参数的设置，再把日志从buffer 中flush 到磁盘中。
+
+innodb_flush_log_at_trx_commit
+
+innodb_flush_log_at_trx_commit=1，每次commit都会把redo log从redo log buffer写入到system，并fsync刷新到磁盘文件中。
+
+innodb_flush_log_at_trx_commit=2，每次事务提交时MySQL会把日志从redo log buffer写入到system，但只写入到file system buffer，由系统内部来fsync到磁盘文件。如果数据库实例crash，不会丢失redo log，但是如果服务器crash，由于file system buffer还来不及fsync到磁盘文件，所以会丢失这一部分的数据。
+innodb_flush_log_at_trx_commit=0，事务发生过程，日志一直激励在redo log buffer中，跟其他设置一样，但是在事务提交时，不产生redo 写操作，而是MySQL内部每秒操作一次，从redo log buffer，把数据写入到系统中去。如果发生crash，即丢失1s内的事务修改操作。
+
+注意：由于进程调度策略问题,这个“每秒执行一次 flush(刷到磁盘)操作”并不是保证100%的“每秒”。
+```
+
+
+
+
+
+
+
+#### 三种落盘方式
+
+Buffer Pool **每秒**-> OS Buffer 每次-> 磁盘	Mysql宕机问题
+
+Buffer Pool 每次-> OS Buffer **每秒**-> 磁盘	OS宕机问题
+
+Buffer Pool 每次-> OS Buffer 每次-> 磁盘	性能问题
+
+![image-20210414225643181](image.assets/image-20210414225643181.png)
+
+mysql路径/var/lib/mysql/下,ib_logfile0/1两个文件用于redo的持久化,能防止mysql宕机
+
+0用于
+
+
+
+ib_logfile文件个数由innodb_log_files_in_group决定，并进行循环使用，binary log不是循环使用，在写满或者重启之后，会生成新的binary log文件
+
+ib_logfile包含commit和uncommit的数据
+
+binary log只有commit的数据
 
 
 
@@ -1835,6 +2377,80 @@ Innodb_flush_log_at_trx_commit：持久化Redo的策略，
 
 
 
+#### 恢复策略
+
+
+
+未提交的事务和回滚事务也会记录Redo Log，因此在进行恢复时,这些事务要进行特殊处理
+
+
+
+**2种恢复策略**
+
+1. 只重做已经提交了的事务
+2. **重做redo所有事务(未提交/回滚),然后通过Undo Log回滚那些未提交的事务** InnoDB默认
+
+
+
+
+
+
+
+A. 在重做Redo Log时，并不关心事务性。 恢复时，没有BEGIN，也没有COMMIT,ROLLBACK的行为。也不关心每个日志是哪个事务的。尽管事务ID等事务相关的内容会记入Redo Log，这些内容只是被当作要操作的数据的一部分。
+
+
+
+
+
+**重做redo所有事务(未提交/回滚),然后通过Undo Log回滚那些未提交的事务** InnoDB默认
+
+此策略必须将Undo持久化，而且必须在写Redo之前将Undo写入磁盘。Undo和Redo Log的这种关联，使得持久化变得复杂起来。为了降低复杂度，InnoDB将Undo Log看作数据，因此记录Undo Log的操作也会记录到redo log中,这样undo就可以象数据一样缓存起来，而不用在redo log之前写入磁盘了
+
+包含Undo Log操作的Redo Log，看起来是这样的：
+
+```mysql
+     记录1: <trx1, Undo log insert <undo_insert …>>
+     记录2: <trx1, insert …>
+     记录3: <trx2, Undo log insert <undo_update …>>
+     记录4: <trx2, update …>
+     记录5: <trx3, Undo log insert <undo_delete …>>
+     记录6: <trx3, delete …>123456
+```
+
+
+
+到这里，还有一个问题没有弄清楚。既然Redo没有事务性，那岂不是会重新执行被回滚了的事务？
+确实是这样。同时Innodb也会将事务回滚时的操作也记录到redo log中。回滚操作本质上也是
+对数据进行修改，因此回滚时对数据的操作也会记录到Redo Log中。
+一个回滚了的事务的Redo Log，看起来是这样的：
+
+```
+  记录1: <trx1, Undo log insert <undo_insert …>>
+     记录2: <trx1, insert A…>
+     记录3: <trx1, Undo log insert <undo_update …>>
+     记录4: <trx1, update B…>
+     记录5: <trx1, Undo log insert <undo_delete …>>
+     记录6: <trx1, delete C…>
+     记录7: <trx1, insert C>
+     记录8: <trx1, update B to old value>
+     记录9: <trx1, delete A>123456789
+ 一个被回滚了的事务在恢复时的操作就是先redo再undo，因此不会破坏数据的一致性。
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #### 事务中的非事务性语句
@@ -1851,22 +2467,138 @@ Innodb_flush_log_at_trx_commit：持久化Redo的策略，
 
 
 
-## 只读事务(Read-Only transaction)
+
+
+
+
+#### 数据更新流程
+
+![image-20210414232250132](image.assets/image-20210414232250132.png)
+
+
+
+
+
+
+
+### Undo + Redo事务的简化过程
+
+假设有A、B两个数据，值分别为1,2，开始一个事务，事务的操作内容为：把1修改为3，2修改为4，那么实际的记录如下（简化）：
+
+1. 事务开始
+2. 记录A=1到undo log
+   C.修改A=3.
+   D.记录A=3到redo log.
+   E.记录B=2到undo log.
+   F.修改B=4.
+   G.记录B=4到redo log.
+   H.将redo log写入磁盘。
+   I.事务提交
+
+
+
+### IO影响
+
+Undo + Redo的设计主要考虑的是提升IO性能，增大数据库吞吐量。可以看出，B D E G H，均是新增操作，但是B D E G 是缓冲到buffer区，只有G是增加了IO操作，为了保证Redo Log能够有比较好的IO性能，InnoDB 的 Redo Log的设计有以下几个特点：
+
+A. 尽量保持Redo Log存储在一段连续的空间上。因此在系统第一次启动时就会将日志文件的空间完全分配。 以顺序追加的方式记录Redo Log,通过顺序IO来改善性能。
+B. 批量写入日志。日志并不是直接写入文件，而是先写入redo log buffer.当需要将日志刷新到磁盘时 (如事务提交),将许多日志一起写入磁盘.
+C. 并发的事务共享Redo Log的存储空间，它们的Redo Log按语句的执行顺序，依次交替的记录在一起，
+以减少日志占用的空间。例如,Redo Log中的记录内容可能是这样的：
+
+```
+ 记录1: <trx1, insert …>
+ 记录2: <trx2, update …>
+ 记录3: <trx1, delete …>
+ 记录4: <trx3, update …>
+ 记录5: <trx2, insert …>
+12345
+```
+
+D. 因为C的原因,当一个事务将Redo Log写入磁盘时，也会将其他未提交的事务的日志写入磁盘。
+E. Redo Log上只进行顺序追加的操作，当一个事务需要回滚时，它的Redo Log记录也不会从Redo Log中删除掉。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 慢查询日志
+
+
+
+
+
+
+
+### relay
+
+
+
+
+
+### error
+
+
+
+
+
+
+
+## 只读事务
+
+Read-Only transaction
 
 InnoDB通过如下两种方式来判断一个事务是否为只读事务
 １）在InnoDB中通过 start transaction read only 命令来开启，只读事务是指在事务中只允许读操作，不允许修改操作。如果在只读事务中尝试对数据库做修改操作会报错，报错后该事务依然是只读事务，'ERROR 1792 (25006): Cannot execute statement in a READ ONLY transaction.'
-２）autocommit 开关打开，并且语句是单条语句，并且这条语句是"non-locking" SELECT 语句，也就是不使用 FOR UPDATE/LOCK IN SHARED MODE 的 SELECT 语句。
+２）autocommit 开关打开，并且语句是单条语句，并且这条语句是"non-locking" SELECT 语句，也就是不使用 FOR UPDATE/LOCK IN SHARE MODE 的 SELECT 语句。
 优势：１）只读事务避免了为事务分配事务ID(TRX_ID域)的开销；２）对于密集读的场景，可以将一组查询请求包裹在只读事务中，既能提高性能，又能保证查询数据的一致性。
 
 
 
 
 
-## 多版本并发控制 MVCC
+## LBCC
+
+Lock-Based Concurrent Control	基于锁的并发控制
+
+对读写操作加不同的锁，以及对释放锁的时机进行不同的控制，可以实现四种隔离级别
+
+但只能解决并发的读读场景,**读写性能低**
 
 
 
-Multi-Version Concurrency Control
+- 读未提交（Read Uncommitted）：事务读不阻塞其他事务读和写，事务写阻塞其他事务写但不阻塞读；通过对写操作加 “持续X锁”，对读操作不加锁 实现；
+- 读已提交（Read Committed）：事务读不会阻塞其他事务读和写，事务写会阻塞其他事务读和写；通过对写操作加 “持续X锁”，对读操作加 “临时S锁” 实现；不会出现脏读；
+- 可重复读（Repeatable Read）：事务读会阻塞其他事务事务写但不阻塞读，事务写会阻塞其他事务读和写；通过对写操作加 “持续X锁”，对读操作加 “持续S锁” 实现；
+- 序列化（Serializable）：为了解决幻读问题，行级锁做不到，需使用表级锁。
+
+
+
+
+
+
+
+
+
+
+
+## MVCC
+
+Multi-Version Concurrency Control 多版本并发控制
+
+
+
+==隐式字段，undo日志 ，Read View==
 
 访问版本链,实现不加锁/非阻塞的并发读,只适用于RR和RC隔离级别的普通SELECT操作,RU总是读最新的行,串行化会对读取行加锁
 
@@ -1874,7 +2606,11 @@ Multi-Version Concurrency Control
 
 
 
-==隐式字段，undo日志 ，Read View==
+==解决快照读的幻读==,[但无法完全避免](#幻读).除了这个案例,单纯的快照/当前读都不存在幻读
+
+==但快照/当前读混合使用,将无法避免幻读==
+
+
 
 
 
@@ -1882,25 +2618,13 @@ Multi-Version Concurrency Control
 
 
 
-|              |                                                              | 字节 |
-| ------------ | ------------------------------------------------------------ | ---- |
-| DB_ROLL_PTR  | 回滚指针，指向上一个版本（存储于rollback segment里）         | 7    |
-| DATA_TRX_ID  | 最近更新行记录的事务ID                                       | 6    |
-| DB_ROW_ID    | 隐藏的自增ID，==没有主键则以DB_ROW_ID生成聚簇索引==          | 6    |
-| deleted_flag | 标志删除,==更新/删除操作都操作deleted_bit，不将过时的记录删除,实现MVCC== |      |
+| DB_ROLL_PTR  | 回滚指针，指向上一个版本（存储于rollback segment）  | 7字节 |
+| ------------ | --------------------------------------------------- | ----- |
+| DATA_TRX_ID  | 最近更新行记录的事务ID                              | 6     |
+| DB_ROW_ID    | 隐藏的自增ID，==没有主键则以DB_ROW_ID生成聚簇索引== | 6     |
+| deleted_flag | 标志删除,==不将过时的记录删除,实现MVCC==            |       |
 
 
-
-==快照读的结果依赖于该事务首次快照读的实际==
-
-| 事务A      | 事务B                                | 事务C                                |
-| ---------- | ------------------------------------ | ------------------------------------ |
-| 开启事务   | 开启事务                             |                                      |
-| 快照读,500 | 快照读,500                           |                                      |
-| 更新为400  |                                      |                                      |
-| 提交事务   |                                      |                                      |
-|            | select 快照读,500                    | select 快照读,==400==                |
-|            | select lock in share mode 当前读,400 | select lock in share mode 当前读,400 |
 
 
 
@@ -1912,39 +2636,56 @@ MVCC的update/delete都只改动deleted_bit，在提交后由purge线程清理de
 
 
 
-
-
-
-
 ### 快照/当前读
-
-
 
 每个事务对同一张表/同一时刻,看到的数据可能不一致
 
 
 
-快照读：乐观
-* 不加锁,非阻塞,读到的不一定最新
-* 普通的SELECT就是innodb快照读，**数据由cache(原本数据) + undo(事务记录) 两部分组成**
+| 快照读                                                       | 当前读                           |
+| ------------------------------------------------------------ | -------------------------------- |
+| 普通select                                                   | 乐观/悲观读/update/delete/insert |
+| [不保证最新](#快照读案例),数据由cache(原本数据)+undo(事务记录) 组成 | 总是读最新数据                   |
+| 不加锁,==无法避免ABA==                                       |                                  |
+
+
+
+#### RC/RR快照读区别
+
+
+
+**Read View生成时机不同，造成RC,RR级别下快照读的结果不同**
+
+Read Committed	**每次**Read，建立Read View
+
+Repeatable Read	首次Read，建立Read View(之后的修改不可见)
+
+
+
+| 可重复读 | REPEATEABLE READ                                             |
+| -------- | ------------------------------------------------------------ |
+| SELECT   | (行的事务ID<=当前事务ID) && (不存在删除行\|\|删除行的事务ID>当前事务ID)  保证读取到的行在事务开始前已存在，或是事务自身插入/修改过的 |
+| INSERT   | 当前事务ID                                                   |
+| UPDATE   | 新增一行,记录当前事务ID.并更新旧版本的删除标志位             |
+| DELETE   | 当前事务ID                                                   |
 
 
 
 
 
+### 读视图 Read View
+
+cache + ==undo(回滚指针 ROLL_PTR)== + 当前活跃事务列表TRX_IDs(TRX_ID_MIN/MAX最大最小的事务)
+
+用于可见性判断:当前事务能够看到哪个版本的数据
+
+RC级别下,每次读都重新生成读视图
+
+RR级别下,**加锁读重新生成读视图**
 
 
 
-
-#### 读视图 Read View
-
-RR级别下,事务第一次快照读时,由 cache + undo + 当前活跃事务列表 产生读视图,用于可见性判断:当前事务能够看到哪个版本的数据
-
-RC级别下,每次快照读都重新生成读视图
-
-
-
-**3个全局属性**
+#### 3个全局属性
 
 * Read View生成时,活跃的事务ID列表
 * 列表中最小的ID
@@ -1963,14 +2704,38 @@ RC级别下,每次快照读都重新生成读视图
 
 
 
-**可见性算法**	将要被修改的数据的当前行ID，与Read View维护的其他活跃事务的ID对比
+#### 可见性算法
 
-* ID < 最小ID   该行在创建快照之前提交,**可见**
+将要被修改的数据的当前行ID，与Read View维护的其他活跃事务的ID对比
+
+
+
+* TRX_ID \< TRX_ID_MIN   该行在创建快照之前提交,**可见**
+* TRX_ID \> TRX_ID_MAX   该行在事务启动之后提交，不可见
 * ID>=下个ID    **不可见,在该行的事务链中寻找旧ID**
 * 最小ID < ID < 下个ID  该行可能处于 活跃状态/已提交状态
   * ID存在于列表  该行活跃,**不可见,在该行的事务链中寻找旧ID**
   * 不存在        该行已提交,**可见**
 * 如果ID跟Read View的属性不符合可见性，通过DB_ROLL_PTR回滚指针去取出Undo Log中的ID再比较，即遍历链表的ID（链首->链尾，从最近的一次修改查起）
+
+
+
+
+
+- TRX_ID \< TRX_ID_MIN，表示该数据行快照时在当前所有未提交事务之前进行更改的，因此可以使用。
+
+- TRX_ID \> TRX_ID_MAX，表示该数据行快照是在事务启动之后被更改的，因此不可使用。
+- TRX_ID_MIN \<= TRX_ID \<= TRX_ID_MAX，需要根据隔离级别再进行判断：
+  - 提交读：如果 TRX_ID  在 TRX_IDs  列表中，表示该数据行快照对应的事务还未提交，则该快照不可使用。否则表示已经提交，可以使用。
+  - 可重复读：都不可以使用。因为如果可以使用的话，那么其它事务也可以读到这个数据行快照并进行修改，那么当前事务再去读这个数据行得到的值就会发生改变，也就是出现了不可重复读问题。
+
+在数据行快照不可使用的情况下，需要沿着 Undo Log 的回滚指针 ROLL_PTR  找到下一个快照，再进行上面的判断
+
+
+
+
+
+
 
 
 
@@ -2027,25 +2792,6 @@ RC级别下,每次快照读都重新生成读视图
 
 
 
-### RC/RR快照读区别
-
-
-
-**Read View生成时机不同，造成RC,RR级别下快照读的结果不同**
-
-Read Committed	**每次**Read，建立Read View
-
-Repeatable Read	首次Read，建立Read View(之后的修改不可见)
-
-
-
-| 可重复读 | REPEATEABLE READ                                             |
-| -------- | ------------------------------------------------------------ |
-| SELECT   | (行的事务ID<=当前事务ID) && (不存在删除行\|\|删除行的事务ID>当前事务ID)  保证读取到的行在事务开始前已存在，或是事务自身插入/修改过的 |
-| INSERT   | 当前事务ID                                                   |
-| UPDATE   | 新增一行,记录当前事务ID.并更新旧版本的删除标志位             |
-| DELETE   | 当前事务ID                                                   |
-
 
 
 # 锁
@@ -2072,253 +2818,148 @@ Repeatable Read	首次Read，建立Read View(之后的修改不可见)
 
 
 
-![](image.assets/锁兼容性.png)
+|      | IS   | IX   | S    | X    |
+| ---- | ---- | ---- | ---- | ---- |
+| IS   | √    | √    | √    |      |
+| IX   | √    | √    |      |      |
+| S    | √    |      | √    |      |
+| X    |      |      |      |      |
 
 
 
-
-
-## 死锁
-
-
-
-### 2种策略
-
-1. innodb_lock_wait_timeout 设置超时时间(默认50s)
-2. innodb_deadlock_detect = on 设置死锁检测(默认开启),根据等待图(wait-for-graph)判断死锁，选择回滚权重较⼩的事务(undo较⼩)
-
-
-
-
-
-### 案例
-
-
-
-
-
-#### 何登成
+![](image.assets/aa4d1c071cab275a029292400c4e3d06cfe.jpg)
 
 
 
 ```mysql
-CREATE TABLE dltask (
-  id bigint unsigned NOT NULL AUTO_INCREMENT COMMENT ‘auto id’,
-  a varchar(30) NOT NULL COMMENT ‘uniq.a’,
-  b varchar(30) NOT NULL COMMENT ‘uniq.b’,
-  c varchar(30) NOT NULL COMMENT ‘uniq.c’,
-  x varchar(30) NOT NULL COMMENT ‘data’,
-  PRIMARY KEY (id),
-  UNIQUE KEY uniq_abc (a, b, c)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT=’deadlock test';
-//id主键,二级唯一索引(a，b，c)
-```
-
-
-
-```mysql
-delete from dltask where a=? and b=? and c=?;
-
-explain select * from dltask where a='d' and b='b' and c='c';
-
-id | select_type | table | type | possible_keys | key | key_len | ref							 | rows | Extra
-1	| Simple			| dltask | const | uniq_abc	| uniq_abc | 276 	| 	const,const,const | 1		 | 
-```
-
-
-
-**死锁日志**
-
-![](image.assets/死锁日志.png)
-
-
-
-**初步分析**
-
-并发事务，每个事务只有一条SQL语句：给定唯一的二级索引键值，删除一条记录。每个事务，最多只会删除一条记录，为什么会产生死锁？这绝对是不可能的。但是，事实上，却真的是发生了死锁。产生死锁的两个事务，删除的是同一条记录，这应该是死锁发生的一个潜在原因，但是，即使是删除同一条记录，从原理上来说，也不应该产生死锁。因此，经过初步分析，这个死锁是不可能产生的。这个结论，远远不够！
-
-***\*如何阅读死锁日志\****
-
-在详细给出此死锁产生的原因之前，让我们先来看看，如何阅读MySQL给出的死锁日志。
-
-以上打印出来的死锁日志，由InnoDB引擎中的lock0lock.c::lock_deadlock_recursive()函数产生。死锁中的事务信息，通过调用函数lock_deadlock_trx_print()处理；而每个事务持有、等待的锁信息，由lock_deadlock_lock_print()函数产生。
-
-例如，以上的死锁，有两个事务。事务1，当前正在操作一张表(mysql tables in use 1)，持有两把锁(2 lock structs，一个表级意向锁，一个行锁(1 row lock))，这个事务，当前正在处理的语句是一条delete语句。同时，这唯一的一个行锁，处于等待状态(WAITING FOR THIS LOCK TO BE GRANTED)。
-
-事务1等待中的行锁，加锁的对象是唯一索引uniq_a_b_c上页面号为12713页面上的一行(注：具体是哪一行，无法看到。但是能够看到的是，这个行锁，一共有96个bits可以用来锁96个行记录，n bits 96：lock_rec_print()方法)。同时，等待的行锁模式为next key锁(lock_mode X)。(注：关于InnoDB的锁模式，可参考我早期的一篇PPT：《InnoDB 事务/锁/多版本 实现分析》。简单来说，next key锁有两层含义，一是对当前记录加X锁，防止记录被并发修改，同时锁住记录之前的GAP，防止有新的记录插入到此记录之前。)
-
-同理，可以分析事务2。事务2上有两个行锁，两个行锁对应的也都是唯一索引uniq_a_b_c上页面号为12713页面上的某一条记录。一把行锁处于持有状态，锁模式为X lock with no gap(注：记录锁，只锁记录，但是不锁记录前的GAP，no gap lock)。一把行锁处于等待状态，锁模式为next key锁(注：与事务1等待的锁模式一致。同时，需要注意的一点是，事务2的两个锁模式，并不是一致的，不完全相容。持有的锁模式为X lock with no gap，等待的锁模式为next key lock X。因此，并不能因为持有了X lock with no gap，就可以说next key lock X就一定能够加上。)。
-
-分析这个死锁日志，就能发现一个死锁。事务1的next key lock X正在等待事务2持有的X lock with no gap(行锁X冲突)，同时，事务2的next key lock X，却又在等待事务1正在等待中的next key锁(注：这里，事务2等待事务1的原因，在于公平竞争，杜绝事务1发生饥饿现象。)，形成循环等待，死锁产生。
-
-死锁产生后，根据两个事务的权重，事务1的权重更小，被选为死锁的牺牲者，回滚。
-
-根据对于死锁日志的分析，确认死锁确实存在。而且，产生死锁的两个事务，确实都是在运行同样的基于唯一索引的等值删除操作。既然死锁确实存在，那么接下来，就是抓出这个死锁产生原因。
-
-***\*死锁原因深入剖析\****
-
-***\*Delete操作的加锁逻辑\****
-
-在《MySQL加锁处理分析》一文中，我详细分析了各种SQL语句对应的加锁逻辑。例如：Delete语句，内部就包含一个当前读(加锁读)，然后通过当前读返回的记录，调用Delete操作进行删除。在此文的 组合六：id唯一索引+RR 中，可以看到，RR隔离级别下，针对于满足条件的查询记录，会对记录加上排它锁(X锁)，但是并不会锁住记录之前的GAP(no gap lock)。对应到此文上面的死锁例子，事务2所持有的锁，是一把记录上的排它锁，但是没有锁住记录前的GAP(lock_mode X locks rec but not gap)，与我之前的加锁分析一致。
-
-其实，在《MySQL加锁处理分析》一文中的 组合七：id非唯一索引+RR 部分的最后，我还提出了一个问题：如果组合五、组合六下，针对SQL：select * from t1 where id = 10 for update; 第一次查询，没有找到满足查询条件的记录，那么GAP锁是否还能够省略？针对此问题，参与的朋友在做过试验之后，给出的正确答案是：此时GAP锁不能省略，会在第一个不满足查询条件的记录上加GAP锁，防止新的满足条件的记录插入。
-
-其实，以上两个加锁策略，都是正确的。以上两个策略，分别对应的是：1）唯一索引上满足查询条件的记录存在并且有效；2）唯一索引上满足查询条件的记录不存在。但是，除了这两个之外，其实还有第三种：3）唯一索引上满足查询条件的记录存在但是无效。众所周知，InnoDB上删除一条记录，并不是真正意义上的物理删除，而是将记录标识为删除状态。(注：这些标识为删除状态的记录，后续会由后台的Purge操作进行回收，物理删除。但是，删除状态的记录会在索引中存放一段时间。) 在RR隔离级别下，唯一索引上满足查询条件，但是却是删除记录，如何加锁？InnoDB在此处的处理策略与前两种策略均不相同，或者说是前两种策略的组合：对于满足条件的删除记录，InnoDB会在记录上加next key lock X(对记录本身加X锁，同时锁住记录前的GAP，防止新的满足条件的记录插入。) Unique查询，三种情况，对应三种加锁策略，总结如下：
-
-**找到满足条件的记录，并且记录有效**，则对记录加X锁，No Gap锁(lock_mode X locks rec but not gap)； **找到满足条件的记录，但是记录无效**(标识为删除的记录)，则对记录加next key锁(同时锁住记录本身，以及记录之前的Gap：lock_mode X);
-
-**未找到满足条件的记录**，则对第一个不满足条件的记录加Gap锁，保证没有满足条件的记录插入(locks gap before rec)；
-
-此处，我们看到了next key锁，是否很眼熟？对了，前面死锁中事务1，事务2处于等待状态的锁，均为next key锁。明白了这三个加锁策略，其实构造一定的并发场景，死锁的原因已经呼之欲出。但是，还有一个前提策略需要介绍，那就是InnoDB内部采用的死锁预防策略。
-
-***\*死锁预防策略\****
-
-InnoDB引擎内部(或者说是所有的数据库内部)，有多种锁类型：事务锁(行锁、表锁)，Mutex(保护内部的共享变量操作)、RWLock(又称之为Latch，保护内部的页面读取与修改)。
-
-InnoDB每个页面为16K，读取一个页面时，需要对页面加S锁，更新一个页面时，需要对页面加上X锁。任何情况下，操作一个页面，都会对页面加锁，页面锁加上之后，页面内存储的索引记录才不会被并发修改。
-
-因此，为了修改一条记录，InnoDB内部如何处理：
-
-根据给定的查询条件，找到对应的记录所在页面；对页面加上X锁(RWLock)，然后在页面内寻找满足条件的记录；在持有页面锁的情况下，对满足条件的记录加事务锁(行锁：根据记录是否满足查询条件，记录是否已经被删除，分别对应于上面提到的3种加锁策略之一)； **死锁预防策略**：相对于事务锁，页面锁是一个短期持有的锁，而事务锁(行锁、表锁)是长期持有的锁。因此，为了防止页面锁与事务锁之间产生死锁。InnoDB做了死锁预防的策略：持有事务锁(行锁、表锁)，可以等待获取页面锁；但反之，持有页面锁，不能等待持有事务锁。根据死锁预防策略，在持有页面锁，加行锁的时候，如果行锁需要等待。则释放页面锁，然后等待行锁。此时，行锁获取没有任何锁保护，因此加上行锁之后，记录可能已经被并发修改。因此，此时要重新加回页面锁，重新判断记录的状态，重新在页面锁的保护下，对记录加锁。如果此时记录未被并发修改，那么第二次加锁能够很快完成，因为已经持有了相同模式的锁。但是，如果记录已经被并发修改，那么，就有可能导致本文前面提到的死锁问题。 以上的InnoDB死锁预防处理逻辑，对应的函数，是row0sel.c::row_search_for_mysql()。感兴趣的朋友，可以跟踪调试下这个函数的处理流程，很复杂，但是集中了InnoDB的精髓。
-
-***\*剖析死锁的成因\****
-
-做了这么多铺垫，有了Delete操作的3种加锁逻辑、InnoDB的死锁预防策略等准备知识之后，再回过头来分析本文最初提到的死锁问题，就会手到拈来，事半而功倍。
-
-首先，假设dltask中只有一条记录：(1, ‘a’, ‘b’, ‘c’, ‘data’)。三个并发事务，同时执行以下的这条SQL：
-
-delete from dltask where a=’a’ and b=’b’ and c=’c’;
-
-并且产生了以下的并发执行逻辑，就会产生死锁：
-
-![](image.assets/146086675786736069.png)
-
-
-
-上面分析的这个并发流程，完整展现了死锁日志中的死锁产生的原因。其实，根据事务1步骤6，与事务0步骤3/4之间的顺序不同，死锁日志中还有可能产生另外一种情况，那就是事务1等待的锁模式为记录上的X锁 + No Gap锁(lock_mode X locks rec but not gap waiting)。这第二种情况，也是”润洁”同学给出的死锁用例中，使用MySQL 5.6.15版本测试出来的死锁产生的原因。
-
-***\*总结\****
-
-行文至此，MySQL基于唯一索引的单条记录的删除操作并发，也会产生死锁的原因，已经分析完毕。其实，分析此死锁的难点，在于理解MySQL/InnoDB的行锁模式，针对不同情况下的加锁模式的区别，以及InnoDB处理页面锁与事务锁的死锁预防策略。明白了这些，死锁的分析就会显得清晰明了。
-
-最后，总结下此类死锁，产生的几个前提：
-
-Delete操作，针对的是唯一索引上的等值查询的删除；(范围下的删除，也会产生死锁，但是死锁的场景，跟本文分析的场景，有所不同)至少有3个(或以上)的并发删除操作；
-
-并发删除操作，有可能删除到同一条记录，并且保证删除的记录一定存在；
-
-事务的隔离级别设置为Repeatable Read，同时未设置innodb_locks_unsafe_for_binlog参数(此参数默认为FALSE)；(Read Committed隔离级别，由于不会加Gap锁，不会有next key，因此也不会产生死锁)
-
-
-
-
-
-#### 记一次Insert死锁
-
-
-
-```mysql
-CREATE TABLE `role_menu_info` (
-  `id` int(10) NOT NULL AUTO_INCREMENT ,
-  `role_id` varchar(30) NOT NULL DEFAULT '' ,
-  `menu_id` varchar(30) NOT NULL DEFAULT '' ,
-  `is_deleted` tinyint(4) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE KEY `role_id_menu_id_unique` (`role_id`,`menu_id`) USING BTREE
-) ENGINE=InnoDB;
+SELECT * FROM information_schema.INNODB_TRX;	#活跃事务
+ 
+ SELECT * FROM information_schema.INNODB_LOCKs;	#当前锁
+ 
+SELECT * FROM information_schema.INNODB_LOCK_waits;	#锁等待关系
 ```
 
 
 
 
 
-#### 代码逻辑
-
-1. 业务系统中的 createRole() 方法，调用权限服务的 roleRpc.createRole() 接口方法创建角色并赋予权限。
-2. roleRpc.createRole() 方法，逻辑是先调用 saveRoleInfo() 方法创建角色，再调用 overrideAllMenu() 方法为该角色赋予菜单权限。
-3. overrideAllMenu() 方法，逻辑是先逻辑删除指定 roleId 下的所有 menu 权限，再为其赋予指定的 menuId 集合。
-
-roleRpc.createRole() 方法、overrideAllMenu() 方法均有 @Transactional 注解，采用的是 Spring 的默认事务传播 PROPAGATION_REQUIRED，如果当前存在事务则加入。
-
-伪代码：
-
-```java
-createRole() { 
-	roleRpc.createRole() { 
-        String roleId = saveRoleInfo();
-        overrideAllMenu() { 
-            deleteByRoleId(roleId);
-            for (String menuId : menuIds) { 
-                insertRoleMenu(roleId, menuId);
-            }
-        }
-    }
-}
-```
+## lock_sys
 
 
 
-
-
-![](image.assets/死锁日志1.png)
-
+所有事务锁对象都挂在==全局对象==lock_sys上，同时每个==事务对象==上也维持了其拥有的事务锁，每个==表对象==上维持了构建在其上的表级锁对象
 
 
 
-
-死锁发生在二级索引 role_id_menu_id_unique 上，要插入的两条数据：
-
-```
-role_id = ***9264, menu_id = ***1936
-role_id = ***9440, menu_id = ***1632
-```
+![](image.assets/4cf13f9cb5574d289716f0ffcf57aaa4c3c4fa4e.png)
 
 
 
-可以确定，这个死锁中的 X 锁本身不是由 INSERT 产生的，因为 INSERT 可能产生的锁包括插入意向锁、检查 duplicate key 时的 S 锁。
+**加表级锁**
 
-而在二级索引上产生X锁，一般是根据二级索引进行记录更新导致的。回看上面的代码逻辑，事务中，在 INSERT 之前，根据 roleId 进行了 UPDATE 操作
+- 首先从当前事务的`trx_lock_t::table_locks`中查找是否已经加了等同或更高级别的表锁，如果已经加锁了，则直接返回成功。（`lock_table_has`）
+- 检查当前是否有和当前申请的锁模式冲突的表级锁对象（`lock_table_other_has_incompatible`）
+  - 直接遍历链表`dict_table_t::locks`链表
+- 如果存在冲突的锁对象，则需要进入等待队列（`lock_table_enqueue_waiting`）
+  - 创建等待锁对象 （`lock_table_create`）
+  - 检查是否存在死锁（`DeadlockChecker::check_and_resolve`），当存在死锁时：如果当前会话被选作牺牲者，就移除锁请求(`lock_table_remove_low`)，重置当前事务的wait_lock为空，并返回错误码DB_DEADLOCK；若被选成胜利者，则锁等待解除，可以认为当前会话已经获得了锁，返回成功。
+  - 若没有发生死锁，设置事务对象的相关变量后，返回错误码DB_LOCK_WAIT，随后进入锁等待状态
+- 如果不存在冲突的锁，则直接创建锁对象（`lock_table_create`），加入队列
 
-仔细查看死锁的日志，WAITING FOR THIS LOCK TO BE GRANTED 的内容：
+`lock_table_create`: 创建锁对象
 
-- “page no 155 n bits 344”  在第 155 页的记录上，lock bitmap 共 344 位
-- “index role_id_menu_id_unique” 代表锁位于的索引
-- “heap no” 代表记录的序号，0:infimum Record、1:supremum Record，用户记录从 2 开始
-- “PHYSICAL RECORD” 后面的内容是索引记录的内存结构，通常无法直接阅读
+- 当前请求的是AUTO-INC锁时
+  - 递增`dict_table_t::n_waiting_or_granted_auto_inc_locks`。前面我们已经提到过，当这个值非0时，对于自增列的插入操作就会退化到OLD-STYLE。
+  - 锁对象直接引用已经预先创建好的`dict_table_t::autoinc_lock`，并加入到`trx_t::autoinc_locks`集合中。
+- 对于非AUTO-INC锁，则从一个pool中分配锁对象。
+  - 在事务对象`trx_t::lock`中，维持了两个pool，一个是`trx_lock_t::rec_pool`，预分配了一组锁对象用于记录锁分配，另外一个是`trx_lock_t::table_pool`，用于表级锁的锁对象分配。通过预分配内存的方式，可以避免在持有全局大锁时(`lock_sys->mutex`)进行昂贵的内存分配操作。rec_pool和table_pool预分配的大小都为8个锁对象。（`lock_trx_alloc_locks`）
+  - 如果table_pool已经用满，则走内存分配，创建一个锁对象
+- 构建好的锁对象分别加入到事务的`trx_t::lock.trx_locks`链表上以及表对象的`dict_table_t::locks`链表上。
+- 构建好的锁对象加入到当前事务的`trx_t::lock.table_locks`集合中。
 
-可以看到，两个事务在同一数据页上，均为 supremum 记录加上了 Next-Key 锁，造成了之后的循环等待
+可以看到锁对象会加入到不同的集合或者链表中，通过挂载到事务对象上，可以快速检查当前事务是否已经持有表锁；通过挂到表对象的锁链表上，可以用于检查该表上的全局冲突情况。
 
-业务场景如下：
+**加行级锁**
 
-| 时刻 | 事务1                                                        | 事务2                                                        |
-| ---- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| t1   | begin                                                        |                                                              |
-| t2   | update role_menu_info set is_deleted = 1 where role_id = ‘9264’; | begin                                                        |
-| t3   |                                                              | update role_menu_info set is_deleted = 1 where role_id = ‘9440’; |
-| t4   | insert into role_menu_info (id, rolr_id, menu_id, is_deleted) values (null, 9264, 1936, 0); |                                                              |
-| t5   |                                                              | insert into role_menu_info (id, rolr_id, menu_id, is_deleted) values (null, 9440, 1632, 0); |
+行级锁加锁的入口函数为`lock_rec_lock`，其中第一个参数impl如果为TRUE，则当当前记录上已有的锁和`LOCK_X | LOCK_REC_NOT_GAP`不冲突时，就无需创建锁对象。（见上文关于记录锁LOCK_X相关描述部分），为了描述清晰，下文的流程描述，默认impl为false。
 
-思考一下，由于是首次创建角色，role_menu_info 表中不存在该角色对应的记录，所以 overrideAllMenu() 方法中的第一步 deleteByRoleId() ，实际上是对不存在的记录进行更新
+`lock_rec_lock`：
 
-- t2 时刻：事务 1 更新 role_id = ‘9264’ 的记录，没有满足条件的记录行，RR 隔离级别下，持有了 heap no 为 1 的 supremum 记录行的 Next-Key 锁。
-- t3 时刻：事务 2 也更新不存在的记录 role_id = ‘9440’，同理，持有 supremum 记录的 Next-Key 锁。
-- t4 时刻：事务 1 尝试插入 (‘9264’, ‘1936’) 的数据，插入操作需要在相应的记录行加上插入意向锁，但是因为事务 2 持有了 supremum 的锁，与插入意向锁不兼容，即无法在数据表末尾进行插入，所以此时事务 1 等待事务 2 释放 supremum 的锁。
-- t5 时刻：同理，事务 2 尝试插入 (‘9440’, ‘1632’) 的数据，被事务 1 持有的 supremum的 锁阻塞，两个事务互相等待，发生死锁。数据库选择回滚了事务 2。
+- 首先尝试fast lock的方式，对于冲突少的场景，这是比较普通的加锁方式(`lock_rec_lock_fast`), 符合如下情况时，可以走fast lock:
+  - 记录所在的page上没有任何记录锁时，直接创建锁对象，加入rec_hash，并返回成功
+  - 记录所在的page上只存在一个记录锁，并且属于当前事务，且这个记录锁预分配的bitmap能够描述当前的heap no （预分配的bit数为创建锁对象时的page上记录数 + 64，参阅函数`RecLock::lock_size`），则直接设置对应的bit位并返回。
+- 无法走fast lock时，再调用slow lock的逻辑(`lock_rec_lock_slow`)
+  - 判断当前事务是否已经持有了一个优先级更高的锁，如果是的话，直接返回成功（`lock_rec_has_expl`）
+  - 检查是否存在和当前申请锁模式冲突的锁（`lock_rec_other_has_conflicting`），如果存在的话，就创建一个锁对象（`RecLock::RecLock`），并加入到等待队列中（`RecLock::add_to_waitq`），这里会进行死锁检测。
+  - 如果没有冲突的锁，则入队列（`lock_rec_add_to_queue`）：已经有在同一个Page上的锁对象且没有别的会话等待相同的heap no时，可以直接设置对应的bitmap（`lock_rec_find_similar_on_page`）；否则需要创建一个新的锁对象。
+- 返回错误码，对于DB_LOCK_WAIT, DB_DEADLOCK等错误码，会在上层进行处理。
+
+**等待及死锁判断**
+
+当发现有冲突的锁时，调用函数`RecLock::add_to_waitq`进行判断
+
+- 如果持有冲突锁的线程是内部的后台线程（例如后台dict_state线程），这个线程不会被一个高优先级的事务取消掉，因为总是优先保证内部线程正常执行。
+- 比较当前会话和持有锁的会话的事务优先级，调用函数trx_arbitrate 返回被选作牺牲者的事务
+  - 当前发起请求的会话是后台线程，但持有锁的会话设置了高优先级时，选择当前线程作为牺牲者
+  - 持有锁的线程为后台线程时，在第一步已经判断了，不会选作牺牲者
+  - 如果两个会话都设置了优先级，低优先级的被选做牺牲者，优先级相同时，请求者被选做牺牲者(`thd_tx_arbitrate`)
+  - PS: 目前最新版本的5.7还不支持用户端设置线程优先级（但增加一个配置session变量的接口非常容易)
+- 如果当前会话的优先级较低，或者另外一个持有锁的会话为后台线程，这时候若当前会话设置了优先级，直接报错，并返回错误码DB_DEADLOCK。
+  - 默认不设置优先级时，请求锁的会话也会被选作victim_trx，但只创建锁等待对象，不会直接返回错误。
+- 当持有锁的会话被选作牺牲者时，说明当前会话肯定设置了高优先级，这时候会走`RecLock::enqueue_priority`的逻辑
+  - 如果持有锁的会话在等待另外一个不同的锁时，或者持有锁的事务不是readonly的，当前会话会被回滚掉。
+  - 开始跳队列，直到当前会话满足加锁条件（`RecLock::jump_queue`）
+    - 请求的锁对象跳过阻塞它的锁对象，直接操作hash链表，将锁对象往前挪。
+    - 从当前lock，向前遍历链表，逐个判断是否有别的会话持有了相同记录上的锁（`RecLock::is_on_row`），并将这些会话标记为回滚（`mark_trx_for_rollback`）,同时将这些事务对象搜集下来，以待后续处理。（但直接阻塞当前会话的事务会被立刻回滚掉）
+  - 高优先级的会话非常具有杀伤力，其他低优先级会话即使拿到了锁，也会被它所干掉。
+
+不过实际场景中，我们并没有多少机会去设置事务的优先级，这里先抛开这个话题，只考虑默认的场景，即所有的事务优先级都未设置。
+
+在创建了一个处于WAIT状态的锁对象后，我们需要进行死锁检测（`RecLock::deadlock_check`），死锁检测采用深度优先遍历的方式，通过事务对象上的`trx_t::lock.wait_lock`构造事务的wait-for graph进行判断，当最终发现一个锁请求等待闭环时，可以判定发生了死锁。另外一种情况是，如果检测深度过长（即锁等待的会话形成的检测链路非常长），也会认为发生死锁，最大深度默认为`LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK`，值为200。
+
+当发生死锁时，需要选择一个牺牲者（`DeadlockChecker::select_victim()`）来解决死锁，通常事务权重低的回滚（`trx_weight_ge`）
+
+- 修改了非事务表的会话具有更高的权重；
+- 如果两个表都修改了、或者都没有修改事务表，那么就根据的事务的undo数量加上持有的事务锁个数来决定权值。（TRX_WEIGHT）
+- 低权重的事务被回滚，高权重的获得锁对象。
+
+Tips：对于一个经过精心设计的应用，我们可以从业务上避免死锁，而死锁检测本身是通过持有全局大锁来进行的，代价非常高昂，在阿里内部的应用中，由于有专业的团队来保证业务SQL的质量，我们可以选择性的禁止掉死锁检测来提升性能，尤其是在热点更新场景，带来的性能提升非常明显，极端高并发下，甚至能带来数倍的提升。
+
+当无法立刻获得锁时，会将错误码传到上层进行处理（`row_mysql_handle_errors`）
+
+- `DB_LOCK_WAIT`：
+  - 具有高优先级的事务已经搜集了会阻塞它的事务链表，这时候会统一将这些事务回滚掉（`trx_kill_blocking`）；
+  - 将当前的线程挂起（`lock_wait_suspend_thread`），等待超时时间取决于session级别配置（`innodb_lock_wait_timeout`），默认为50秒。
+  - 如果当前会话的状态设置为running，。一种是被选做死锁检测的牺牲者，需要回滚当前事务，另外一种是在进入等待前已经获得了事务锁，也无需等待
+  - 获得等待队列的一个空闲slot。（`lock_wait_table_reserve_slot`）
+    - 系统启动时，已经创建好了足够用的slot数组，类型为`srv_slot_t`，挂在`lock_sys->waiting_threads`上。
+    - 分配slot时，从slot数组的第一个元素开始遍历，直到找到一个空闲的slot。注意这里存在的一个性能问题是，如果挂起的线程非常多，每个新加入挂起等待的线程都需要遍历直到找到一个空闲的slot。 实际上如果每次遍历都从上次分配的位置往后找，到达数组末尾在循环到数组头，这样可以在高并发高锁冲突场景下获得一定的性能提升。
+  - 如果会话在innodb层（通常为true），则强制从InnoDB层退出，确保其不占用`innodb_thread_concurrency`的槽位。然后进入等待状态。被唤醒后，会再次强制进入InnoDB层
+  - 被唤醒后，释放slot（`lock_wait_table_release_slot`）
+  - 若被选作死锁的牺牲者了，返回上层回滚事务；若等待超时了，则根据参数`innodb_rollback_on_timeout`的配置，默认为OFF只回滚当前SQL，设置为ON表示回滚整个事务。
+- `DB_DEADLOCK`: 直接回滚当前事务
+
+**释放锁及唤醒**
+
+大多数情况下事务锁都是在事务提交时释放，但有两种意外：
+
+- AUTO-INC锁在SQL结束时直接释放（`innobase_commit --> lock_unlock_table_autoinc`）
+- 在RC隔离级别下执行DML语句时，从引擎层返回到Server层的记录，如果不满足where条件，则需要立刻unlock掉。（`ha_innobase::unlock_row`）
+
+除这两种情况外，其他的事务锁都是在事务提交时释放的。(`lock_trx_release_locks --> lock_release`)。 事务持有的所有锁都维护在链表`trx_t::lock.trx_locks`上，依次遍历释放即可。
+
+对于行锁，从全局hash中删除后，还需要判断别的正在等待的会话是否可以被唤醒（`lock_rec_dequeue_from_page`）。例如如果当前释放的是某个记录的X锁，那么所有的S锁请求的会话都可以被唤醒。
+
+这里的移除锁和检查的逻辑开销比较大，尤其是大量线程在等待少量几个锁时。当某个锁从hash链上移除时，InnoDB实际上通过遍历相同page上的所有等待的锁，并判断这些锁等待是否可以被唤醒。而判断唤醒的逻辑又一次遍历，这是因为当前的链表维护是基于的，并不是基于Heap no构建的。关于这个问题的讨论，可以参阅[bug#53825](http://bugs.mysql.com/bug.php?id=53825)。官方开发Sunny也提到虽然使用来构建链表，移除Bitmap会浪费更多的内存，但效率更高，而且现在的内存也没有以前那么昂贵。
+
+对于表锁，如果表级锁的类型不为LOCK_IS，且当前事务修改了数据，就将表对象的`dict_table_t::query_cache_inv_id`设置为当前最大的事务id。 在检查是否可以使用该表的Query Cache时会使用该值进行判断（`row_search_check_if_query_cache_permitted`），如果某个用户会话的事务对象的low_limit_id（即最大可见事务id）比这个值还小，说明它不应该使用当前table cache的内容，也不应该存储到query cache中。
+
+表级锁对象的释放调用函数`lock_table_dequeue`
+
+注意在释放锁时，如果该事务持有的锁对象太多，每释放1000（`LOCK_RELEASE_INTERVAL`）个锁对象，会暂时释放下`lock_sys->mutex`再重新持有，防止InnoDB hang住。
 
 
 
-##### 复现
-本地运行权限服务 roleRpc.createRole() 方法的单元测试，同时启动两个实例。该 dubbo 服务的默认端口号是 20881，需要设置第二个实例的 JVM 参数 -Ddubbo.protocol.port=20882，否则会提示 “Failed to bind NettyServer …, cause: Address already in use”。##
-
-在代码 “deleteByRoleId(roleId);” 执行完成处打上断点，此时可以查看数据库锁的情况：
-
-select * from information_schema.innodb_locks;
-
-查询结果如下：
-
-lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_page	lock_rec	lock_data
-312474981	312474981	X	RECORD	sso.role_menu_info	role_id_menu_id_unique	3502	61	1	supremum pseudo-record
-312474962	312474962	X	RECORD	sso.role_menu_info	role_id_menu_id_unique	3502	61	1	supremum pseudo-record
 
 
 
@@ -2328,11 +2969,18 @@ lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_pa
 
 
 
-## Lock_Mode
-
- 代表记录锁，lock_mode X locks gap before rec 代表间隙锁，lock_mode X 没有其他说明则代表 Next-Key Lock。
 
 
+
+## 隐式/显式锁
+
+普通select	快照读			不加锁
+
+普通 insert、update、delete	隐式写锁
+
+select… lock in share mode	显式读锁
+
+select… for update			显式写锁
 
 
 
@@ -2342,7 +2990,28 @@ lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_pa
 
 
 
-开销最小的锁策略
+五种锁模式：LOCK_IS、LOCK_IX、LOCK_X、LOCK_S以及LOCK_AUTO_INC
+
+
+
+X模式的表锁场景
+
+- DDL操作的最后一个阶段对表加LOCK_X锁，以确保没有别的事务持有表级锁。通常情况下Server层MDL锁已经能保证这一点了，在DDL的commit 阶段是加了排他的MDL锁的。但诸如外键检查或者刚从崩溃恢复的事务正在进行某些操作，这些操作都是直接InnoDB自治的，不走server层，也就无法通过MDL所保护
+- 当设置会话的autocommit变量为OFF时，执行`LOCK TABLE tbname WRITE`这样的操作会加表级的LOCK_X锁
+- 对某个表空间执行discard或者Import操作时，需要加LOCK_X锁
+
+
+
+S模式的表锁场景
+
+- 在DDL的第一个阶段，如果当前DDL不能通过ONLINE的方式执行，则对表加LOCK_S锁
+- 设置会话的autocommit为OFF，执行LOCK TABLE tbname READ时，会加LOCK_S锁
+
+
+
+
+
+开销最小的锁策略,==不会导致死锁==	**Myisam只有表锁**
 
 ```mysql
 Lock Tables 表名 Read/Write;
@@ -2352,7 +3021,7 @@ SHOW PROCESSLIST 查询状态为 Waiting for table,表明正处于表锁
 
 
 
-==表锁不会导致死锁==	行锁之间可能阻塞
+
 
 
 
@@ -2399,7 +3068,6 @@ struct {
 }
 
 
-
 //type_mode	⽆符号32位整型，从低位排列，第1字节为lock_mode，定义如下
   enum lock_mode {
   LOCK_IS = 0, /* intention shared */
@@ -2429,7 +3097,7 @@ struct {
 //从函数lock_rec_create（新建⼀个锁对象）可以看出这两个变量的作⽤：
 quoted code:
  HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
-• lock_rec_fold(space, page_no), lock);
+ lock_rec_fold(space, page_no), lock);
  lock_sys->rec_num++;
 
 //只有记录锁会存在lock_sys->rec_hash中， 表锁是不会存这⾥，只会插⼊到事务trx->trx_locks链表和对
@@ -2456,6 +3124,31 @@ SHOW PROCESSLIST 查询状态为 Waiting for release of readlock
 
 
 和设置数据库只读(set global readonly=true)相比，全局锁在发生异常时会自动释放,多用于做全库的逻辑备份
+
+
+
+### 自增锁
+
+
+
+LOCK_AUTO_INC	特殊的表锁
+
+在sql执⾏完就释放锁，并不是事务执⾏完。 对于Insert...select⼤数据量插⼊会影响插⼊性能，因为会阻塞另外⼀个事务执⾏
+
+
+
+```mysql
+show variables like 'innodb_autoinc_lock_mode';	#查看自增锁模式
+#0:传统模式:在分配前加上AUTO_INC锁，并在SQL结束时释放.影响并发插入性能，但保证一条SQL内自增值分配的连续性
+#1:连续模式(默认):对于插⼊的时候可以确定⾏数的使⽤互斥量，对于不能确定⾏数的使⽤表锁的模式
+#2:交错模式:所有都使⽤互斥量，为什么叫交错模式呢，有可能在批量插⼊时⾃增值不是连续的，⼀般来说如果不看重⾃增值连续⼀般选择这个模式，性能是最好的
+```
+
+
+
+
+
+
 
 
 
@@ -2516,7 +3209,7 @@ struct lock_rec_struct{
 
 
 
-## 间隙锁 S
+## 间隙锁
 
 LOCK_GAP ( , )
 
@@ -2526,7 +3219,7 @@ LOCK_GAP ( , )
 
 **查询范围内的索引项加锁,不包括记录本身(锁定条件范围内但并不存在的记录)**
 
-**只阻塞insert** -> ==防止幻读==
+**只阻塞insert** -> ==解决当前读的幻读==
 
 
 
@@ -2715,27 +3408,26 @@ lock in share model 读锁，不回表则不会对聚簇索引(主键索引)加�
 
 
 
-## 意向锁 S
+## 意向锁 IS/IX
 
 
 
 Intention Locks
 
-为了==兼容行锁和表锁==，InnoDB提供内部使用的意向共享锁（IS）/意向排他锁（IX）
-
-
+为了==兼容行锁和表锁==,==申请意向锁由数据库内部实现==,外部应用无感知
 
 加表锁时,为了不与行锁冲突需要遍历行锁情况.而意向锁的存在使得无需遍历表的加锁情况
 
-在行锁前申请意向锁,==意向锁只阻塞表级锁==,可以理解为意向表级锁,后续**添加表锁时,若发现意向锁,则表锁阻塞**
 
-==申请意向锁由数据库内部实现==,外部应用无感知
+
+在行锁前申请意向锁,==意向锁只阻塞表级锁,与行锁不冲突==,后续**添加表锁时,若发现意向锁,则表锁阻塞**
+
+意向锁之间相互兼容(各个行级的读写锁都会申请意向锁,但不会互相阻塞)
 
 
 
 **存在意向锁,但可能对应的S/X锁已经释放或还未申请成功**
 
-意向锁之间相互兼容(锁的申请是并发的)
 
 
 
@@ -2743,9 +3435,12 @@ Intention Locks
 
 
 
-## 插入意向锁 IX
+
+## 插入意向锁 (,) IX
 
 LOCK_INSERT_INTENTION
+
+==属于间隙锁的一种类型==,**不会阻塞任何锁,只会被间隙锁阻塞**
 
 **针对间隙范围内的行锁,插入间隙中的不同位置则兼容**,==用于解决间隙内插入的并发问题,不能避免幻读==
 
@@ -2757,31 +3452,11 @@ LOCK_INSERT_INTENTION
 
 
 
-但相互不冲突（因为插入的记录不冲突）
-
-当向某个数据页中插入一条记录时，总是会调用函数lock_rec_insert_check_and_lock进行锁检查,检查当前插入位置的下一条记录上是否存在锁对象
-如果下一条记录上不存在锁对象：若记录是二级索引上的，先更新二级索引页上的最大事务ID为当前事务的ID；直接返回成功。
-
-如果下一条记录上存在锁对象，就需要判断该锁对象是否锁住了GAP。如果GAP被锁住了，并判定和插入意向GAP锁冲突，当前操作就需要等待，加的锁类型为`LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION`，并进入等待状态。但是插入意向锁之间并不互斥。这意味着在同一个GAP里可能有多个申请插入意向锁的会话
+如果已经有两个索引记录 4 和 7， 两个会话分别插入 5 和 6，如果没有‘插入意向锁’而只有‘间隙锁’就会出现并发问题， 两个会话都会要求获取 4~7 记录之间的间隙锁 。 所以 MySQL 引入了插入意向锁， 同一个 gap 的IX插入意向锁相互兼容所以不会发生阻塞
 
 
 
 
-
-插⼊意向锁是在插⼊的时候产⽣的,在多个事务同时写⼊不同数据⾄同⼀索引间隙的时候，并不需要等待 其他事务完成，不会发⽣锁等待。假设有⼀个记录索引包含键值4和7，不同的事务分别插⼊5和6，每个 事务都会产⽣⼀个加在4-7之间的插⼊意向锁，获取在插⼊⾏上的排它锁，但是不会被互相锁住，因为数 据⾏并不冲突。
-
-
-
-
-
-
-
-
-
-首先插入意向锁是一种类型的间隙锁，锁模式是 IX， 而一般说的间隙锁（ Gap Locks ）锁模式是 X 。IX 和 X 的兼容性表中只有 IX 和 IX 兼容。
-就像 MySQL 文档第一段（正文引用的上面一段）说的, 如果已经有两个索引记录 4 和 7， 两个会话分别插入 5 和 6， 如果没有‘插入意向锁’而只有‘间隙锁’就会出现并发问题， 两个会话都会要求获取 4~7 记录之间的间隙锁 。 所以 MySQL 引入了插入意向锁， 同一个 gap 的插入意向锁相互兼容所以不会发生阻塞。
-
-下面说另外的问题， 为什么会有 Gap Locks 这种锁， 还不是因为 MySQL 的隔离级别默认是 'REPEATABLE-READ' 。 为了时间 可重复读， 就要解决幻影都，MySQL 的解决方案就是 加‘间隙锁‘。Oracle 数据库默认隔离级别是提交读，好像压根不支持可重复读， 所以 Oralce 里没有间隙锁。
 
 
 
@@ -2926,10 +3601,6 @@ UPDATE students SET score = 100 WHERE score = 22;
 RR 所有行记录排它锁,所有索引项行锁+间隙锁
 
 RC 所有行记录排它锁,所有索引项行锁
-
-
-
-不过在实际的实现中，MySQL 有一些改进，如果是 RC 隔离级别，在 MySQL Server 过滤条件发现不满足后，会调用 unlock_row 方法，把不满足条件的记录锁释放掉（违背了 2PL 的约束）。这样做可以保证最后只会持有满足条件记录上的锁，但是每条记录的加锁操作还是不能省略的。如果是 RR 隔离级别，一般情况下 MySQL 是不能这样优化的，除非设置了 innodb_locks_unsafe_for_binlog 参数，这时也会提前释放锁，并且不加 GAP 锁，这就是所谓的 **semi-consistent read**。
 
 
 
@@ -3119,19 +3790,420 @@ INSERT时如果没出现这两种情况，那么就是隐式锁
 
 
 
-1. 表加上IX锁
+1. 表加意向锁
 2. S锁当前读,检查唯一索引
    1. 键值冲突 && 记录行锁定 : 加S锁等待操作该数据的事务完成
    2. 键值冲突 && 无锁:
       1. 记录行标记删除 : 加S锁等待purge线程删除行记录
       2. 未标记删除 : **1062** duplicate key error
-
-3. 检查插入位置的Gap/Next-Key锁
-
-4. 申请插⼊意向锁
+4. 申请IX插⼊意向锁 (不直接申请X锁,避免阻塞其他事务.IX对其他意向锁都兼容,提高了并发)
+   1. 检查插入位置的下一条记录上是否存在锁对象
+   2. 锁对象存在并且锁住了gap,则插入意向锁阻塞
 5. 申请X锁,插入记录
 
  
+
+
+
+
+
+### <a name="快照读案例">快照读</a>
+
+==快照读的结果依赖于该事务首次快照读的实际==
+
+| 事务A      | 事务B                                | 事务C                                |
+| ---------- | ------------------------------------ | ------------------------------------ |
+| 开启事务   | 开启事务                             |                                      |
+| 快照读,500 | 快照读,500                           |                                      |
+| 更新为400  |                                      |                                      |
+| 提交事务   |                                      |                                      |
+|            | select 快照读,500                    | select 快照读,==400==                |
+|            | select lock in share mode 当前读,400 | select lock in share mode 当前读,400 |
+
+
+
+
+
+
+
+### dx
+
+
+
+```mysql
+CREATE TABLE `user3` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(11) DEFAULT NULL,
+  `comment` varchar(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+INSERT INTO `user3` (`id`, `name`, `comment`)
+VALUES
+ (20, 333, 333),
+ (25, 555,555),
+ (30, 999,999);
+```
+
+
+
+
+
+#### 间隙锁
+
+| 事务A                                              | 事务B                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| begin;                                             |                                                              |
+| select * from user3 where name = '555' for update; | begin;                                                       |
+|                                                    | insert user3 values (31,'556','556');                        |
+|                                                    | ERROR 1205 (HY000): Lock wait timeout exceeded; try restarting transaction |
+
+
+
+mysql> select * from information_schema.INNODB_LOCKS;
++----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
+| lock_id        | lock_trx_id | lock_mode | lock_type | lock_table       | lock_index | lock_space | lock_page | lock_rec | lock_data |
++----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
+| 111661:284:4:4 | 111661      | X,GAP     | RECORD    | `sakila`.`user3` | idx_name   |        284 |         4 |        4 | '999', 30 |
+| 111658:284:4:4 | 111658      | X,GAP     | RECORD    | `sakila`.`user3` | idx_name   |        284 |         4 |        4 | '999', 30 |
++----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
+
+mysql> SELECT * FROM information_schema.INNODB_LOCK_waits;
++-------------------+-------------------+-----------------+------------------+
+| requesting_trx_id | requested_lock_id | blocking_trx_id | blocking_lock_id |
++-------------------+-------------------+-----------------+------------------+
+| 111661            | 111661:284:4:4    | 111658          | 111658:284:4:4   |
++-------------------+-------------------+-----------------+------------------+
+
+
+
+
+
+<img src="image.assets/image-20210417101446157.png" alt="image-20210417101446157" style="zoom:50%;" />
+
+
+
+select * from user3 where name = '555' for update;	->	二级索引 (333,555],(555,999)	主键索引 [25]X锁
+
+
+
+
+
+#### 间隙+插入意向引发的死锁
+
+
+
+| 事务A                                 | 事务B                                                        |
+| ------------------------------------- | ------------------------------------------------------------ |
+| begin;                                | begin;                                                       |
+| delete from user3 where name = '777'; | delete from user3 where name = '666';                        |
+| insert user3 select 27,'777','777';   | insert user3 select 26,'666','666';                          |
+| Query OK, 1 row affected (6.27 sec)   | ERROR 1213 (40001): **Deadlock found** when trying to get lock; try restarting transaction |
+
+
+
+事务A删除name = '777'的数据，需要对777这个索引加上next-Key锁，但是其不存在，所以对555-999之间加间隙锁，同理事务B也对555-999之间加间隙锁。间隙锁兼容的
+
+事务A，执⾏Insert操作，⾸先插⼊意向锁，但是555-999之间有间隙锁，由于插⼊意向锁和间 隙锁冲突，事务A阻塞，等待事务B释放间隙锁。事务B同理，等待事务A释放间隙锁。于是出现死锁
+
+mysql检测到死锁,选择事务B进行释放锁,事务A执行成功
+
+
+
+
+
+
+
+
+
+#### 行锁
+
+| 事务A                                         | 事务B                               |
+| --------------------------------------------- | ----------------------------------- |
+| begin;                                        |                                     |
+| select * from user3 where id = 25 for update; | begin;                              |
+|                                               | insert user3 select 26,'666','666'; |
+|                                               | Query OK, 1 row affected (0.00 sec) |
+
+![image-20210417102313807](image.assets/image-20210417102313807.png)
+
+
+
+
+
+
+
+
+
+
+
+### 死锁
+
+
+
+两个及以上的事务相互 持有并请求锁,形成循环的依赖关系
+
+
+
+**2种策略**
+
+1. innodb_lock_wait_timeout 设置超时时间(默认50s)
+2. innodb_deadlock_detect = on 设置死锁检测(默认开启),根据等待图(wait-for-graph)判断死锁，选择回滚权重较⼩的事务(undo较⼩)
+
+
+
+
+
+#### 案例
+
+
+
+
+
+##### 何登成
+
+
+
+```mysql
+CREATE TABLE dltask (
+  id bigint unsigned NOT NULL AUTO_INCREMENT COMMENT ‘auto id’,
+  a varchar(30) NOT NULL COMMENT ‘uniq.a’,
+  b varchar(30) NOT NULL COMMENT ‘uniq.b’,
+  c varchar(30) NOT NULL COMMENT ‘uniq.c’,
+  x varchar(30) NOT NULL COMMENT ‘data’,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_abc (a, b, c)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT=’deadlock test';
+//id主键,二级唯一索引(a，b，c)
+```
+
+
+
+```mysql
+delete from dltask where a=? and b=? and c=?;
+
+explain select * from dltask where a='d' and b='b' and c='c';
+
+id | select_type | table | type | possible_keys | key | key_len | ref							 | rows | Extra
+1	| Simple			| dltask | const | uniq_abc	| uniq_abc | 276 	| 	const,const,const | 1		 | 
+```
+
+
+
+**死锁日志**
+
+![](image.assets/死锁日志.png)
+
+
+
+**初步分析**
+
+并发事务，每个事务只有一条SQL语句：给定唯一的二级索引键值，删除一条记录。每个事务，最多只会删除一条记录，为什么会产生死锁？这绝对是不可能的。但是，事实上，却真的是发生了死锁。产生死锁的两个事务，删除的是同一条记录，这应该是死锁发生的一个潜在原因，但是，即使是删除同一条记录，从原理上来说，也不应该产生死锁。因此，经过初步分析，这个死锁是不可能产生的。这个结论，远远不够！
+
+***\*如何阅读死锁日志\****
+
+在详细给出此死锁产生的原因之前，让我们先来看看，如何阅读MySQL给出的死锁日志。
+
+以上打印出来的死锁日志，由InnoDB引擎中的lock0lock.c::lock_deadlock_recursive()函数产生。死锁中的事务信息，通过调用函数lock_deadlock_trx_print()处理；而每个事务持有、等待的锁信息，由lock_deadlock_lock_print()函数产生。
+
+例如，以上的死锁，有两个事务。事务1，当前正在操作一张表(mysql tables in use 1)，持有两把锁(2 lock structs，一个表级意向锁，一个行锁(1 row lock))，这个事务，当前正在处理的语句是一条delete语句。同时，这唯一的一个行锁，处于等待状态(WAITING FOR THIS LOCK TO BE GRANTED)。
+
+事务1等待中的行锁，加锁的对象是唯一索引uniq_a_b_c上页面号为12713页面上的一行(注：具体是哪一行，无法看到。但是能够看到的是，这个行锁，一共有96个bits可以用来锁96个行记录，n bits 96：lock_rec_print()方法)。同时，等待的行锁模式为next key锁(lock_mode X)。(注：关于InnoDB的锁模式，可参考我早期的一篇PPT：《InnoDB 事务/锁/多版本 实现分析》。简单来说，next key锁有两层含义，一是对当前记录加X锁，防止记录被并发修改，同时锁住记录之前的GAP，防止有新的记录插入到此记录之前。)
+
+同理，可以分析事务2。事务2上有两个行锁，两个行锁对应的也都是唯一索引uniq_a_b_c上页面号为12713页面上的某一条记录。一把行锁处于持有状态，锁模式为X lock with no gap(注：记录锁，只锁记录，但是不锁记录前的GAP，no gap lock)。一把行锁处于等待状态，锁模式为next key锁(注：与事务1等待的锁模式一致。同时，需要注意的一点是，事务2的两个锁模式，并不是一致的，不完全相容。持有的锁模式为X lock with no gap，等待的锁模式为next key lock X。因此，并不能因为持有了X lock with no gap，就可以说next key lock X就一定能够加上。)。
+
+分析这个死锁日志，就能发现一个死锁。事务1的next key lock X正在等待事务2持有的X lock with no gap(行锁X冲突)，同时，事务2的next key lock X，却又在等待事务1正在等待中的next key锁(注：这里，事务2等待事务1的原因，在于公平竞争，杜绝事务1发生饥饿现象。)，形成循环等待，死锁产生。
+
+死锁产生后，根据两个事务的权重，事务1的权重更小，被选为死锁的牺牲者，回滚。
+
+根据对于死锁日志的分析，确认死锁确实存在。而且，产生死锁的两个事务，确实都是在运行同样的基于唯一索引的等值删除操作。既然死锁确实存在，那么接下来，就是抓出这个死锁产生原因。
+
+***\*死锁原因深入剖析\****
+
+***\*Delete操作的加锁逻辑\****
+
+在《MySQL加锁处理分析》一文中，我详细分析了各种SQL语句对应的加锁逻辑。例如：Delete语句，内部就包含一个当前读(加锁读)，然后通过当前读返回的记录，调用Delete操作进行删除。在此文的 组合六：id唯一索引+RR 中，可以看到，RR隔离级别下，针对于满足条件的查询记录，会对记录加上排它锁(X锁)，但是并不会锁住记录之前的GAP(no gap lock)。对应到此文上面的死锁例子，事务2所持有的锁，是一把记录上的排它锁，但是没有锁住记录前的GAP(lock_mode X locks rec but not gap)，与我之前的加锁分析一致。
+
+其实，在《MySQL加锁处理分析》一文中的 组合七：id非唯一索引+RR 部分的最后，我还提出了一个问题：如果组合五、组合六下，针对SQL：select * from t1 where id = 10 for update; 第一次查询，没有找到满足查询条件的记录，那么GAP锁是否还能够省略？针对此问题，参与的朋友在做过试验之后，给出的正确答案是：此时GAP锁不能省略，会在第一个不满足查询条件的记录上加GAP锁，防止新的满足条件的记录插入。
+
+其实，以上两个加锁策略，都是正确的。以上两个策略，分别对应的是：1）唯一索引上满足查询条件的记录存在并且有效；2）唯一索引上满足查询条件的记录不存在。但是，除了这两个之外，其实还有第三种：3）唯一索引上满足查询条件的记录存在但是无效。众所周知，InnoDB上删除一条记录，并不是真正意义上的物理删除，而是将记录标识为删除状态。(注：这些标识为删除状态的记录，后续会由后台的Purge操作进行回收，物理删除。但是，删除状态的记录会在索引中存放一段时间。) 在RR隔离级别下，唯一索引上满足查询条件，但是却是删除记录，如何加锁？InnoDB在此处的处理策略与前两种策略均不相同，或者说是前两种策略的组合：对于满足条件的删除记录，InnoDB会在记录上加next key lock X(对记录本身加X锁，同时锁住记录前的GAP，防止新的满足条件的记录插入。) Unique查询，三种情况，对应三种加锁策略，总结如下：
+
+**找到满足条件的记录，并且记录有效**，则对记录加X锁，No Gap锁(lock_mode X locks rec but not gap)； **找到满足条件的记录，但是记录无效**(标识为删除的记录)，则对记录加next key锁(同时锁住记录本身，以及记录之前的Gap：lock_mode X);
+
+**未找到满足条件的记录**，则对第一个不满足条件的记录加Gap锁，保证没有满足条件的记录插入(locks gap before rec)；
+
+此处，我们看到了next key锁，是否很眼熟？对了，前面死锁中事务1，事务2处于等待状态的锁，均为next key锁。明白了这三个加锁策略，其实构造一定的并发场景，死锁的原因已经呼之欲出。但是，还有一个前提策略需要介绍，那就是InnoDB内部采用的死锁预防策略。
+
+***\*死锁预防策略\****
+
+InnoDB引擎内部(或者说是所有的数据库内部)，有多种锁类型：事务锁(行锁、表锁)，Mutex(保护内部的共享变量操作)、RWLock(又称之为Latch，保护内部的页面读取与修改)。
+
+InnoDB每个页面为16K，读取一个页面时，需要对页面加S锁，更新一个页面时，需要对页面加上X锁。任何情况下，操作一个页面，都会对页面加锁，页面锁加上之后，页面内存储的索引记录才不会被并发修改。
+
+因此，为了修改一条记录，InnoDB内部如何处理：
+
+根据给定的查询条件，找到对应的记录所在页面；对页面加上X锁(RWLock)，然后在页面内寻找满足条件的记录；在持有页面锁的情况下，对满足条件的记录加事务锁(行锁：根据记录是否满足查询条件，记录是否已经被删除，分别对应于上面提到的3种加锁策略之一)； **死锁预防策略**：相对于事务锁，页面锁是一个短期持有的锁，而事务锁(行锁、表锁)是长期持有的锁。因此，为了防止页面锁与事务锁之间产生死锁。InnoDB做了死锁预防的策略：持有事务锁(行锁、表锁)，可以等待获取页面锁；但反之，持有页面锁，不能等待持有事务锁。根据死锁预防策略，在持有页面锁，加行锁的时候，如果行锁需要等待。则释放页面锁，然后等待行锁。此时，行锁获取没有任何锁保护，因此加上行锁之后，记录可能已经被并发修改。因此，此时要重新加回页面锁，重新判断记录的状态，重新在页面锁的保护下，对记录加锁。如果此时记录未被并发修改，那么第二次加锁能够很快完成，因为已经持有了相同模式的锁。但是，如果记录已经被并发修改，那么，就有可能导致本文前面提到的死锁问题。 以上的InnoDB死锁预防处理逻辑，对应的函数，是row0sel.c::row_search_for_mysql()。感兴趣的朋友，可以跟踪调试下这个函数的处理流程，很复杂，但是集中了InnoDB的精髓。
+
+***\*剖析死锁的成因\****
+
+做了这么多铺垫，有了Delete操作的3种加锁逻辑、InnoDB的死锁预防策略等准备知识之后，再回过头来分析本文最初提到的死锁问题，就会手到拈来，事半而功倍。
+
+首先，假设dltask中只有一条记录：(1, ‘a’, ‘b’, ‘c’, ‘data’)。三个并发事务，同时执行以下的这条SQL：
+
+delete from dltask where a=’a’ and b=’b’ and c=’c’;
+
+并且产生了以下的并发执行逻辑，就会产生死锁：
+
+![](image.assets/146086675786736069.png)
+
+
+
+上面分析的这个并发流程，完整展现了死锁日志中的死锁产生的原因。其实，根据事务1步骤6，与事务0步骤3/4之间的顺序不同，死锁日志中还有可能产生另外一种情况，那就是事务1等待的锁模式为记录上的X锁 + No Gap锁(lock_mode X locks rec but not gap waiting)。这第二种情况，也是”润洁”同学给出的死锁用例中，使用MySQL 5.6.15版本测试出来的死锁产生的原因。
+
+***\*总结\****
+
+行文至此，MySQL基于唯一索引的单条记录的删除操作并发，也会产生死锁的原因，已经分析完毕。其实，分析此死锁的难点，在于理解MySQL/InnoDB的行锁模式，针对不同情况下的加锁模式的区别，以及InnoDB处理页面锁与事务锁的死锁预防策略。明白了这些，死锁的分析就会显得清晰明了。
+
+最后，总结下此类死锁，产生的几个前提：
+
+Delete操作，针对的是唯一索引上的等值查询的删除；(范围下的删除，也会产生死锁，但是死锁的场景，跟本文分析的场景，有所不同)至少有3个(或以上)的并发删除操作；
+
+并发删除操作，有可能删除到同一条记录，并且保证删除的记录一定存在；
+
+事务的隔离级别设置为Repeatable Read，同时未设置innodb_locks_unsafe_for_binlog参数(此参数默认为FALSE)；(Read Committed隔离级别，由于不会加Gap锁，不会有next key，因此也不会产生死锁)
+
+
+
+
+
+##### 记一次Insert死锁
+
+
+
+```mysql
+CREATE TABLE `role_menu_info` (
+  `id` int(10) NOT NULL AUTO_INCREMENT ,
+  `role_id` varchar(30) NOT NULL DEFAULT '' ,
+  `menu_id` varchar(30) NOT NULL DEFAULT '' ,
+  `is_deleted` tinyint(4) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `role_id_menu_id_unique` (`role_id`,`menu_id`) USING BTREE
+) ENGINE=InnoDB;
+```
+
+
+
+
+
+**代码逻辑**
+
+1. 业务系统中的 createRole() 方法，调用权限服务的 roleRpc.createRole() 接口方法创建角色并赋予权限。
+2. roleRpc.createRole() 方法，逻辑是先调用 saveRoleInfo() 方法创建角色，再调用 overrideAllMenu() 方法为该角色赋予菜单权限。
+3. overrideAllMenu() 方法，逻辑是先逻辑删除指定 roleId 下的所有 menu 权限，再为其赋予指定的 menuId 集合。
+
+roleRpc.createRole() 方法、overrideAllMenu() 方法均有 @Transactional 注解，采用的是 Spring 的默认事务传播 PROPAGATION_REQUIRED，如果当前存在事务则加入。
+
+伪代码：
+
+```java
+createRole() { 
+	roleRpc.createRole() { 
+        String roleId = saveRoleInfo();
+        overrideAllMenu() { 
+            deleteByRoleId(roleId);
+            for (String menuId : menuIds) { 
+                insertRoleMenu(roleId, menuId);
+            }
+        }
+    }
+}
+```
+
+
+
+
+
+![](image.assets/死锁日志1.png)
+
+
+
+
+
+死锁发生在二级索引 role_id_menu_id_unique 上，要插入的两条数据：
+
+```
+role_id = ***9264, menu_id = ***1936
+role_id = ***9440, menu_id = ***1632
+```
+
+
+
+可以确定，这个死锁中的 X 锁本身不是由 INSERT 产生的，因为 INSERT 可能产生的锁包括插入意向锁、检查 duplicate key 时的 S 锁。
+
+而在二级索引上产生X锁，一般是根据二级索引进行记录更新导致的。回看上面的代码逻辑，事务中，在 INSERT 之前，根据 roleId 进行了 UPDATE 操作
+
+仔细查看死锁的日志，WAITING FOR THIS LOCK TO BE GRANTED 的内容：
+
+- “page no 155 n bits 344”  在第 155 页的记录上，lock bitmap 共 344 位
+- “index role_id_menu_id_unique” 代表锁位于的索引
+- “heap no” 代表记录的序号，0:infimum Record、1:supremum Record，用户记录从 2 开始
+- “PHYSICAL RECORD” 后面的内容是索引记录的内存结构，通常无法直接阅读
+
+可以看到，两个事务在同一数据页上，均为 supremum 记录加上了 Next-Key 锁，造成了之后的循环等待
+
+业务场景如下：
+
+| 时刻 | 事务1                                                        | 事务2                                                        |
+| ---- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| t1   | begin                                                        |                                                              |
+| t2   | update role_menu_info set is_deleted = 1 where role_id = ‘9264’; | begin                                                        |
+| t3   |                                                              | update role_menu_info set is_deleted = 1 where role_id = ‘9440’; |
+| t4   | insert into role_menu_info (id, rolr_id, menu_id, is_deleted) values (null, 9264, 1936, 0); |                                                              |
+| t5   |                                                              | insert into role_menu_info (id, rolr_id, menu_id, is_deleted) values (null, 9440, 1632, 0); |
+
+思考一下，由于是首次创建角色，role_menu_info 表中不存在该角色对应的记录，所以 overrideAllMenu() 方法中的第一步 deleteByRoleId() ，实际上是对不存在的记录进行更新
+
+- t2 时刻：事务 1 更新 role_id = ‘9264’ 的记录，没有满足条件的记录行，RR 隔离级别下，持有了 heap no 为 1 的 supremum 记录行的 Next-Key 锁。
+- t3 时刻：事务 2 也更新不存在的记录 role_id = ‘9440’，同理，持有 supremum 记录的 Next-Key 锁。
+- t4 时刻：事务 1 尝试插入 (‘9264’, ‘1936’) 的数据，插入操作需要在相应的记录行加上插入意向锁，但是因为事务 2 持有了 supremum 的锁，与插入意向锁不兼容，即无法在数据表末尾进行插入，所以此时事务 1 等待事务 2 释放 supremum 的锁。
+- t5 时刻：同理，事务 2 尝试插入 (‘9440’, ‘1632’) 的数据，被事务 1 持有的 supremum的 锁阻塞，两个事务互相等待，发生死锁。数据库选择回滚了事务 2。
+
+
+
+**复现**
+
+本地运行权限服务 roleRpc.createRole() 方法的单元测试，同时启动两个实例。该 dubbo 服务的默认端口号是 20881，需要设置第二个实例的 JVM 参数 -Ddubbo.protocol.port=20882，否则会提示 “Failed to bind NettyServer …, cause: Address already in use”。##
+
+在代码 “deleteByRoleId(roleId);” 执行完成处打上断点，此时可以查看数据库锁的情况：
+
+select * from information_schema.innodb_locks;
+
+查询结果如下：
+
+lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_page	lock_rec	lock_data
+312474981	312474981	X	RECORD	sso.role_menu_info	role_id_menu_id_unique	3502	61	1	supremum pseudo-record
+312474962	312474962	X	RECORD	sso.role_menu_info	role_id_menu_id_unique	3502	61	1	supremum pseudo-record
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3775,7 +4847,7 @@ idx_t1_bcd(b,c,d)，等价于创建了(b)、（b、c）（b、c、d）三个索�
 
 主键递增 -> 自增的主键在插入时是顺序IO,否则随机写入会触发页分裂/页合并
 
-**字符索引设置前缀** -> 减少字符索引的字节数
+字符过长时,**索引索引** -> **减少字符索引的字节数**,在原有的过滤因子基础上,截取前缀后的过滤因子与全字符的过滤因子大致相等
 
 ```mysql
 char(200),其中前20个字符唯一,则无需设置200长度的索引
