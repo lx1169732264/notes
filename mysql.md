@@ -33,7 +33,11 @@ DBMS	Database Management System 数据库管理系统
 
 
 
-## ER模型
+## 建模
+
+
+
+### ER模型
 
 
 
@@ -55,7 +59,7 @@ DBMS	Database Management System 数据库管理系统
 
 
 
-## 数据流图DFD
+### 数据流图DFD
 
 ![](image.assets/数据流图.png)
 
@@ -84,7 +88,7 @@ DBMS	Database Management System 数据库管理系统
 
 
 
-### 弱/强实体
+#### 弱/强实体
 
 * 强实体不依赖于其他实体而存在
 
@@ -230,7 +234,27 @@ Natural Left Join会根据Left Join的规则,对左右表的同名列匹配 -> �
 
 
 
-cascade和set null是容错能力比较强，并不是很严格，但可能会出导致业务上出问题，No action和Restrict是非常严格的，禁止对父表进行更新和删除，但在业务中有时我们又不得不进行对父表进行操作，而在No action和Restrict约束规则下，执行父表删或者更新时会报错：ERROR 1451
+cascade 和 set null容错能力较强，并不是很严格，但可能会出导致业务上出问题，No action和Restrict是非常严格的，禁止对父表进行更新和删除，但在业务中有时我们又不得不进行对父表进行操作，而在No action和Restrict约束规则下，执行父表删或者更新时会报错：ERROR 1451
+
+
+
+## 关键字
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -490,7 +514,11 @@ MySQL 提供了 FROM_UNIXTIME() 函数把 UNIX 时间戳转换为日期，并提
 
 
 
+==字段定义为not null==
 
+MySQL难以优化引用了可空列的查询,会使索引、索引统计和值更加复杂
+
+可空列需要更多的储存空间，还需要在MySQL内部进行特殊处理。当可空列被索引的时候，每条记录都需要一个额外的字节
 
 
 
@@ -757,6 +785,20 @@ mysql主从是基于**binlog，主需开启binlog才能进行主从**
 
 
 
+### 通信协议
+
+
+
+Mysql客户端和服务器的通信是==半双工==的 -> 查询和返回结果集不能同时发生
+
+这意味着Mysql无法做到流量控制:一端发生消息,**另一端要接收完整消息才能响应** -> 客户端无法终止服务端返回数据
+
+
+
+客户端用单独的数据包将查询传给服务器,当查询语句很长时,max_allowed_packet就非常重要了
+
+
+
 
 
 # 指令
@@ -795,7 +837,9 @@ select = SELECT = SeLeCt
 
 
 
-## Explain
+
+
+# Explain
 
 
 
@@ -821,7 +865,7 @@ Explain Partitions	显示查询将访问的分区
 
 
 
-### id
+## id
 
 
 
@@ -831,7 +875,7 @@ id↑ -> 越早被执行	id相同 -> 从上到下执行
 
 
 
-### select_type
+## select_type
 
 
 
@@ -855,7 +899,7 @@ Union Result	从Union的匿名临时表检索结果的Select
 
 
 
-### table
+## table
 
 表名/表别名	正从磁盘/内存访问表
 
@@ -867,7 +911,7 @@ union result	访问union的结果集
 
 
 
-### type
+## type
 
 访问类型
 
@@ -895,66 +939,73 @@ eq_ref	唯一索引,只有一行的结果集,效率高
 
 const	优化时可以转化成常量 / 表中只有一个一个匹配行 -> 将表从关联中移除
 
-system	表中只有一行记录(系统表)
+system	表中只有一行记录(多见于系统表)
 
-Null	在优化中分解查询语句,在执行阶段无需访问表或索引(最小值只需要查找索引最左端)
+Null	在优化中分解查询语句,在执行阶段无需访问表或索引(走索引查找最大最小值)
 
 
 
-### possible_key
+## possible_key
 
 候选索引,基于访问的列和比较操作符进行推断
 
 
 
-### key
+## key
 
 真正采用的索引,不走索引为null,覆盖索引为查询的select字段
 
 
 
-### key_len
+## key_len
 
 根据表定义推算出**单个索引的最大字节数**(包括字符集),不是表中数据实际的字节数
 
+如果列定义为允许null,还需额外的1字节
+
+列为变长类型,还需要额外2字节
 
 
-### ref
+
+
+
+## ref
 
 索引中用到的索引列,也有可能是常量
 
 
 
-### rows
+## rows
 
 预估读取的行数,不代表真实读取的行数
 
 
 
-### filtered
+## filtered
 
 仅在使用Explain Extended时出现,表示结果集占全表的百分比
 
 
 
-### Extra
+## Extra
 
-| Using where               | 回表后进行过滤                                               |
-| ------------------------- | ------------------------------------------------------------ |
-| Using index               | 覆盖索引                                                     |
-| using index & using where | 索引被用于查找主键,需要回表                                  |
-| using index condition     | 查询列不完全被索引覆盖,但查询条件可以用索引                  |
-| Using temporary           | 排序时使用临时表                                             |
-| Using filesort            | 排序时使用内存/磁盘                                          |
-| Using Join Buffer         | 使用连接缓存,未能成功模拟场景                                |
-| Null                      | 未被索引覆盖 && where筛选列是索引的前导列，通过索引查找并回表找到未被索引覆盖的字段 |
-|                           |                                                              |
-
-
-
+| Using where                                                  | 回表后进行过滤                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Using index                                                  | 覆盖索引                                                     |
+| using index & using where                                    | 索引被用于查找主键,需要回表                                  |
+| using index condition                                        | 查询列不完全被索引覆盖,但查询条件可以用索引                  |
+| Using temporary                                              | 排序时使用临时表                                             |
+| [Using temporary;Using filesort](#Usingtemporary;Usingfilesort) | 对临时表进行排序后,再用临时表进行关联;最后的结果集再进行一次排序 |
+| [Using filesort](#Usingfilesort)                             | 使用内存/磁盘排序,排序列都来自关联的第一张表,在关联处理第一张表时就进行了文件排序 |
+| Using Join Buffer                                            | 使用连接缓存,未能成功模拟场景                                |
+| Null                                                         | 未被索引覆盖 && where筛选列是索引的前导列，通过索引查找并回表找到未被索引覆盖的字段 |
+|                                                              |                                                              |
 
 
-### 重写非Select语句 5.6-
+
+
+
+## 重写非Select语句 5.6-
 
 
 
@@ -976,21 +1027,7 @@ Inner Join sakila.film_actor Using(actor_id);
 
 
 
-在5.6之后,非Select语句也支持Explain
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+5.6+,非Select语句也支持Explain
 
 
 
@@ -1119,7 +1156,7 @@ Date_format(‘日期’,’%y%m%d’)				日期转换字符串
 
 
 
-## Case 函数
+## Case
 
 
 
@@ -1247,11 +1284,9 @@ LIMIT 10000) t;
 
 ## Count
 
+统计列值	count(col)		**不统计null**
 
-
-count(col)	不统计Null,全为Null返回0
-
-count(*)	统计NULL
+统计行数	count() / count(*)	统计NULL
 
 
 
@@ -1315,9 +1350,9 @@ select * from tablename order by key1,key2;   ----对不同的关键字使用ord
 
 结果集的列名来自第一个Select的列名
 
-单个Union结果集列数必须相等,各列的数据类型在不相同的情况下,会自动进行类型转换
+单个Union结果集列数必须相等,各列的数据类型在不相同的情况下,会自动类型转换
 
-**默认自带去重效果**	Union All不会去重
+**Union去重**	Union All不会去重
 
 
 
@@ -1399,6 +1434,48 @@ CREATE VIEW "VIEW_NAME" AS "Sql";
 
 
 
+# 存储结构
+
+
+
+`.ibd`的文件由多个段（segments）组成，每个段和一个索引相关
+
+文件的结构是不随数据行的删除而变化的，但段则会跟着构成它的区变化。区仅存在于段内，并且每个区都是固定的1MB大小（页体积默认的情况下）。页则是区的下一级构成单位，默认体积为16KB。
+
+按这样算，一个区可以容纳最多64个页，一个页可以容纳2~N个行。行的数量取决于它的大小，由你的表结构定义。InnoDB要求**每页至少要有两个行**，因此可以算出行的大小最多为8000 bytes
+
+
+
+![](image.assets/v2-796e3785a939b3bfd27a942374d22f72_r.jpg)
+
+
+
+
+
+```shell
+ROOT NODE #3: 4 records, 68 bytes
+ NODE POINTER RECORD ≥ (id=2) → #197
+ INTERNAL NODE #197: 464 records, 7888 bytes
+ NODE POINTER RECORD ≥ (id=2) → #5
+ LEAF NODE #5: 57 records, 7524 bytes			叶子节点#5有57行记录，共7524 bytes
+ RECORD: (id=2) → (uuid="884e471c-0e82-11e7-8bf6-08002734ed50", millid=139, kwatts_s=1956, date="2017-05-01", location="For beauty's pattern to succeeding men.Yet do thy", active=1, time="2017-03-21 22:05:45", strrecordtype="Wit")
+```
+
+根节点作为B树的入口,**根节点（页）**包含了如索引ID、INodes数量等信息。INode页包含了关于页本身的信息、值的范围等。最后还有叶子节点，也就是我们数据实际所在的位置
+
+InnoDB会将数据以分支、页和记录的形式组织起来。**InnoDB不是按行的来操作的**，它可操作的最小粒度是页，页加载进内存后才会通过扫描页来获取行/记录
+
+
+
+## 页
+
+
+
+页中的行记录按主键顺序来排列
+
+
+
+MERGE_THRESHOLD属性决定了页合并的时机,默认为页大小的一半
 
 
 
@@ -1406,6 +1483,82 @@ CREATE VIEW "VIEW_NAME" AS "Sql";
 
 
 
+
+
+下面是表结构：
+
+```shell
+CREATE TABLE `wmills` (
+  `id` bigint(11) NOT NULL AUTO_INCREMENT,
+  `uuid` char(36) COLLATE utf8_bin NOT NULL,
+  `millid` smallint(6) NOT NULL,
+  `kwatts_s` int(11) NOT NULL,
+  `date` date NOT NULL,
+  `location` varchar(50) COLLATE utf8_bin DEFAULT NULL,
+  `active` tinyint(2) NOT NULL DEFAULT '1',
+  `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `strrecordtype` char(3) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `IDX_millid` (`millid`)
+) ENGINE=InnoDB;
+```
+
+
+
+
+
+
+
+### 页合并
+
+
+
+在删除记录时，标记flaged为删除,这部分空间变得允许被其他记录声明使用
+
+![](image.assets/v2-6a9fd05c70648eabfb153f9c38b081d4_r.jpg)
+
+
+
+页中剩余记录达到MERGE_THRESHOLD，寻找相邻页（前/后）,判断能否将两个页合并
+
+![](image.assets/v2-f3497d7e821abdfd51797a80bf0e68c2_r.jpg)
+
+
+
+
+
+
+
+
+
+
+
+### 页分裂
+
+
+
+插入页#10,空间不足,并且页#11也空间不足时
+
+![](image.assets/v2-750b0a4f535435653c13cdcb0c853d06_r.jpg)
+
+1. 创建新页#12
+2. 判断页#10可以从哪里进行分裂（记录行层面）
+3. 移动#10的部分记录行至#12
+4. 重新定义页的关系 #10 -> #12 -> #11
+
+虽然保证了B树水平方向上的一致性,但导致物理存储乱序,不同的页分散至不同的区
+
+
+
+一旦页分裂导致物理存储区乱序,只有2种方法恢复:
+
+1. 新分裂出来的页因为低于合并阈值（merge threshold）,触发页合并被删除
+
+2. 用`OPTIMIZE`重新整理表,是唯一将大量分布在不同区的页理顺的方法,耗时长
+
+
+
+在合并/分裂时，InnoDB会在索引树上加写锁（x-latch）。在操作频繁的系统中这可能会是个隐患。它可能会导致索引的锁争用（index latch contention）。如果表中没有合并和分裂（也就是写操作）的操作，称为“乐观”更新，只需要使用读锁（S）。带有合并也分裂操作则称为“悲观”更新，使用写锁（X）
 
 
 
@@ -2567,6 +2720,118 @@ InnoDB通过如下两种方式来判断一个事务是否为只读事务
 
 
 
+## mini transaction
+
+
+
+主要用于redo / undo log写入
+
+
+
+加锁、写日志到 mlog 等操作在 mini transaction 过程中进行
+
+解锁、日志刷盘等操作全部在 mtr_commit 中进行，和事务类似
+
+mini transaction 没有回滚操作， 因为只有在 mtr_commit 才将修改落盘，如果宕机，内存丢失，无需回滚；如果落盘过程中宕机，崩溃恢复时可以看出落盘过程不完整，丢弃这部分修改
+
+
+
+mtr_commit 主要包含以下步骤
+
+1. mlog 中日志刷盘
+2. 释放 mtr 持有的锁，锁信息保存在 memo 中，以栈形式保存，后加的锁先释放
+3. 清理 mtr 申请的内存空间，memo 和 log
+4. mtr—>state 设置为 MTR_COMMITTED
+
+
+
+上面的步骤 1. 中，日志刷盘策略和 innodb_flush_log_at_trx_commit 有关
+
+- 当设置该值为1时，每次事务提交都要做一次fsync，这是最安全的配置，即使宕机也不会丢失事务
+- 当设置为2时，则在事务提交时只做write操作，只保证写到系统的page cache，因此实例crash不会丢失事务，但宕机则可能丢失事务
+- 当设置为0时，事务提交不会触发redo写操作，而是留给后台线程每秒一次的刷盘操作，因此实例crash将最多丢失1秒钟内的事务
+
+
+
+### 三个原则
+
+
+
+**The FIX Rules**
+
+修改需要获得该页的x-latch
+
+访问是需要获得该页的s-latch或者x-latch
+
+持有latch直到修改/访问该页的操作完成
+
+
+
+**Write-Ahead Log**
+
+持久化一个数据页之前，必须先将内存中相应的日志页持久化
+
+每个页有一个LSN,每次页修改需要维护这个LSN,当一个页需要写入到持久化设备时，要求内存中小于该页LSN的日志必须先持久化
+
+
+
+**Force-log-at-commit**
+
+一个事务可以同时修改多个页，Write-Ahead Log只能保证单个数据页的一致性，无法保证事务持久性
+
+Force-log-at-commit要求事务提交时，其产生所有的mini-transaction日志必须先持久化
+
+这样即使在页数据刷盘的时候宕机，也可以通过日志进行redo恢复
+
+
+
+### 数据结构
+
+
+
+mini transation 相关代码路径位于 storage/innobase/mtr/ 主要有 mtr0mtr.cc和 mtr0log.cc 两个文件
+
+另有部分代码在 storage/innobase/include/ 文件名以 mtr0 开头
+
+mini transaction 的信息保存在结构体 mtr_t 中，结构体成员描述如下
+
+| 成员属性      | 描述                                                         |
+| :------------ | :----------------------------------------------------------- |
+| state         | mini transaction所处状态 MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED |
+| memo          | mtr 持有锁的栈                                               |
+| log           | mtr产生的日志                                                |
+| inside_ibuf   | insert buffer 是否修改                                       |
+| modifications | 是否修改buffer pool pages                                    |
+| made_dirty    | 是否产生buffer pool脏页                                      |
+| n_log_recs    | log 记录数                                                   |
+| n_freed_pages | 释放page数                                                   |
+| log_mode      | 日志模式，默认MTR_LOG_ALL                                    |
+| start_lsn     | lsn 起始值                                                   |
+| end_lsn       | lsn 结束值                                                   |
+| magic_n       | 魔术字                                                       |
+
+一个 mini transaction 从 mtr_start(mtr)开始，到 mtr_commit(mtr)结束
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## LBCC
 
 Lock-Based Concurrent Control	基于锁的并发控制
@@ -2586,21 +2851,15 @@ Lock-Based Concurrent Control	基于锁的并发控制
 
 
 
-
-
-
-
-
-
 ## MVCC
 
 Multi-Version Concurrency Control 多版本并发控制
 
 
 
-==隐式字段，undo日志 ，Read View==
+==隐式字段 + undo日志 + Read View==
 
-访问版本链,实现不加锁/非阻塞的并发读,只适用于RR和RC隔离级别的普通SELECT操作,RU总是读最新的行,串行化会对读取行加锁
+访问版本链实现不加锁的并发读,只适用于RR和RC隔离级别的普通SELECT	RU总是读最新的行,串行化会加锁
 
 **修改的提交都不会直接覆盖，而是新老版本共存，使读取时不加锁**
 
@@ -2616,8 +2875,6 @@ Multi-Version Concurrency Control 多版本并发控制
 
 ### 隐式字段
 
-
-
 | DB_ROLL_PTR  | 回滚指针，指向上一个版本（存储于rollback segment）  | 7字节 |
 | ------------ | --------------------------------------------------- | ----- |
 | DATA_TRX_ID  | 最近更新行记录的事务ID                              | 6     |
@@ -2628,7 +2885,7 @@ Multi-Version Concurrency Control 多版本并发控制
 
 
 
-### Purge线程
+### Purge
 
 MVCC的update/delete都只改动deleted_bit，在提交后由purge线程清理deleted记录
 
@@ -2685,22 +2942,15 @@ RR级别下,**加锁读重新生成读视图**
 
 
 
-#### 3个全局属性
+#### 4个全局属性
 
-* Read View生成时,活跃的事务ID列表
-* 列表中最小的ID
-* 尚未分配的下个事务ID(出现过的最大ID+1)
+TRX_ID	该行事务ID
 
+TRX_IDs	Read View生成时,活跃事务ID列表 
 
+TRX_ID_MIN	列表中最小的ID
 
-- **low_limit_id**：目前出现过的最大的事务ID+1，即下一个将被分配的事务ID。high water mark，大于等于view->low_limit_id的事务对于view都是不可见的。
-- **up_limit_id**：活跃事务列表trx_ids中最小的事务ID，如果trx_ids为空，则up_limit_id 为 low_limit_id。low water mark，小于view->up_limit_id的事务对于view一定是可见的
-- **low_limit_no**：trx_no小于view->low_limit_no的undo log对于view是可以purge的
-- **rw_trx_ids**：读写事务数组。Read View创建时其他未提交的活跃事务ID列表。意思就是创建Read View时，将当前未提交事务ID记录下来，后续即使它们修改了记录行的值，对于当前事务也是不可见的。*注意：Read View中trx_ids的活跃事务，不包括当前事务自己和已提交的事务（正在内存中）*
-
-创建/关闭read view需要持有trx_sys->mutex，会降低系统性能，5.7版本对此进行优化，在事务提交时session会cache只读事务的 read view。下次创建read view 时，判断如果是只读事务并且系统的读写事务状态没有发生变化，即trx_sys的max_trx_id没有向前推进，而且没有新的读写事务产生，就可以重用上次的read view
-
-
+TRX_ID_MAX	列表中最大的ID	-> 下个事务ID = TRX_ID_MAX +1
 
 
 
@@ -2710,30 +2960,13 @@ RR级别下,**加锁读重新生成读视图**
 
 
 
-* TRX_ID \< TRX_ID_MIN   该行在创建快照之前提交,**可见**
-* TRX_ID \> TRX_ID_MAX   该行在事务启动之后提交，不可见
-* ID>=下个ID    **不可见,在该行的事务链中寻找旧ID**
-* 最小ID < ID < 下个ID  该行可能处于 活跃状态/已提交状态
-  * ID存在于列表  该行活跃,**不可见,在该行的事务链中寻找旧ID**
-  * 不存在        该行已提交,**可见**
-* 如果ID跟Read View的属性不符合可见性，通过DB_ROLL_PTR回滚指针去取出Undo Log中的ID再比较，即遍历链表的ID（链首->链尾，从最近的一次修改查起）
+* TRX_ID < TRX_ID_MIN   该行在创建快照前提交,可见
+* TRX_ID > TRX_ID_MAX   该行在事务启动之后提交，**不可见**
+* TRX_ID_MIN < TRX_ID < TRX_ID_MAX  该行处于活跃/已提交状态
+  * 读提交  ID存在于列表 ? **不可见** :可见
+  * ==可重复读  都不可见==
 
-
-
-
-
-- TRX_ID \< TRX_ID_MIN，表示该数据行快照时在当前所有未提交事务之前进行更改的，因此可以使用。
-
-- TRX_ID \> TRX_ID_MAX，表示该数据行快照是在事务启动之后被更改的，因此不可使用。
-- TRX_ID_MIN \<= TRX_ID \<= TRX_ID_MAX，需要根据隔离级别再进行判断：
-  - 提交读：如果 TRX_ID  在 TRX_IDs  列表中，表示该数据行快照对应的事务还未提交，则该快照不可使用。否则表示已经提交，可以使用。
-  - 可重复读：都不可以使用。因为如果可以使用的话，那么其它事务也可以读到这个数据行快照并进行修改，那么当前事务再去读这个数据行得到的值就会发生改变，也就是出现了不可重复读问题。
-
-在数据行快照不可使用的情况下，需要沿着 Undo Log 的回滚指针 ROLL_PTR  找到下一个快照，再进行上面的判断
-
-
-
-
+不可见则通过DB_ROLL_PTR回滚指针去取出Undo Log中的ID再比较，即遍历链表的ID
 
 
 
@@ -2743,9 +2976,9 @@ RR级别下,**加锁读重新生成读视图**
 
 
 
-事务4已提交,事务1/3活跃
+事务4已提交,事务1,3活跃
 
-事务2快照读，生成Read View读视图,记录了活跃事务列表[1，3],下一个ID[5],最小ID[1]
+事务2快照读，生成Read View,记录活跃事务列表[1，3],下一个ID[5],最小ID[1]
 
 事务2在快照读该行记录的时，拿ID去跟up_limit_id,low_limit_id和活跃事务列表(trx_list)进行比较，判断可见性
 
@@ -2767,7 +3000,7 @@ RR级别下,**加锁读重新生成读视图**
 
 
 
-- 读-读：不存在问题，不需要并发控制
+- 读-读：不需要并发控制
 - 读-写：线程安全问题，事务隔离性问题(脏读，幻读，不可重复读)
 - 写-写：线程安全问题，更新丢失
 
@@ -2777,7 +3010,7 @@ RR级别下,**加锁读重新生成读视图**
 
 为事务分配单向增长的时间戳，每个修改保存一个版本，版本与时间戳关联
 
-读操作**只读该事务开始前的快照,不用阻塞写操作**
+**快照读只读该事务开始前的快照,不阻塞写**
 
 解决脏读，幻读，不可重复读，但**不能解决更新丢失问题**
 
@@ -2785,10 +3018,49 @@ RR级别下,**加锁读重新生成读视图**
 
 因为有了MVCC，可以形成两个组合
 
-- MVCC + 悲观锁
-  MVCC解决读写冲突，悲观锁解决写写冲突
-- MVCC + 乐观锁
-  MVCC解决读写冲突，乐观锁解决写写冲突
+MVCC + 悲观锁	MVCC解决读写冲突，悲观锁解决写写冲突
+
+MVCC + 乐观锁	MVCC解决读写冲突，乐观锁解决写写冲突
+
+
+
+
+
+### MVCC VS 锁
+
+
+
+场景1：对读的响应速度要求高
+
+有一类系统更新特别频繁，并且对读的响应速度要求很高，如股票交易系统。在悲观锁机制下，写会阻塞读，那么当有写操作时，读操作的响应速度就会受到影响；而MVCC不存在读写锁，读操作是不受任何阻塞的，所以读的响应速度会更快更稳定。
+
+
+
+场景2：读远多于写
+
+对于许多系统来讲，读操作的比例往往远大于写操作，特别是某些海量并发读的系统。在悲观锁机制下，当有写操作占用锁，就会有大量的读操作被阻塞，影响并发性能；而MVCC可以保持比较高且稳定的读并发能力。
+
+
+
+场景3：写操作冲突频繁
+
+如果系统中写操作的比例很高，且冲突频繁，这时就需要仔细评估。假设两个有冲突的业务L1和L2，它们在单独执行是分别耗时t1，t2。在悲观锁机制下，它们的总时间大约等于串行执行的时间：
+
+T = t1 + t2
+
+而在MVCC下，假设L1在L2之前更新，L2需要retry一次，它们的总时间大约等于L2执行两次的时间（这里假设L2的两次执行耗时相等，更好的情况是，如果第1次能缓存下部分有效结果，第二次执行L2耗时是可能减小的）：
+
+T’ = 2 * t2
+
+这时关键是要评估retry的代价，如果retry的代价很低，比如，对某个计数器递增，又或者第二次执行可以比第一次快很多，这时采用MVCC机制就比较适合。反之，如果retry的代价很大，比如，报表统计运算需要算几小时甚至一天那就应该采用锁机制避免retry。
+
+从上面的分析，我们可以简单的得出这样的结论：对读的响应速度和并发性要求比较高的场景适合MVCC；而retry代价越大的场景越适合悲观锁机制
+
+
+
+
+
+
 
 
 
@@ -2814,6 +3086,61 @@ RR级别下,**加锁读重新生成读视图**
 
 
 
+加S锁场景
+
+2.LOCK IN SHARE MODE
+
+- RC隔离级别： `LOCK_REC_NOT_GAP | LOCK_S`
+- RR隔离级别：如果查询条件为唯一索引且是等值查询时，加的是 `LOCK_REC_NOT_GAP | LOCK_S`；对于非唯一条件查询，或者查询会扫描到多条记录时，加的是`LOCK_ORDINARY | LOCK_S`锁，也就是记录本身+记录之前的GAP
+
+3.普通的INSERT/UPDATE，检查到Duplicate key（或者被标记删除的duplicate key），加LOCK_S锁，而对于类似REPLACE INTO或者INSERT ..ON DUPLICATE这样的SQL加的是X锁。而针对不同的索引类型也有所不同：
+
+- 对于聚集索引，RC加GAP锁。RR加NK锁
+- 对于二级唯一索引，若检查到重复键，当前版本总是加LOCK_ORDINARY类型的记录锁。实际上按照RC的设计理念，不应该加GAP锁（bug#68021），官方也事实上尝试修复过一次，即对于RC隔离级别加上LOCK_REC_NOT_GAP，但却引入了另外一个问题，导致二级索引的唯一约束失效(bug#73170)，由于这个严重bug，官方很快又把这个fix给revert掉了。
+
+5.INSERT…SELECT插入数据时，会对SELECT的表上扫描到的数据加LOCK_S锁
+
+
+
+
+
+## 锁表更新
+
+
+
+GAP加在索引项上,但如果索引项之前发生了插入/删除，该索引项的GAP就代表的范围就发生了变化，I需要对锁表进行更新
+
+
+
+| SessionA      | SessionB |
+| ------------- | -------- |
+|               | 插入[5], |
+| 持有(3,9) Gap |          |
+|               |          |
+|               |          |
+
+
+
+对于数据插入，假设我们当前在记录[3,9]之间有会话持有锁(不管是否和插入意向锁冲突)，现在插入一条新的记录5，需要调用函数`lock_update_insert`。这里会遍历所有在记录9上的记录锁，如果这些锁不是插入意向锁并且是LOCK_GAP或者NEXT-KEY LOCK（没有设置LOCK_REC_NOT_GAP标记)，(`lock_rec_inherit_to_gap_if_gap_lock`)，就会为这些会话的事务增加一个新的锁对象，锁的类型为`LOCK_REC | LOCK_GAP`，锁住的GAP范围在本例中为(3,5)。所有符合条件的会话都继承了这个新的GAP，避免之前的GAP锁失效。
+
+对于数据删除操作，调用函数`lock_update_delete`，这里会遍历在被删除记录上的记录锁，当符合如下条件时，需要为这些锁对应的事务增加一个新的GAP锁，锁的Heap No为被删除记录的下一条记录：
+
+完成GAP锁继承后，将所有等待该记录的锁对象全部唤醒
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 <a name="锁兼容性">锁兼容性</a>
 
 
@@ -2834,7 +3161,7 @@ RR级别下,**加锁读重新生成读视图**
 ```mysql
 SELECT * FROM information_schema.INNODB_TRX;	#活跃事务
  
- SELECT * FROM information_schema.INNODB_LOCKs;	#当前锁
+SELECT * FROM information_schema.INNODB_LOCKs;	#当前锁
  
 SELECT * FROM information_schema.INNODB_LOCK_waits;	#锁等待关系
 ```
@@ -2847,7 +3174,7 @@ SELECT * FROM information_schema.INNODB_LOCK_waits;	#锁等待关系
 
 
 
-所有事务锁对象都挂在==全局对象==lock_sys上，同时每个==事务对象==上也维持了其拥有的事务锁，每个==表对象==上维持了构建在其上的表级锁对象
+所有事务锁对象都挂在==全局对象==lock_sys上，同时每个==事务对象==上也维持了其拥有的事务锁，每个==表对象==维护构建在其上的表级锁对象
 
 
 
@@ -2857,7 +3184,7 @@ SELECT * FROM information_schema.INNODB_LOCK_waits;	#锁等待关系
 
 **加表级锁**
 
-- 首先从当前事务的`trx_lock_t::table_locks`中查找是否已经加了等同或更高级别的表锁，如果已经加锁了，则直接返回成功。（`lock_table_has`）
+- 首先从当前事务的`trx_lock_t::table_locks`中查找是否已经加了等同或更高级别的表锁，如果已经加锁直接返回成功。（`lock_table_has`）
 - 检查当前是否有和当前申请的锁模式冲突的表级锁对象（`lock_table_other_has_incompatible`）
   - 直接遍历链表`dict_table_t::locks`链表
 - 如果存在冲突的锁对象，则需要进入等待队列（`lock_table_enqueue_waiting`）
@@ -2966,13 +3293,27 @@ Tips：对于一个经过精心设计的应用，我们可以从业务上避免�
 
 
 
+## 隐式锁
+
+Implicit Lock
+
+
+
+通过延迟加锁减少加锁的数量
+
+
+
+1. 操作记录前，先根据记录中的trx_id检查该事务是否活跃。如果活跃，将该事务的隐式锁转换为显式锁(等同于为该事务加锁)
+
+C. 检查锁冲突，冲突则创建锁，并加入等待队列。没有冲突则不加锁,跳到E
+
+D. 等待加锁成功唤醒 / 超时
+
+E. 写数据，并将自己的trx_id写入trx_id字段。**Page** **Lock**可以保证操作的正确性
 
 
 
 
-
-
-## 隐式/显式锁
 
 普通select	快照读			不加锁
 
@@ -2988,7 +3329,7 @@ select… for update			显式写锁
 
 ## 表锁
 
-
+==由服务层实现==
 
 五种锁模式：LOCK_IS、LOCK_IX、LOCK_X、LOCK_S以及LOCK_AUTO_INC
 
@@ -3011,7 +3352,7 @@ S模式的表锁场景
 
 
 
-开销最小的锁策略,==不会导致死锁==	**Myisam只有表锁**
+开销最小的锁策略,[不会导致死锁](#一次封锁)	**Myisam只有表锁,不存在死锁场景**
 
 ```mysql
 Lock Tables 表名 Read/Write;
@@ -3022,6 +3363,18 @@ SHOW PROCESSLIST 查询状态为 Waiting for table,表明正处于表锁
 
 
 
+
+
+
+### 一次封锁
+
+
+
+在会话开始时,用 lock 命令将后面所有要用到的表加上锁，在锁释放之前，只能访问这些加锁的表，不能访问其他表，最后通过 unlock tables 释放所有表锁
+
+
+
+==只有一次加锁的时机 -> 避免死锁==
 
 
 
@@ -3043,7 +3396,7 @@ struct lock_table_struct {
 
 ### 事务中关联锁的结构
 
-index变量指向⼀个索引，⾏锁本质是索引记录锁。
+index变量指向⼀个索引，⾏锁本质是索引记录锁
 
 UT_LIST_NODE_T是⼀个典型的链表结构
 
@@ -3066,7 +3419,6 @@ struct {
   TYPE * prev;
   TYPE * next;
 }
-
 
 //type_mode	⽆符号32位整型，从低位排列，第1字节为lock_mode，定义如下
   enum lock_mode {
@@ -3100,8 +3452,7 @@ quoted code:
  lock_rec_fold(space, page_no), lock);
  lock_sys->rec_num++;
 
-//只有记录锁会存在lock_sys->rec_hash中， 表锁是不会存这⾥，只会插⼊到事务trx->trx_locks链表和对
-应表对象的table->locks中,并且都是加到链表的尾部(lock_table_create)。
+//只有记录锁会存在lock_sys->rec_hash中， 表锁是不会存这⾥，只会插⼊到事务trx->trx_locks链表和对应表对象的table->locks中,并且都是加到链表的尾部(lock_table_create)。
 ```
 
 
@@ -3131,20 +3482,58 @@ SHOW PROCESSLIST 查询状态为 Waiting for release of readlock
 
 
 
-LOCK_AUTO_INC	特殊的表锁
+LOCK_AUTO_INC	特殊的互斥表锁,一张表同时只允许有一个自增锁
 
-在sql执⾏完就释放锁，并不是事务执⾏完。 对于Insert...select⼤数据量插⼊会影响插⼊性能，因为会阻塞另外⼀个事务执⾏
+==不遵循二段锁协议==，不等待事务结束时释放，==insert执⾏完就释放==，提高并发插入性能
+
+一旦分配了就会+1，==自增值无法回滚== -> 自增值可能出现中断
 
 
+
+#### 三种自增模式
 
 ```mysql
 show variables like 'innodb_autoinc_lock_mode';	#查看自增锁模式
-#0:传统模式:在分配前加上AUTO_INC锁，并在SQL结束时释放.影响并发插入性能，但保证一条SQL内自增值分配的连续性
-#1:连续模式(默认):对于插⼊的时候可以确定⾏数的使⽤互斥量，对于不能确定⾏数的使⽤表锁的模式
-#2:交错模式:所有都使⽤互斥量，为什么叫交错模式呢，有可能在批量插⼊时⾃增值不是连续的，⼀般来说如果不看重⾃增值连续⼀般选择这个模式，性能是最好的
 ```
 
 
+
+0:traditional lock mode	传统模式
+
+使用原始的 AUTO_INC 表锁，并发性差，但保证一条SQL内自增值分配的连续性
+
+
+
+**1:consecutive lock mode	连续模式(默认)**
+
+<a name="mutex">轻量级锁 mutex</a>
+
+只锁住预分配自增值的过程，不锁整张表.通过分析sql获得最坏情况下需要插入的数量，**一次性分配足够的自增值**
+
+优点:并发性一般，能保证同一条 INSERT 语句分配的自增值连续
+
+缺点:分配过多，浪费空间
+
+
+
+将插入语句分成三类：
+
+| Simple inserts               | Bulk inserts             | Mixed-mode inserts                              |
+| ---------------------------- | ------------------------ | ----------------------------------------------- |
+| [mutex锁](#mutex)            | LOCK_AUTO_INC            | [mutex锁](#mutex)                               |
+| 通过分析sql可以明确插入数量  | 无法分析插入数量         | 数量确定,不确定是否需要分配自增值               |
+| INSERT INTO table VALUE(1,2) | INSERT INTO table SELECT | INSERT INTO table VALUES(1,'a'), (**NULL**,'b') |
+|                              |                          | INSERT ... ON DUPLICATE KEY UPDATE              |
+
+
+
+2:interleaved lock mode	交错模式
+
+统一使用[mutex锁](#mutex)
+
+优点:并发性能最高，不会预分配
+
+缺点:不保证同一条 INSERT 语句内自增值连续，这样在主从复制时，如果 binlog_format 为 statement-based（基于语句的复制）就会存在问题，因为是来一个分配一个，同一条 INSERT 语句内获得的自增值可能不连续，主从数据集会出现数据不一致
 
 
 
@@ -3211,11 +3600,9 @@ struct lock_rec_struct{
 
 ## 间隙锁
 
-LOCK_GAP ( , )
+LOCK_GAP ( , )	出现条件:==RR级别== + 范围查询/**等值查询未命中**
 
-
-
-出现条件:==RR级别== + 范围查询/**等值查询未命中**
+并不是加在区间上,而是**加在区间的下一条记录**
 
 **查询范围内的索引项加锁,不包括记录本身(锁定条件范围内但并不存在的记录)**
 
@@ -3223,25 +3610,19 @@ LOCK_GAP ( , )
 
 
 
-每一页都有2个虚拟的行记录,用于圈定==间隙锁边界==
+==间隙锁互相兼容,不存在S/X的区别==,彼此不冲突，执行相同功能
+
+间隙锁兼容原因:间隙锁的***纯粹抑制性***,只为了防止被其他事务插入间隙,允许多个事务申请同一区域的间隙锁,它们的目的相同
+
+
+
+每一页都有2个虚拟行记录,用于圈定==间隙锁边界==,这两条记录在创建页的时候就存在，不会被删除
 
 ==Infimum Record== 比该页中任何记录都要小的行记录
 
 ==Supremum Record== 比该页中任何记录都要大的行记录
 
-这两条记录在创建页的时候就存在，不会被删除
-
 ![](image.assets/间隙锁范围.png)
-
-==间隙锁互相兼容,共享/排他间隙锁没有区别==,彼此不冲突，执行相同功能
-
-允许间隙锁兼容的原因:	间隙锁的***纯粹抑制性***,只为了防止被其他事务插入间隙,允许多个事务申请同一区域的间隙锁,它们的目的相同
-
-
-
-
-
-
 
 
 
@@ -3284,13 +3665,7 @@ c1主键	c2二级索引
 
 
 
-在8.0-时,返回查询会对 第一个不满足条件的记录 也加锁
-
-这个bug在8.0被修复
-
-
-
-
+==8.0-,返回查询会对 第一个不满足条件的记录 也加锁==,这个bug在8.0被修复
 
 
 
@@ -3300,9 +3675,9 @@ c1主键	c2二级索引
 
 LOCK_ORDINARY
 
-==查询专用==	行锁 + 行前的间隙锁
+==查询专用==	行锁 + 行前间隙锁
 
-Innodb采用每页一个锁对象，锁对象里面有个位图，每个位代表页内的一条记录，对记录加锁就是将对应的位置位。所以相当于是以页锁的消耗来实现记录锁的功能
+每页一个锁对象，锁对象里面有个位图，每位代表页内的一条记录，对记录加锁等同于置位。相当于是以页锁的消耗来实现记录锁的功能
 
 相较于为每个记录创建锁对象，减少内存资源消耗
 
@@ -3448,17 +3823,15 @@ LOCK_INSERT_INTENTION
 
 没有插入意向锁时,当前索引上有4,8，并发插入6，7,会分别为(4,8)加上Gap锁，但Gap属于X锁,导致互斥
 
-引入插入意向锁,将锁的粒度变得更细了,此时不会互斥([同一个Gap的插入意向锁互相兼容](#锁兼容性))
+引入插入意向锁,将锁的粒度变得更细了,[同一个Gap的插入意向锁互相兼容](#锁兼容性)
 
 
 
-如果已经有两个索引记录 4 和 7， 两个会话分别插入 5 和 6，如果没有‘插入意向锁’而只有‘间隙锁’就会出现并发问题， 两个会话都会要求获取 4~7 记录之间的间隙锁 。 所以 MySQL 引入了插入意向锁， 同一个 gap 的IX插入意向锁相互兼容所以不会发生阻塞
+插入意向锁带来的不仅仅是检测插入冲突,也为插入带来了==等待/唤醒的机制==,在其他事务释放gap后,插入操作被唤醒,支持更高的并发插入
 
 
 
-
-
-
+[插入加锁流程](#INSERT加锁)
 
 
 
@@ -3493,6 +3866,90 @@ LOCK_INSERT_INTENTION
 2. UPDATE、DELETE 在查询时，直接对查询用的 Index 和主键使用显示锁，其他索引上使用隐式锁
 
 理论上说，可以对主键使用隐式锁的。提前使用显示锁应该是为了减少死锁的可能性。INSERT，UPDATE，DELETE 对 B+Tree 们的操作都是从主键的 B+Tree 开始，因此对主键加锁可以有效的阻止死锁
+
+
+
+
+
+## Latch 闩锁
+
+
+
+在InnoDB 的实现中, btree 主要有两种lock: index lock 和 page lock
+
+index lock 就是整个Index 的lock, 具体在代码里面就是 dict_index->lock
+
+page lock 就是我们在btree 里面每一个page 的变量里面都会有的 lock
+
+
+
+
+
+B-tree 索引的并发控制需要考虑两个方面：
+
+事务 并发访问数据内容	->	数据内容在多个事务间的一致性
+
+线程 并发访问内存数据结构 ->	一个线程在页分裂时，其他线程不能去访问这种中间状态的数据结构
+
+通常用 lock 和 latch 来实现并发控制，而操作系统中常用的 lock 这个词，在数据库中其实指的是 latch
+
+latch 指物理Lock, Lock 指的是事务的逻辑lock
+
+
+
+latch只作用于内存数据结构，例如，控制多个线程互斥访问内存池中的 B-tree 节点
+
+latch 是低级别、轻量级的锁，线程通常只在临界区内读写共享内存数据结构时持有 latch，因此 latch 的锁定时间一般很短并且频繁使用
+
+latch 的获取和释放需要尽量小的消耗和更好的性能。latch 最简单的形式就是互斥锁（mutex），它不允许任何的并发访问，在数据库系统中通常还会使用共享（shared）和互斥（exclusive）两种类型的 latch
+
+latch 的死锁不能使用复杂的死锁检测或回滚机制，而是需要通过设计编码规范来避免死锁发生，例如多个线程都以规定好的顺序申请 latch
+
+
+
+lock 用于隔离多个事务，锁定的对象是数据库逻辑内容，例如 table、record、B-tree keys、key range 等，通常锁定时间很长，在事务结束时才释放。lock 会参与死锁检测，也支持复杂的调度策略，例如使用队列来排队加锁请求，因此 lock 申请和释放是比较耗时的，通常要上千的 CPU 周期。数据库系统通常会实现 lock table，因为 lock table 是共享的内存数据结构并且会有多个线程并发访问，因此访问 lock table 也就需要 latch 来保护
+
+latch 可以直接嵌入数据结构，例如内存池中的磁盘数据页，每个数据页都有一个内存描述符结构记录 page id 等信息，而数据页对应的 latch 就可以嵌入到这个描述符结构中。 lock 用于保护逻辑的数据库内容，被保护的数据可能都不在内存里出现，因此 lock 也就无法像 latch 一样嵌入要保护的对象
+
+
+
+### 单个节点并发控制
+
+如果要修改 B-tree 的内容或结构，必须先把 B-tree 节点读取到内存池中，修改后再写回磁盘。在多线程场景下，内存池中的一个 B-tree 节点在被一个线程读取时，不能被另一个线程修改，这种场景就是多线程编程中共享数据的临界区问题
+
+数据库中使用 latch 来控制单个 B-tree 节点的访问，从而保持 B-tree 物理结构的一致性，通常在每个节点的描述符中嵌入一个对应的 latch
+
+
+
+### latch coupling
+
+当线程沿着指针从 B-tree 的父节点到子节点，期间不能有其它线程去改变这个指针，例如删除这个子节点等操作。这个时候需要持有父节点的 latch 直到获得了子节点的 latch，这种方法通常称为 ”latch coupling”
+
+持有父节点 latch 去请求子节点 latch 时，如果子节点不在内存，就需要进行磁盘 IO 来获取子节点，因为 latch 的持有时间必须很短，等待读取子节点时，释放父节点的 latch。在获取子节点的 IO 操作结束之后，需要重新进行从 root 到 leaf 的遍历来获得父节点的 latch，这样避免释放父节点的期间 B-tree 的结构改变导致的不一致问题。这种重新遍历的操作代价并不大，因为可以来重用上一次遍历的路径，当需要的节点已经从磁盘读取到内存池中时，它的祖先节点可能还没有被其它线程修改过
+
+
+
+### 反向遍历 level list
+
+latch coupling 除了上面提到的从父节点到子节点遍历的情况，还有一种是同层相邻节点遍历的场景，例如范围查询时需要沿着叶节点的链表正向或反向遍历，并发查询可能会由于遍历的方向不同导致死锁。为了避免相反方向遍历产生的死锁，一种方法是让 latch 支持立即重试的模式，即当一个 latch 被其它线程占有而获取不到时，立即返回失败而不是继续等待 latch 被其它线程释放。在正向或反向遍历 B-tree 同层节点时，只要遇到 latch 获取失败，就立即释放掉自己占有的 latch，从而让冲突的对方能继续执行下去，而自己进行一次从 root 到 leaf 的重试。这里要考虑的一个问题是，如何避免两个冲突的线程同时重试的情况，因为同时重试后有可能还在相同的地方发生冲突，可以规定一个遍历方向的优先级，这样可以保证冲突时只有一个线程会重试，另一个线程会继续执行
+
+
+
+### 递归向上更新
+
+在向 B-tree 插入记录时可能导致叶节点 overflow，需要将 overflow 的节点分裂成两个，并将新节点指针插入到父节点，这时父节点可能也会 overflow，因此又会触发插入到祖父节点的操作，最极端的情况，这种递归向上插入会一直执行到 root 节点。除了插入操作，删除或者更新记录操作也可能发生这种从叶节点到根节点的变更，这个过程需要从下到上的加锁顺序，因此可能会与从上到下的遍历操作形成死锁。最简单的解决办法是对整个 B-tree 加一个互斥锁，但是这样太影响多线程并发，最好的方法应该是只对 B-tree 节点加锁，下面总结了几种针对这个问题的策略
+
+1. 在从上到下查找目标节点时，就把整个路径节点加互斥锁，这样从下到上的节点变更时就不再需要加锁。很明显的这种方法每次都会锁住 root 节点，跟锁住整个 B-tree 没有本质区别，严重影响 B-tree 的并发性；
+2. 在从上到下遍历时给查找路径加共享锁，在必要时再将共享锁升级成互斥锁，升级过程中需要检查死锁的风险。由于这种方法是可能失败的，因此需要有额外的备选方案，这就增加了逻辑的复杂度。
+3. 引入一种共享互斥锁（SX latch），从上到下遍历时给路径上的节点都加 SX latch，这种类型的 latch 可以与共享锁相容，从而不会阻塞其它线程的读请求。但是 SX latch 无法与自身相容，因此对于并发更新来说 B-tree 的根节点依然是一个瓶颈，只允许一个线程进行修改 B-tree 结构的操作。
+4. 上面三种方法都需要一直持有遍历路径上节点的 latch，直到一个节点不再会触发向上更新才释放路径上的所有 latch。实际情况是大多数节点都不是满的，因此大多数插入操作都不会触发节点分裂并向上变更，锁住整个路径的节点是没有必要的。如果在插入操作的从上到下遍历时主动进行节点分裂，就能避免了根节点的瓶颈问题，也没有升级 latch 时失败的问题。缺点是需要在实际分裂之前预先分配空间，造成一定的空间浪费，并且在可变长记录更新时无法准确地判断是否需要预先分裂
+5. 为了解决不必要的对节点加互斥锁，可以在第一次从上到下遍历时加共享锁，直到一个节点需要分裂时，重新回到 root 做一次遍历，这次给要分裂的节点加互斥锁，并进行实际的分裂操作。第二次遍历时可以通过检查第一次遍历保存的路径来进行重用，不必从根节点重新遍历
+
+
+
+
+
+
 
 
 
@@ -3552,6 +4009,12 @@ RR / RC 二级索引的索引项加行锁,主键索引的行记录加排它锁
 
 
 
+不需要在主键索引加锁,即使在加Gap后,主键索引插入了 no = 'S0003'的数据,MVCC也能够让这条数据不可见
+
+
+
+
+
 ### 二级唯一未命中
 
 ```
@@ -3562,7 +4025,11 @@ RR (50,[Supremum Record](##间隙锁))间隙锁
 
 RC 不加锁
 
-二级唯一索引未命中时,==主键索引不加锁==	该索引项唯一 -> 不会幻读 -> 无需锁
+二级唯一索引未命中时,==不加GAP锁==	索引项唯一 -> 不会幻读 -> 无需Gap
+
+不需要在主键索引加锁	当另一个事务插入no = 'S0008'时,会先锁主键,再去检查二级索引,此时就被Gap阻塞
+
+![](image.assets/1874377945.png)
 
 
 
@@ -3572,11 +4039,13 @@ RC 不加锁
 UPDATE students SET score = 100 WHERE name = 'Tom';
 ```
 
-RR [37],[49]行锁+行记录排它锁,(),(),()间隙锁
+RR [37],[49]行锁+行记录排它锁,(30,37),(37,49),(49,50)间隙锁
 
 RC [37],[49]行锁+行记录排它锁
 
-二级非唯一索引未命中时,==主键索引加锁==
+二级非唯一索引未命中时,==加Gap==
+
+![](image.assets/412778305.png)
 
 
 
@@ -3586,7 +4055,7 @@ RC [37],[49]行锁+行记录排它锁
 UPDATE students SET score = 100 WHERE name = 'John';
 ```
 
-RR ()间隙锁
+RR (30,37)间隙锁
 
 RC 不加锁
 
@@ -3598,7 +4067,7 @@ RC 不加锁
 UPDATE students SET score = 100 WHERE score = 22;
 ```
 
-RR 所有行记录排它锁,所有索引项行锁+间隙锁
+RR 所有行记录排它锁,所有索引项NK锁
 
 RC 所有行记录排它锁,所有索引项行锁
 
@@ -3610,7 +4079,7 @@ RC 所有行记录排它锁,所有索引项行锁
 UPDATE students SET score = 100 WHERE id <= 20;
 ```
 
-RR 15,18,20 行记录排它锁,(Infimum Record,15],(18,20],[(20,30](#范围查询bug)]() NK锁==	**范围条件是 id <= N，则N后一条记录也会被加上 NK 锁**
+RR 15,18,20 行记录排它锁,(Infimum Record,15],(18,20],[(20,30](#范围查询bug)]() NK锁	**范围查询第一个不满足项也会被加上 NK 锁**
 
 RC 15,18,20 行记录排它锁+索引项行锁
 
@@ -3636,10 +4105,15 @@ RC 22,23,23 行记录排它锁+索引项行锁
 
 ### 修改索引值
 
-SET字段的加锁。譬如 UPDATE students SET name = 'John' WHERE id = 15 不仅在 id = 15 记录上加锁之外，还会在 name = 'Bob'（原值）和 name = 'John'（新值） 上加锁。示意图如下（<span style='color:red;'>此处理解有误，参见下面的评论区</span>）：
+修改将同时对原值和新值加锁
 
-```
+UPDATE students SET name = 'John' WHERE id = 15 不仅在 id = 15 记录上加锁之外，还会在 name = 'Bob'（原值）和 name = 'John'（新值） 上加锁
+
+
+
+```mysql
 UPDATE students SET name = 'John' WHERE id = 15;
+#此处走主键索引,先对主键索引上锁,再检查对应的二级索引上是否存在锁冲突
 ```
 
 
@@ -3729,9 +4203,7 @@ DELETE并没有直接删除记录，而在隐藏字段进行删除标记，通�
 
 两种情况下会对已标记为删除的记录加锁：**阻塞后加锁** 和 **快照读后加锁**
 
-**阻塞后加锁** 如下图所示，事务 A 删除 id = 18 这条记录，同时事务 B 也删除 id = 18 这条记录，很显然，id 为主键，DELETE 语句需要获取 X 记录锁，事务 B 阻塞。事务 A 提交之后，id = 18 这条记录被标记为删除，此时事务 B 就需要对已删除记录进行加锁
-
-
+**阻塞后加锁** 事务 A 删除 id = 18 这条记录，同时事务 B 也删除 id = 18 这条记录，很显然，id 为主键，DELETE 语句需要获取 X 记录锁，事务 B 阻塞。事务 A 提交之后，id = 18 这条记录被标记为删除，此时事务 B 就需要对已删除记录进行加锁
 
 ![](image.assets/1072438476.png)
 
@@ -3739,24 +4211,17 @@ DELETE并没有直接删除记录，而在隐藏字段进行删除标记，通�
 
 **快照读后加锁** 如下图所示，事务 A 删除 id = 18 这条记录，并提交。事务 B 在事务 A 提交之前有一次 id = 18 的快照读，所以在后面删除 id = 18 这条记录的时候就需要对已删除记录加锁了。如果没有事务开头的这个快照读，DELETE 语句就只是简单的删除一条不存在的记录
 
-
-
 ![](image.assets/1473185167.png)
 
 
 
 
 
-- 删除记录为聚簇索引
-  - 阻塞后加锁：在删除记录上加 X 记录锁（rec but not gap），并在删除的后一条记录上加间隙锁（gap before rec）
-  - 快照读后加锁：在删除记录上加 X 记录锁（rec but not gap）
-- 删除记录为二级索引（唯一索引和非唯一索引都适用）
-  - 阻塞后加锁：在删除记录上加 Next-key 锁，并在删除的后一条记录上加间隙锁
-  - 快照读后加锁：在删除记录上加 Next-key 锁，并在删除的后一条记录上加间隙锁
-
-
-
-
+- 删除记录为主键索引
+  - 阻塞后加锁：删除记录加 X 锁，删除的后一条记录上加Gap
+  - 快照读后加锁：删除记录加 X 锁
+- 删除记录为二级索引
+  - 阻塞/快照读后加锁：在删除记录上加 NK 锁，删除的后一条记录上加Gap
 
 
 
@@ -3790,18 +4255,67 @@ INSERT时如果没出现这两种情况，那么就是隐式锁
 
 
 
-1. 表加意向锁
-2. S锁当前读,检查唯一索引
-   1. 键值冲突 && 记录行锁定 : 加S锁等待操作该数据的事务完成
+1. 检查是否存在锁冲突,冲突则加锁,加入等待队列;无锁则直接跳至6
+2. 表加意向锁
+3. S锁当前读,检查唯一索引
+   1. 键值冲突 && 记录行锁定 : 加S锁等待操作该行的事务完成
    2. 键值冲突 && 无锁:
-      1. 记录行标记删除 : 加S锁等待purge线程删除行记录
+      1. 标记删除 : 加S锁等待purge线程删除行记录
       2. 未标记删除 : **1062** duplicate key error
-4. 申请IX插⼊意向锁 (不直接申请X锁,避免阻塞其他事务.IX对其他意向锁都兼容,提高了并发)
-   1. 检查插入位置的下一条记录上是否存在锁对象
-   2. 锁对象存在并且锁住了gap,则插入意向锁阻塞
-5. 申请X锁,插入记录
+4. 申请IX插⼊意向锁,检查插入位置的下一条记录上是否存在gap/NK
+   1. 存在 : 进入等待队列 
+   2. 不存在 : 更新二级索引页上的最大事务ID为当前事务ID
+   3. (不直接申请X锁,避免阻塞其他事务.IX对其他意向锁都兼容,提高了并发)
+5. 申请X锁
+6. 插入记录
+7. 插入成功后申请gap锁,防止其他insert唯一键冲突
 
  
+
+| Session A                                         | Session B                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------ |
+| Insert 无锁冲突,不加锁,进入插入前检查(唯一键/gap) |                                                              |
+|                                                   | select lock in share mode 冲突,为sessionA加X锁,自身进入等待队列 |
+| Insert 插入数据                                   |                                                              |
+| commit 释放锁                                     |                                                              |
+
+
+
+```c
+//  将记录上的 implicit 锁转换为 explicit 锁
+	lock_rec_convert_impl_to_expl();
+		//  查询当前记录上是否存在 implicit 锁
+		// 1.  必须已经持有了 kernel mutex
+		// 2.  获取记录上的 DB_TRX_ID 系统列，获取事务 ID
+		// 3.  根据事务 ID，判断当前事务是否为活跃事务
+		// 4.  若为活跃事务，则返回此活跃事务对象
+		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
+			ut_ad(mutex_own(&kernel_mutex));
+			trx_id = row_get_rec_trx_id();
+			trx_is_active(trx_id);
+		//  判断返回事务，是否含有 explicit 锁；若有，直接返回；否则将
+		// implicit 锁转化为 explicit 锁；由 session 2 完成 session 1 insert 记录的加锁
+		lock_rec_has_expl(impl_trx);
+		//  当前 session 1 不存在 explicit 锁，因此直接创建一个锁，锁模式为
+		// LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP
+		//  由于 insert 记录上不可能有其他锁，因此转化直接成功，X 锁加上
+		lock_rec_add_to_queue();
+//  完成 session 1  的 insert 操作的 implicit 到 explicit 锁转化之后，此时可以加 session 2
+//  的 scan S 锁，但是会等待 session 1 放锁
+lock_rec_lock();
+```
+
+
+
+
+
+RW-X-LATCH
+
+而且 insert 插入数据的过程是通过 mini-transaction 来保证原子性的，不会同时出现插入数据，其他事务来 select 这条记录的情况
+
+
+
+
 
 
 
@@ -3819,6 +4333,26 @@ INSERT时如果没出现这两种情况，那么就是隐式锁
 | 提交事务   |                                      |                                      |
 |            | select 快照读,500                    | select 快照读,==400==                |
 |            | select lock in share mode 当前读,400 | select lock in share mode 当前读,400 |
+
+
+
+
+
+
+
+### 批量加锁流程
+
+
+
+MySQL Server 根据 WHERE 条件读取的第一条满足条件的记录，然后 InnoDB 引擎会将第一条记录返回并加锁（current read），待 MySQL Server 收到这条加锁的记录之后，会再发起一个 UPDATE 请求，更新这条记录。一条记录操作完成，再读取下一条记录，直至没有满足条件的记录为止。因此，==批量加锁是一条条进行的==
+
+```mysql
+update students set level = 3 where score >= 60;
+```
+
+![innodb-locks-multi-lines.png](image.assets/201797556.png)
+
+
 
 
 
@@ -4189,6 +4723,38 @@ lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_pa
 
 
 
+### 并发插入导致的死锁
+
+
+
+create table t1 (a int primary key);
+开启三个会话执行： insert into t1(a) values (2);
+
+| session 1 | session 2                                   | session 3                     |
+| :-------- | :------------------------------------------ | :---------------------------- |
+| INSERT    |                                             |                               |
+|           | INSERT (block),为session1创建X锁，并等待S锁 | INSERT (block)，等待S锁       |
+| ROLLBACK  |                                             |                               |
+|           | 获得S锁                                     | 获得S锁                       |
+|           | 申请插入意向X锁，等待session3               | 申请插入意向X锁，等待session2 |
+
+属于**锁升级**导致死锁
+
+
+
+
+
+create table t1 (a int primary key ,b int);
+insert into t1 values (1,2),(2,3),(3,4),(11,22);
+
+| session 1                                                    | session 2                                                    |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| begin;select * from t1 where a = 5 for update;(获取记录(11,22)上的GAP X锁) |                                                              |
+|                                                              | begin;select * from t1 where a = 5 for update; (同上,GAP锁之间不冲突 |
+| insert into t1 values (4,5); (block，等待session1)           |                                                              |
+|                                                              | insert into t1 values (4,5);（需要等待session2，死锁）       |
+
+GAP锁和插入意向X锁冲突导致的死锁
 
 
 
@@ -4202,6 +4768,23 @@ lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_pa
 
 
 
+## 锁监控
+
+
+
+```mysql
+show engine innodb status;	#获取死锁信息(只能获取最近的一次)
+
+-- 标准监控
+set GLOBAL innodb_status_output=ON/OFF;
+ 
+-- 锁监控
+set GLOBAL innodb_status_output_locks=ON/OFF;
+
+-- 记录死锁
+set GLOBAL innodb_print_all_deadlocks=ON;
+
+```
 
 
 
@@ -4213,7 +4796,7 @@ lock_id	lock_trx_id	lock_mode	lock_type	lock_table	lock_index	lock_space	lock_pa
 
 创建索引相当于把数据组织成数据结构的过程
 
-减少需要扫描的数据量,避免排序和临时表,将随机IO变为顺序IO
+减少扫描的数据量,避免排序和临时表,将随机IO变为顺序IO
 
 
 
@@ -4226,11 +4809,10 @@ Drop `PRIMARY` indexName On tableName;	#主键索引名为`PRIMARY`
 
 
 
-**提示使用索引**
+~~提示使用索引~~
 
 ```
-在表名后面加上
-Force Index / Use Index / Ignore Index	提示服务器如何使用索引
+在表名后加上Force Index / Use Index / Ignore Index	提示服务器如何使用索引
 ```
 
 
@@ -4257,8 +4839,6 @@ Force Index / Use Index / Ignore Index	提示服务器如何使用索引
 
 
 
-
-
 ### 索引下推 5.6+
 
 Index Condition Pushdown ICP
@@ -4275,15 +4855,11 @@ Index Condition Pushdown ICP
 
 
 
-
-
-
-
 ### Index Key
 
 用于定义起始/结束范围
 
-Index Key拆分为Index First Key 和 Index Last Key，分别用于定位索引查找的起始，以及索引查询的终止条件
+Index Key拆分为Index First/Last Key，分别用于定位索引查找的起始，以及索引查询的终止条件
 
 
 
@@ -5021,31 +5597,49 @@ ABCDEF有更多的匹配列,避免排序,但会受到在索引片上扫描行数
 
 
 
-## 性能优化的定义
+## 优化定义
 
 每秒查询量(吞吐量) / cpu利用率 / 可拓展性 -> 不同场景下,性能优化的定义不同
 
-可以将性能优化定义为完成某件任务所需时间的度量 -> 性能 = 响应时间(通过任务量和时间度量性能)
+性能优化:完成某件任务所需时间的度量 -> 性能 = 响应时间(通过任务量和时间度量性能)
 
 
 
 优化 = 在**一定的工作负载**下尽可能地降低响应时间
 
-优化 != 降低cpu利用率	资源是用来消耗的,很多情况下消耗更多资源能加速查询(在老版本InnoDb升级后,可能导致cpu利用率上升,但不意味着性能下降,反而是对资源的利用率上升导致查询速度加快)
+优化 != 降低cpu利用率	资源是用来消耗的,消耗更多资源能加速查询(cpu利用率上升,但不意味性能下降)
 
-优化 != 提升每秒查询量	吞吐量是性能优化的副产品,
+优化 != 提升每秒查询量	吞吐量是性能优化的副产品
 
 优化 != 减低响应时间
 
-优化 == 了解响应时间花在什么地方	了解查询消耗的时间分布,找到合适的测量范围(只测量需要优化的部分)
+优化 == ==响应时间 + 扫描行数 + 扫描类型 + 返回行数==	了解响应时间花在什么地方	查询消耗的时间分布,找到合适的测量范围(只测量需要优化的部分)
 
 
 
-完成任务的时间可以分为:
+==响应时间==可以分为:
 
-优化执行时间	测量定位不同子任务花费的时间,优化去除/降低子任务执行频率
+执行时间	测量定位不同子任务花费的时间,去除/降低子任务执行频率
 
-优化等待时间	可能是争用cpu/磁盘资源
+排队时间	可能是争用cpu/磁盘资源
+
+
+
+==扫描/返回行数==
+
+反映了过滤因子是否合理
+
+
+
+==扫描类型== 好->坏
+
+使用Where过滤不匹配记录(存储引擎层)
+
+索引覆盖避免回表(Mysql服务器层)
+
+从结果集过滤不满足条件的行(Mysql服务器层,在Extra列出现Using Where)
+
+
 
 
 
@@ -5054,8 +5648,6 @@ ABCDEF有更多的匹配列,避免排序,但会受到在索引片上扫描行数
 
 
 ### profile
-
-
 
 
 
@@ -5114,10 +5706,6 @@ show profile for query 1;
 
 
 
-
-
-
-
 ### show processlist
 
 查看连接的线程数量
@@ -5149,7 +5737,7 @@ Info: 一般记录的是线程执行的语句。默认只显示前100个字符�
 
 #### Command: 此刻该线程正在执行的命令
 
-
+**Analying and statistics**	正在收集存储引擎的统计信息,并生成查询的执行计划
 
 Binlog Dump: 主节点正在将二进制日志 ，同步到从节点
 
@@ -5160,6 +5748,8 @@ Close Stmt: 正在关闭一个Prepared Statement 对象
 Connect: 一个从节点连上了主节点
 
 Connect Out: 一个从节点正在连主节点
+
+**Copying to tmp table** [on disk]	正执行查询,并将结果集复制到临时表;如果有[on disk]后缀,表示正在将内存临时表写入磁盘
 
 Create DB: 正在执行一个create-database 的操作
 
@@ -5183,13 +5773,15 @@ Kill : 正在执行 kill 语句，杀死指定线程
 
 Long Data: 正在从Prepared Statement 中检索 long data
 
+**Locked**	==在服务层正在等待表锁	存储引擎层实现的锁,例如行锁,不会反映在线程状态中==
+
 Ping: 正在处理 server-ping 的请求
 
 Prepare: 该线程正在准备一个 Prepared Statement
 
-ProcessList: 该线程正在生成服务器线程相关信息
+**ProcessList**	正在生成服务器线程相关信息
 
-Query: 该线程正在执行一个语句
+**Query**	正在执行查询/返回结果
 
 Quit: 该线程正在退出
 
@@ -5201,39 +5793,21 @@ Reset Stmt: 正在重置 prepared statement
 
 Set Option: 正在设置或重置客户端的 statement-execution 选项
 
+Sending data	表示多种情况:线程在多个状态间传送数据 / 正在生成结果集 / 正在向客户端返回结果 
+
 Shutdown: 正在关闭服务器
 
-Sleep: 正在等待客户端向它发送执行语句
+**Sleep**	等待客户端发送新sql
 
 Statistics: 该线程正在生成 server-status 信息
+
+Sorting result	正在对结果集排序
 
 Table Dump: 正在发送表的内容到从服务器
 
 
 
 
-
-
-
-
-
-## 3个指标
-
-
-
-**响应时间** = 服务时间 + 排队时间(等IO完成/等行锁)
-
-**返回的行数**
-
-**扫描的行数与访问类型**	基本原因
-
-访问类型 好->坏
-
-使用Where过滤不匹配记录(存储引擎层)
-
-索引覆盖避免回表(Mysql服务器层)
-
-从结果集过滤不满足条件的行(Mysql服务器层,在Extra列出现Using Where)
 
 
 
@@ -5245,17 +5819,11 @@ Table Dump: 正在发送表的内容到从服务器
 
 Mysql查出结果集在进行计算,可能造成结果集过大导致响应时间长
 
-
-
-**避免返回全部列**
-
-取出全部列会让优化器无法索引覆盖,还会带来额外IO/内存/CPU消耗
+检查查询的列是否都是必须的,会带来额外IO/内存/CPU消耗
 
 
 
-**避免重复查询相同数据**
-
-将热点数据缓存
+**避免重复查询相同数据**,将热点数据缓存
 
 
 
@@ -5279,19 +5847,21 @@ row_affected = do_query(
 
 
 
-**分解关联查询**
+**分解查询**
 
-将大连接查询分解成各个单表查询，然后在应用程序中进行关联
+同时考虑 网络通信/查询解析/优化 成本
 
 优点:
 
-提高缓存效率	查询的粒度越细,缓存命中率越高
-
-锁粒度更小,减少锁竞争
+提高缓存效率	查询的粒度越细,缓存命中率越高,锁粒度更小,减少锁竞争
 
 在应用层关联数据的拓展性更高,容易对数据库进行拆分
 
 数据库的关联查询可能需要重复访问一部分数据,而应用层做关联只需访问一次
+
+缺点:
+
+网络传输的时延翻倍
 
 
 
@@ -5361,15 +5931,11 @@ select sum(1) from kc  计算临时列的和
 
 ![](image.assets/image-20210117132123634-1612681230958.png)
 
-1. 客户端发送查询请求
-2. 服务器查询缓存
-3. 服务器进行Sql解析,预处理,再由优化器生成执行计划
-4. 根据执行计划调用存储引擎的API执行查询
-5. 将结果返回
 
 
+### ~~查询缓存~~
 
-### 查询缓存
+**由于缓存命中率低,专门的缓存服务器出现,Mysql的高版本不需要这个**
 
 
 
@@ -5395,11 +5961,7 @@ InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之�
 
 
 
-
-
 #### 适用场景
-
-
 
 查询执行时间长,结果集传输时间短	如果传输时间是性能瓶颈,降低查询执行时间意义不大
 
@@ -5407,33 +5969,15 @@ InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之�
 
 不经常改动的外联表,避免缓存失效
 
-
-
 ==缓存命中率不决定查询缓存是否能够提升性能==,对于大量消耗Cpu的查询,即使命中率很低,也足以提升性能
-
-
-
-#### 查询缓存优化
-
-
-
-多个小表代替大表	让缓存失效在更小的粒度上进行
-
-控制缓存空间大小(query_cache_size)	缓存过大将导致服务器僵死
-
-通过SQL_CACHE / SQL_NO_CACHE控制某个Select语句是否进行缓存
 
 
 
 ### 语法解析器
 
-通过关键字将Sql进行解析,**生成解析树**
+通过关键字将Sql解析,**生成解析树**
 
 验证关键字是否错误,关键字顺序是否正确,符号的匹配
-
-
-
-
 
 
 
@@ -5443,121 +5987,44 @@ InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之�
 
 
 
-
-
-
-
-
-
-
-
 ### 查询优化器
 
+到这一步语法树被认为是合法的,并由优化器找到最优的查询方式,==将解析树转化为执行计划==
 
 
-**CBO	基于成本优化(Mysql基本都是CBO)**
+
+**CBO	基于成本优化(Mysql)**
 
 **RBO	基于规则优化**
 
+**在评估时不考虑任何层面的缓存,假设读取任何数据都需要磁盘IO**,但可能实际只需要读内存
 
+**基于成本模型**选择最优,与实际最优可能不一致 : 成本模型需要考虑 执行时间/IO次数/内存消耗/CPU消耗 等等,可能得到的==最优解不是执行时间最短,但是成本最低==
 
-==将解析树转化为执行计划==
+统计信息过时	**MVCC导致无法维护表的精准行数**
 
-**由存储引擎保存数据和索引的统计信息**,优化器在生成查询计划时,向存储引擎获取统计信息,包括表的记录数,表页数,叶子页数,索引的聚簇率,列的不同值个数,最大/小值
-
-通过hint关键词提示优化器,影响决策过程
-
-
-
-**有多种原因导致优化器选择错误**
-
-基于成本模型选择最优,与实际最优可能不一致
-
-统计信息过时	MVCC的架构导致无法维护表的精准行数
-
-Mysql层不知道数据在页面还是内存中,查询过程需要多少次IO无法提前得知
-
-不考虑并发执行的查询
-
-
-
-#### Union限制
-
-
-
-Mysql总是通过临时表的方式来执行Union查询,而**无法将部分限制条件从外层下推到内层**,导致很多优化策略无法在Union中使用,需要手动将Where/Limit/OrderBy等子句下推到Union子查询
-
-
-
-如果需要Union的各个子句能够根据Limit取结果集,必须在所有子句都加上Limit
-
-```sql
-(Select first_name,last_name
- From sakila.actor
- Order By last_name
- Limit 20)					#子句不加Limit,会导致临时表过大
-Union All
-(Select first_name,last_name
- From sakila.customer
- Order By last_name
- Limit 20)
-Limit 20
-```
-
-
-
-==Union会给临时表加上Distinct,对临时表进行唯一性检查,影响性能,用Union All替代==
-
-
-
-#### 优化关联查询
-
-
-
-确保On/Using子句的列上有索引,考虑关联的顺序
-
-**确保Group/OrderBy只涉及到一张表中的列,这样才可能使用索引**
-
-
-
-==多表关联时,优化器预估成本,调整关联的顺序==
-
-
-
-#### 优化Group By/Distinct
-
-
-
-Mysql会自动使用索引进行优化
-
-当无法使用索引时,Group By使用2种策略完成:临时表,文件排序
-
-可以通过提示SQL_BIG_RESULT / SQL_SMALL_RESULT 提示优化器的执行方式
-
-
-
-
-
-
-
-#### 关联子查询 IN限制   260
+**不考虑并发**,实际的锁争用也会带来偏差
 
 
 
 ```mysql
-SELECT * FROM sakila.film WHEREfilm_id IN ( 
-  SELECT film_id FROM sakila.film_actor WHERE actor_id = 1 
-);
-->
-EXPLAIN SELECT * FROM sakila.film WHERE EXISTS ( 
-  SELECT * FROM sakila.film_actor WHERE actor_id = 1 AND film_actor.film_id = film.film_id 
-);
-#会将外层表压到子查询中,此时子查询也变成了关联查询,需要根据film_id关联外部表film,这将导致Mysql认为无法先执行子查询,所以先对file进行全表扫描,再根据film_id进行逐个子查询
+show status like 'last_query_cost';	#上一次查询的成本
+
++-----------------+----------+
+| Variable_name   | Value    |
++-----------------+----------+
+| Last_query_cost | 1024.000 |
++-----------------+----------+
+#标明优化器认为需要做1024个数据页的随机查找才能完成查询
 ```
 
 
 
-可以用等价的 Exists()完成in查询
+**由存储引擎保存数据和索引的统计信息**,优化器向存储引擎获取统计信息,包括表的记录数,页数,列不同值个数,最大/小值
+
+
+
+~~通过hint关键词提示优化器,影响决策过程~~,优化器不需要人为地提示,往往会带来负收益
 
 
 
@@ -5565,81 +6032,58 @@ EXPLAIN SELECT * FROM sakila.film WHERE EXISTS (
 
 
 
+#### 优化策略
+
+
+
+优化策略可分为静态/动态优化
+
+
+
+##### 静态优化
+
+直接对解析树进行分析/优化,并在第一次完成后一直有效,即使使用不同的参数重复执行查询也不会发生变化,可以视为"编译时优化"
+
+
+
+* 优化器可以通过简单的代数变换,将Where条件转化为另一种等价形式
+
+
+
+##### 动态优化
+
+与查询的上下文紧密联系 : Where条件的取值,索引中条目对应的行数 等等
+
+**每次执行时都需要重复评估**,有时在查询的执行过程中也会重新优化
+
+
+
+* 调整关联表的顺序
+
+* 外连接转化为内连接
+
+* 等价变换	a=5 and a>5 -> a>=5
+
+* 优化count(),Min(),Max()
+  * 通过索引和列不为空可以帮助Mysql优化这类表达式
+  * 对于找最小值,可以直接从索引的最左端取值 -> 当作常数对待
+
+* 提前终止查询	在某些特定场景下,发现一个不成立的条件直接返回空结果集
+* In的比较	将In的列表进行排序,通过二分查找数据O(logn),对于等价的or语句O(n)
 
 
 
 
 
+###### 索引合并优化
 
-#### 查询优化器的提示hint  268
-
-
-
-
-
-### 查询执行计划
+当where子句中包含多个复杂条件时,Mysql能访问单表的多个索引,以合并和交叉过滤的方式定位到需要查找的行
 
 
 
-Mysql不生成查询字节码来执行查询,而是生成指令树,通过存储引擎执行索引查找（index seek）/索引扫描（index scan）/表扫描（table scan）来实现具体的查询 
+###### 等值传播
 
-![](image.assets/image-20210117140955046.png)![](image.assets/image-20210117141139965.png)
-
-四表关联的指令树		四表关联的执行顺序(嵌套循环,回溯完成所有表关联)
-
-
-
-
-
-### 查询执行引擎
-
-
-
-根据执行计划给出的指令逐步执行,将大量调用存储引擎实现的接口
-
-存储引擎接口功能丰富,但底层接口只有几十个,通过组合底层接口实现复杂功能,但这也为优化器的优化带来了限制
-
-
-
-### 返回结果
-
-
-
-即使查询不需要返回结果,也会返回这个查询的部分信息(查询影响到的行数)
-
-**如果查询可以缓存,在这个阶段放入缓存**
-
-
-
-==结果集的返回是增量,逐步返回的过程,当Mysql服务器处理完最后一个关联表,生成第一条结果时,就开始返回结果集==
-
-
-
-* 优点
-
-客户端无需存储大量的结果集,也不会因为返回太多结果消耗大量内存
-
-结果集的每一行都以满足Mysql客户端/服务器端通信协议的封包发送,再通过TCP传输,在传输过程中,可能对Mysql的封包进行缓存并批量传输
-
-
-
-
-
-## 自动优化
-
-
-
-重新定义关联表的顺序
-
-外连接转为内连接
-
-等价变换规则	合并或移除冗余的等价条件
-
-优化Count(),Min(),Max()	查询最小值只需要找到B-Tree中的最左记录,优化器会将表达式作为一个常数对待,在Explain可以看到"Select tables optimized away",表示已从执行计划移除该表,并以常数替代
-
-提前终止查询
-
-等值传播
+两个列通过等式进行关联,Mysql能把**Where条件传递**到这两个列
 
 ```sql
 Select film.id
@@ -5654,50 +6098,45 @@ Where film.id > 500;
 
 
 
-## 临时表
-
-
-
-关联不局限于两张表的关联,每个查询都有可能是关联
-
-对于Union,先将一系列单个查询结果放入临时表,然后重新读出临时表数据完成Union,读取临时表也是一次关联
-
-倒转顺序可能会让查询进行更少的嵌套循环和回溯,这也是由优化器自行控制
 
 
 
 
-
-## 文件排序 fileSort
-
-
-
-不能利用索引排序时,需要的额外排序操作
+#### 关联查询
 
 
 
-数据量<排序缓冲区	在内存排序
+确保On/Using子句的列上有索引,考虑关联的顺序,==优化器也会预估成本,调整关联的顺序==
 
-数据量>排序缓冲区	将数据分块,对每个独立的块使用快速排序,并将各个结果存放在磁盘,最后合并
-
-
-
-文件排序所需临时空间很大,因为在排序时需要对记录分配充足的定长空间,例如Varchar需要分配其完整长度
+**确保Group/OrderBy只涉及到一张表中的列,这样才可能使用索引**
 
 
 
-在关联查询时如果需要排序,会分2种情况处理
+Mysql中"关联"一词比想象中的还要广泛,任何一次查询都是一次关联,并不仅仅是两表的匹配
 
-1. Order By子句所有列都来自关联的第1张表,则在关联第1张表时进行文件排序.Explain的Extra字段为"Using filesort"
-2. 其余所有情况都是先将关联结果放进临时表,在关联结束后进行文件排序.Explain的Extra字段为"Using temporary;Using filesort"
+任何关联都执行<a name="嵌套循环关联">嵌套循环关联</a>:在一张表中循环取出单条数据,再嵌套到另一张表中寻找匹配行;最后根据每次的匹配行返回结果集
 
+
+
+从tb1依次取出一条行记录,去tb2寻找匹配行
+
+![](image.assets/image-20210418134408821.png)
+
+
+
+##### 关联查询优化器
+
+决定了关联的顺序
+
+关联优化器会尝试在所有关联顺序中选择一个最小成本的树来生成执行计划树
+
+这意味着n张表就会检查n!个关联顺序 -> 关联的表↑,优化速度↓
 
 
 
 
 
-
-## limit
+##### limit
 
 
 
@@ -5706,7 +6145,6 @@ Where film.id > 500;
 例如limit 1000,10这样的查询这时MYSQL需要查询出1020条记录然后只返回最后20条，前面的1000条记录都会被抛弃 
 
 ```mysql
--- 下文t1表结构都如下
 CREATE TABLE `t1` (
   `tid` BIGINT(20) NOT NULL AUTO_INCREMENT,
   `user_id` BIGINT(20) NOT NULL,
@@ -5768,6 +6206,224 @@ JOIN (
   SELECT id FROM t1 ORDER BY id LIMIT 50000, 1) AS t2	#走覆盖索引 
 WHERE t1.id <= t2.id ORDER BY t1.id LIMIT 2;
 ```
+
+
+
+
+
+
+
+##### IN限制
+
+Mysql对In()中的选项有专门的优化策略
+
+```mysql
+SELECT * FROM sakila.film
+WHERE film_id IN ( 
+  SELECT film_id FROM sakila.film_actor WHERE actor_id = 1 
+);
+
+#被Mysql翻译为-->
+EXPLAIN SELECT * FROM sakila.film
+WHERE EXISTS ( 
+  SELECT * FROM sakila.film_actor
+  WHERE actor_id = 1 AND film_actor.film_id = film.film_id 
+);
+#会将外层表压到子查询中,此时子查询也变成了关联查询,需要根据film_id关联外部表film,这将导致Mysql认为无法先执行子查询,先对file进行全表扫描,再根据film_id进行逐个子查询
+
+#需要改写为-->
+select film.* from sakila.film
+inner join sakila.film_actor Using(film_id)
+where actor_id=1;
+
+#也可以用等价的 Exists()完成in查询
+select * from sakila.film
+where exists(
+  select * from sakila.film_actor where actor_id=1
+  and film_actor.film._id = film.film_id
+);
+```
+
+
+
+
+
+##### Union限制
+
+Mysql总是通过临时表的方式来执行Union查询,而**无法将部分限制条件下推到内层**,需要手动将Where/Limit/OrderBy等子句下推到Union子查询
+
+
+
+如果需要Union的各个子句能够根据Limit取结果集,必须在所有子句都加上Limit
+
+```mysql
+(Select first_name,last_name
+ From sakila.actor
+ Order By last_name
+ Limit 20)					#子句不加Limit,会导致临时表过大
+Union All
+(Select first_name,last_name
+ From sakila.customer
+ Order By last_name
+ Limit 20)
+Limit 20
+```
+
+
+
+==Union会给临时表加上Distinct,对临时表进行唯一性检查,影响性能,用Union All替代==
+
+
+
+
+
+
+
+#### 文件排序 fileSort
+
+不能利用索引排序时,需要在服务层进行排序
+
+
+
+数据量<排序缓冲区	在内存排序
+
+数据量>排序缓冲区	将数据分块,对每个独立的块使用快速排序,并将各个结果存放在磁盘,最后合并
+
+
+
+文件排序==所需临时空间很大==,需要对记录**分配充足的定长空间**,例如Varchar分配其完整长度;这将导致临时空间会比磁盘上的原表还要大
+
+
+
+<a name="Usingfilesort">Using filesort</a>
+
+Order By子句所有列都来自关联的第1张表,则在关联第1张表时进行文件排序
+
+
+
+<a name="Usingtemporary;Usingfilesort">Using temporary;Using filesort</a>
+
+其余所有情况都是先将关联结果放进临时表,在关联结束后进行文件排序
+
+
+
+
+
+
+
+
+
+
+
+#### 限制
+
+
+
+##### min/max
+
+对于不走索引的求最大/小值,mysql无法进行优化
+
+```mysql
+select min(id) from t where name='xx';
+#当name没索引时,将全表扫描;但这种情况下走主键索引会比全表扫描更快地找到最小的主键.但mysql无法做到这样的优化
+
+#改写为-->
+select id from t use index(PRIMARY) where name ='xxx' limit 1;
+```
+
+
+
+
+
+##### 不能在同一张表上查询/更新
+
+
+
+
+
+##### 并行执行
+
+Mysql无法利用多核特性执行查询
+
+
+
+
+
+
+
+
+
+
+
+### 查询执行计划
+
+
+
+Mysql不生成查询字节码来执行查询,而是生成指令树,通过存储引擎执行索引查找（index seek）/索引扫描（index scan）/表扫描（table scan）
+
+![](image.assets/image-20210117140955046.png)![](image.assets/image-20210117141139965.png)
+
+四表关联的指令树(左侧深度优先),关联的执行顺序为**嵌套循环,回溯完成所有表关联**
+
+
+
+
+
+### 查询执行引擎
+
+
+
+根据执行计划给出的指令逐步执行,将大量调用存储引擎实现的接口
+
+存储引擎接口handle api 功能丰富,但底层接口只有几十个,通过组合底层接口实现复杂功能,但这也为优化器的优化带来了限制
+
+
+
+### 返回结果
+
+
+
+即使是空结果集,也会返回这个查询的部分信息(影响行数)
+
+**如果查询可以缓存,在这个阶段放入查询缓存**
+
+
+
+==结果集的返回是[增量,逐步返回](#通信协议)的过程==,对于关联查询,在Mysql服务器**处理完最后一个关联表,生成第一条结果时,就开始返回结果集**([嵌套循环关联使得关联查询的结果是增量获取的](#嵌套循环关联))
+
+
+
+* 优点
+
+客户端无需存储大量结果集
+
+结果集的每一行都以满足Mysql客户端/服务器端通信协议的封包发送,再通过TCP传输,在传输过程中,可能对Mysql的封包进行缓存并批量传输
+
+
+
+
+
+
+
+
+
+
+
+## 临时表
+
+
+
+关联不局限于两张表的关联,每个查询都有可能是关联
+
+对于Union,先将一系列单个查询结果放入临时表,然后重新读出临时表数据完成Union,读取临时表也是一次关联
+
+倒转顺序可能会让查询进行更少的嵌套循环和回溯,这也是由优化器自行控制
+
+
+
+**在临时表上无法使用索引**
+
+
 
 
 
