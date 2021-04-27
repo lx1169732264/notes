@@ -856,7 +856,7 @@ OOM ( Out Of Memory ):源于 java.lang.OutOfMemoryError，当 JVM 没有足够�
 
 
 
-## 程序员修炼之道
+## 修炼之道
 
 
 
@@ -873,6 +873,8 @@ DRY原则	Don`t Repeat YourSelf 不要重复你自己
 不要在系统各处对知识重复
 
 重复将导致一处的修改,将需要记得修改其他处
+
+在团队中指定某成员承担项目资料管理员,负责协调文档和代码仓库
 
 
 
@@ -947,6 +949,26 @@ DRY原则	Don`t Repeat YourSelf 不要重复你自己
 几何学中表示相交为直角的两条直线
 
 计算技术中表示不相依赖/解耦,发生变化时不会影响其他事物
+
+
+
+传统的团队组织基于瀑布开发,各个角色基于工作职务指派任务,导致越接近用户,职务级别越高,并把开发进行严格的责任划分,认为(分析,设计,编码,测试)是独立的任务
+
+
+
+然而分析,设计,编码,测试是看待同一问题的不同方式;离用户隔着产品和测试的程序员不会注意到他们工作的应用语境,导致设计的产品与用户需求不同
+
+通过按照功能划分团队,分别负责最终系统的特定功能,团队中按照个人的能力进行组织,团队成员按照他们的职责,对项目中其他成员负有责任
+
+Origanize Around Functionality,Not Job Functions	围绕功能,而不是工作职务进行组织
+
+
+
+
+
+
+
+
 
 
 
@@ -1080,7 +1102,7 @@ DRY原则	Don`t Repeat YourSelf 不要重复你自己
 
 
 
-### 调试
+### 测试
 
 
 
@@ -1097,6 +1119,50 @@ bug报告的准确性会在经第三方之手时进一步降低	需要观察报�
 向别人解释代码过程
 
 当bug是由脏数据导致的,检查能否通过参数检查更早地隔离它
+
+
+
+Test Early,Test Often,Test Automatically	早测试,常测试,自动测试
+
+编一点,测一点;bug被发现的越早,进行修补的成本就越低
+
+
+
+#### 单元测试
+
+如果各组成部分自身不能工作,它们结合在一起多半也不能工作
+
+
+
+#### 集成测试
+
+集成测试只是单元测试的一种拓展,只不过测试的是各个子系统遵守接口规约的情况
+
+
+
+#### 验证和校验
+
+尽管没有了bug,也需要验证与用户需求是否一致
+
+
+
+#### 性能测试
+
+
+
+#### 可用性测试
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1126,13 +1192,169 @@ Java的runtimeException就是这种机制,如果没有被捕获,就会渗透到�
 
 If it can not happen,use assertions to ensure that it won`t	如果它不可能发生,用断言来证明
 
-
-
 断言的性能开销比起它的作用是不值一提的
 
 
 
-#### 何时使用异常
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 配平资源
+
+
+
+Finish what you start	要有始有终
+
+每次分配都对应着一次释放
+
+按资源的分配的相反顺序进行释放,避免资源含有另一个资源的引用而无法释放
+
+对于资源的分配总是以相同的顺序,避免死锁
+
+在编程结束后检查各项资源是否配平
+
+
+
+
+
+Java一般在finally实现资源的配平
+
+
+
+### 弯曲或折断
+
+
+
+#### 得墨忒法则
+
+
+
+把代码组织成最小组织单位,并限制模块间的交互,使得模块的替换不会影响其他模块
+
+
+
+编写"羞涩"的代码:不向外部暴露自己;不与过多的人打交道
+
+
+
+#### 元程序设计
+
+
+
+Levy`s Eighth Law	再多的天才也无法胜过对细节的关注
+
+细节将弄乱整洁的代码,需要将细节赶出代码 -> 让代码高度可配置
+
+
+
+元数据是对应用进行描述的数据:应用如何运行,使用什么资源等等,在程序运行时被时刻访问
+
+
+
+
+
+### 极大的期望
+
+项目的成功取决于在多大程度上满足了用户期望
+
+哪怕是实现了极其复杂的应用,但可能会遭到用户的抵制,因为用户只想要廉价的洋娃娃
+
+Gently Exceed Your User`s Expectations	温和地超出用户的期望
+
+
+
+但为了满足用户的期望,需要交流期望
+
+用户的期望可能无法被满足,也可能过于保守,需要让用户正确地理解你将要交付的产品,以及用户尚未描述出来的期望
+
+
+
+[曳光弹](#曳光弹)
+
+
+
+#### 额外的一英里
+
+当项目交付时,要设法让用户惊讶,比用户期望多一点点,给系统增加面向某种用户特性所需的一点额外努力
+
+
+
+用户通常期望的特性
+
+* 气泡提示
+* 快捷键
+* 快速参考指南
+* 彩色化
+* 日志分析器
+* 自动化安装
+* 定制的初始化页面
+
+
+
+### 傲慢与偏见
+
+Sign Your Work	在你的作品上签名
+
+注重实效的程序员不会逃避责任,需要乐于接受挑战,乐于使我们的专业知识广为人知
+
+负责一项设计,一段代码,是一件足以引以自豪的工作
+
+
+
+但项目团队是由人组成的,签名的代码所有权概念会带来协作上的问题 -> 变得有领地意识,不愿意在公共的基础设施上工作 -> 项目变为一些互相隔离的区域
+
+
+
+签名应当被视为质量的保证,当同事在代码上看见你的签名时,应当期望它是可靠的,用心编写的,经过测试的
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 注重实效的团队
+
+
+
+#### 不留破窗户
+
+团队必须为产品的质量负责,质量源于全体团队成员的共同努力,而不只能依赖质量官员
+
+
+
+#### 煮青蛙
+
+在整体的团队中更容易忽略周围的环境,会认为有另外的人在处理某个问题,或是领导已经批准了某项改动
+
+需要确保每个人都主动地监视环境的变化,或是指定检测员
+
+
+
+
 
 
 
@@ -1250,31 +1472,13 @@ If it can not happen,use assertions to ensure that it won`t	如果它不可能�
 
 
 
-# 常用注解
-
-
-
-pojo是一个统称，可以是DTO、可以是VO、可以是PO、可以是domain，这些都叫pojo
- po、do、domain三者区别很小，用处都是和数据库进行对应
-
-DTO是数据传输对象，简单点说就是传参数用的。比如一张表30个字段，但是传参的时候只需要传5个字段，这个时候使用dto，可以避免过多的无用数据，也可以隐藏后端表结构，往往是前端传参给后端、controller、service、dao三层之间传递使用。
- VO就是view Object，专门负责给前端展示数据。VO是业务对象，业务上需要什么字段它就给什么字段，比如上面说的学生表，在给前端展示的时候需要展示名称：class_name这个字段，那么vo里写的就不是classId，而是className或者班级类
-
- 
-
-do、vo、dto这些类之间不需要给继承关系，从设计思想来讲也不能给继承关系。互相之间的属性复制使用spring提供的BeanUtils.copyProperties。如果是集合这种数据较多的属性复制，就先转成json字符串再转成另一个类的List
-
- 
-
-@Deprecated，用来表示某个类或属性或方法已经过时
-
-@SuppressWarnings用来压制程序中出来的警告，比如在没有用泛型或是方法已经过时的时候
+# 注解
 
 
 
 
 
-## Spring注解
+## Spring
 
 
 
@@ -1293,7 +1497,28 @@ Bean实例的名称默认是Bean类的首字母小写，其他部分不变
 
 
 
-**定制spring容器中bean的生命周期行为**
+ 
+
+**@Lazy**   **懒加载**
+
+***注入userService时,CacheAspect中自定义的切面增强还没有被加载
+ 导致注入进去的是还未被动态代理的,原生的userService\***
+
+ 
+
+@TableField(exist = false)	实体类中,数据库不存在的字段需要加上这个注解
+
+ 
+
+@Transactional 	**public 的方法才起作用**
+
+1)事务开始时，通过AOP机制，**生成代理connection对象**，并将其放入DataSource实例的某个与DataSourceTransactionManager相关的容器中。客户代码使用该connection连接数据库，执行所有数据库命令
+
+2)事务结束时，回滚代理connection对象上执行的数据库命令，然后关闭该代理connection对象（事务结束后，回滚操作不会对已执行完毕的SQL操作命令起作用）
+
+
+
+### bean的生命周期行为
 
 @PostConstruct	bean的初始化之前的方法
 
@@ -1305,36 +1530,7 @@ Bean实例的名称默认是Bean类的首字母小写，其他部分不变
 
 
 
-
-
-## mvc
-
-
-
-```
-@Controller		负责处理由DispatcherServlet 分发的请求,把用户请求的数据经过业务处理层处理之后封装成一个Model ，然后再把该Model 返回给对应的View 进行展示
-标记的类就是一个SpringMVC Controller 对象。分发处理器将会扫描使用了该注解的类的方法，并检测该方法是否使用了@RequestMapping 注解。@Controller 只是定义了一个控制器类，而使用@RequestMapping 注解的方法才是真正处理请求的处理器。单单使用@Controller 标记在一个类上还不能真正意义上的说它就是SpringMVC 的一个控制器类，因为这个时候Spring 还不认识它。那么要如何做Spring 才能认识它呢？这个时候就需要我们把这个控制器类交给Spring 来管理。有两种方式：
-
-
-
-
-
-
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-## @ControllerAdvice
+### @ControllerAdvice
 
 
 
@@ -1365,14 +1561,9 @@ public Object unauthorized() {
 
 
 
-@ModelAttribute   把值绑定到所有的Model中
 
-```
-    @ModelAttribute
-    public void addAttributes(Model model) {
-        model.addAttribute("author", "lx");
-    }
-```
+
+
 
 
 
@@ -1457,241 +1648,7 @@ public Object unauthorized() {
 
 
 
-
-
-
-
-
-
  
-
-# 日期格式处理
-
-
-
-```
-@JsonFormat           后台到前台
-properties文件中有相同的配置spring.mvc.date-format
-
-@DateTimeFormat     前台到后台
-properties文件中有相同的配置spring.jackson.date-format
-
-spring.jackson.time-zone
-```
-
-
-
- 
-
-@Respostory
-
-@Compment      把切面类加入到IOC容器中
-
-@**EnableAspectJAutoProxy**   //开启对AspectJ语法风格的支持
-
-@ControllerAdvise  当Controller出现异常时,跳转页面
-
-@RestControllerAdvise         ,返回json
-
- 
-
-@bean作用在方法上
-
-@import引入其他的配置文件 
-
-@ComponentScan(“”) 配置扫描
-
- 
-
-当ioc容器里有多个同名对象时
-
-@Qualifier 合格者，表明哪个bean是需要的
-
-​    Qualifier的参数必须是之前用@Bean注解过的
-
-@Primary  指明优先级
-
- 
-
-@Configuration(proxyBeanMethods = false) proxyBeanMethods决定了配置类是否会被代理,如果@Bean方法间没有调用关系的话可以把 proxyBeanMethods 设置为 false。否则，方法内部引用的类生产的类和 Spring 容器中类是两个类。
-
- 
-
- 
-
-@ConditionalOnBean // 当给定的在bean存在时,则实例化当前Bean @ConditionalOnMissingBean // 当给定的在bean不存在时,则实例化当前Bean @ConditionalOnClass // 当给定的类名在类路径上存在，则实例化当前Bean @ConditionalOnMissingClass // 当给定的类名在类路径上不存在，则实例化当前Bean
-
- 
-
- 
-
-@ConfigurationProperties(prefix = "spring.redis") 配置类注解,prefix是配置时的前缀
-
-@EnableConfigurationProperties(RedisProperties.class)     加载配置类
-
- 
-
- 
-
-**@Lazy**   **懒加载**
-
-***注入userService时,CacheAspect中自定义的切面增强还没有被加载
- 导致注入进去的是还未被动态代理的,原生的userService\***
-
- 
-
-@TableField(exist = false)	实体类中,数据库不存在的字段需要加上这个注解
-
- 
-
-@Transactional 	**public 的方法才起作用**
-
-1)事务开始时，通过AOP机制，**生成代理connection对象**，并将其放入DataSource实例的某个与DataSourceTransactionManager相关的容器中。客户代码使用该connection连接数据库，执行所有数据库命令
-
-2)事务结束时，回滚代理connection对象上执行的数据库命令，然后关闭该代理connection对象（事务结束后，回滚操作不会对已执行完毕的SQL操作命令起作用）
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 跨域
-
-
-
-Request Method: OPTIONS		会在真实请求之前先用OPTIONS验证是否拥有跨域权限
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Environment类(Spring自身的类)
-
-可以把Spring应用的运行时分成两个部分：一个是Spring应用本身，一个是Spring应用所处的环境。
-
-定时注解@Scheduled有时需要获取当前的运行环境(用户信息,配置文件信息等)
-
-Environment在容器中是一个抽象的集合，是指应用环境的2个方面：profiles和properties。
-
-\1. Profile
-
-  不管是XML还是注解，Beans都有可能指派给profile配置。Environment环境对象的作用，对于profiles配置来说，它能决定当前激活的是哪个profile配置，和哪个profile是默认。
-
-\2. Properties
-
-  properties来源于properties文件、JVM properties、system环境变量、JNDI、servlet context parameters上下文参数、专门的properties对象，Maps等等。对于properties来说，Environment对象可以提供给用户方便的服务接口、方便撰写配置、方便解析配置。
-     environment.getProperty获取配置文件中的属性
-
- 
-
-
-
-
-
-# 异常错误
-
-
-
-## unreachable code编译错误
-
-Java检查到他们后面的语句都无法执行下去，
-
-* 跳到下一次循环或其他地方
-* 死循环，无法执行下一句
-
-
-
-Checked exception:这类异常都是Exception的子类 
-
-Unchecked exception: 这类异常都是RuntimeException的子类
-
-
-
-
-
-## ConcurrentModificationException
-
-方法检测到对象的并发修改，不允许修改时，抛出异常
-
-
-
-### modCount修改次数
-
-modCount被定义在ArrayList的父类AbstractList中，初值为0
-
-```
-protected transient int modCount = 0;
-```
-
-当发生修改 ,modCount+1 ,通过比对modCount实现了快速失败原则
-
-
-
-在ArrayList的add方法中
-
-```
-public boolean add(E e) {
-    ensureCapacityInternal(size + 1);  // Increments modCount!!
-    elementData[size++] = e;
-    return true;}
-```
-
-ensureCapacityInternal方法判断时都需要扩容 ,该方法调用了ensureExplicitCapacity ,使modCount+1
-
-```
-private void ensureCapacityInternal(int minCapacity) {
-        ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));}
-
-    private void ensureExplicitCapacity(int minCapacity) {
-        modCount++;
-        if (minCapacity - elementData.length > 0)
-            grow(minCapacity); }
-```
-
-
-
-**在迭代时只能用迭代器进行删除**
-
-单线程情况：
-
-（1）使用Iterator提供的remove方法，用于删除当前元素。
-
-（2）建立一个集合，记录需要删除的元素，之后统一删除。
-
-（3）不使用Iterator进行遍历，需要之一的是自己保证索引正常。
-
-（4）使用并发集合类来避免ConcurrentModificationException，比如使用CopyOnArrayList，而不是ArrayList。
-
-多线程情况：
-
-（1）使用并发集合类，如使用ConcurrentHashMap或者CopyOnWriteArrayList。
-
-
-
-
-
-
 
 
 
@@ -1734,27 +1691,6 @@ private void ensureCapacityInternal(int minCapacity) {
 
 
 
-
-
-
-
-
-
-
-## 创建指定大小文件
-
-在目录下进入cmd
-
-fsutil file createnew test.txt 字节数
-
-
-
-## adb命令
-
-
-
-adb logcat -c
-adb logcat > C:\Users\howlett\Desktop\a.txt
 
 
 
@@ -2186,206 +2122,6 @@ aBCd
 
 
 
-
-
-
-
-
-
-
-
-# MIME
-
-| acx     | application/internet-property-stream    |
-| ------- | --------------------------------------- |
-| ai      | application/postscript                  |
-| aif     | audio/x-aiff                            |
-| aifc    | audio/x-aiff                            |
-| aiff    | audio/x-aiff                            |
-| asf     | video/x-ms-asf                          |
-| asr     | video/x-ms-asf                          |
-| asx     | video/x-ms-asf                          |
-| au      | audio/basic                             |
-| avi     | video/x-msvideo                         |
-| axs     | application/olescript                   |
-| bas     | text/plain                              |
-| bcpio   | application/x-bcpio                     |
-| bin     | application/octet-stream                |
-| bmp     | image/bmp                               |
-| c       | text/plain                              |
-| cat     | application/vnd.ms-pkiseccat            |
-| cdf     | application/x-cdf                       |
-| cer     | application/x-x509-ca-cert              |
-| class   | application/octet-stream                |
-| clp     | application/x-msclip                    |
-| cmx     | image/x-cmx                             |
-| cod     | image/cis-cod                           |
-| cpio    | application/x-cpio                      |
-| crd     | application/x-mscardfile                |
-| crl     | application/pkix-crl                    |
-| crt     | application/x-x509-ca-cert              |
-| csh     | application/x-csh                       |
-| css     | text/css                                |
-| dcr     | application/x-director                  |
-| der     | application/x-x509-ca-cert              |
-| dir     | application/x-director                  |
-| dll     | application/x-msdownload                |
-| dms     | application/octet-stream                |
-| doc     | application/msword                      |
-| dot     | application/msword                      |
-| dvi     | application/x-dvi                       |
-| dxr     | application/x-director                  |
-| eps     | application/postscript                  |
-| etx     | text/x-setext                           |
-| evy     | application/envoy                       |
-| exe     | application/octet-stream                |
-| fif     | application/fractals                    |
-| flr     | x-world/x-vrml                          |
-| gif     | image/gif                               |
-| gtar    | application/x-gtar                      |
-| gz      | application/x-gzip                      |
-| h       | text/plain                              |
-| hdf     | application/x-hdf                       |
-| hlp     | application/winhlp                      |
-| hqx     | application/mac-binhex40                |
-| hta     | application/hta                         |
-| htc     | text/x-component                        |
-| htm     | text/html                               |
-| html    | text/html                               |
-| htt     | text/webviewhtml                        |
-| ico     | image/x-icon                            |
-| ief     | image/ief                               |
-| iii     | application/x-iphone                    |
-| ins     | application/x-internet-signup           |
-| isp     | application/x-internet-signup           |
-| jfif    | image/pipeg                             |
-| jpe     | image/jpeg                              |
-| jpeg    | image/jpeg                              |
-| jpg     | image/jpeg                              |
-| js      | application/x-javascript                |
-| latex   | application/x-latex                     |
-| lha     | application/octet-stream                |
-| lsf     | video/x-la-asf                          |
-| lsx     | video/x-la-asf                          |
-| lzh     | application/octet-stream                |
-| m13     | application/x-msmediaview               |
-| m14     | application/x-msmediaview               |
-| m3u     | audio/x-mpegurl                         |
-| man     | application/x-troff-man                 |
-| mdb     | application/x-msaccess                  |
-| me      | application/x-troff-me                  |
-| mht     | message/rfc822                          |
-| mhtml   | message/rfc822                          |
-| mid     | audio/mid                               |
-| mny     | application/x-msmoney                   |
-| mov     | video/quicktime                         |
-| movie   | video/x-sgi-movie                       |
-| mp2     | video/mpeg                              |
-| mp3     | audio/mpeg                              |
-| mpa     | video/mpeg                              |
-| mpe     | video/mpeg                              |
-| mpeg    | video/mpeg                              |
-| mpg     | video/mpeg                              |
-| mpp     | application/vnd.ms-project              |
-| mpv2    | video/mpeg                              |
-| ms      | application/x-troff-ms                  |
-| mvb     | application/x-msmediaview               |
-| nws     | message/rfc822                          |
-| oda     | application/oda                         |
-| p10     | application/pkcs10                      |
-| p12     | application/x-pkcs12                    |
-| p7b     | application/x-pkcs7-certificates        |
-| p7c     | application/x-pkcs7-mime                |
-| p7m     | application/x-pkcs7-mime                |
-| p7r     | application/x-pkcs7-certreqresp         |
-| p7s     | application/x-pkcs7-signature           |
-| pbm     | image/x-portable-bitmap                 |
-| pdf     | application/pdf                         |
-| pfx     | application/x-pkcs12                    |
-| pgm     | image/x-portable-graymap                |
-| pko     | application/ynd.ms-pkipko               |
-| pma     | application/x-perfmon                   |
-| pmc     | application/x-perfmon                   |
-| pml     | application/x-perfmon                   |
-| pmr     | application/x-perfmon                   |
-| pmw     | application/x-perfmon                   |
-| pnm     | image/x-portable-anymap                 |
-| pot,    | application/vnd.ms-powerpoint           |
-| ppm     | image/x-portable-pixmap                 |
-| pps     | application/vnd.ms-powerpoint           |
-| ppt     | application/vnd.ms-powerpoint           |
-| prf     | application/pics-rules                  |
-| ps      | application/postscript                  |
-| pub     | application/x-mspublisher               |
-| qt      | video/quicktime                         |
-| ra      | audio/x-pn-realaudio                    |
-| ram     | audio/x-pn-realaudio                    |
-| ras     | image/x-cmu-raster                      |
-| rgb     | image/x-rgb                             |
-| rmi     | audio/mid                               |
-| roff    | application/x-troff                     |
-| rtf     | application/rtf                         |
-| rtx     | text/richtext                           |
-| scd     | application/x-msschedule                |
-| sct     | text/scriptlet                          |
-| setpay  | application/set-payment-initiation      |
-| setreg  | application/set-registration-initiation |
-| sh      | application/x-sh                        |
-| shar    | application/x-shar                      |
-| sit     | application/x-stuffit                   |
-| snd     | audio/basic                             |
-| spc     | application/x-pkcs7-certificates        |
-| spl     | application/futuresplash                |
-| src     | application/x-wais-source               |
-| sst     | application/vnd.ms-pkicertstore         |
-| stl     | application/vnd.ms-pkistl               |
-| stm     | text/html                               |
-| svg     | image/svg+xml                           |
-| sv4cpio | application/x-sv4cpio                   |
-| sv4crc  | application/x-sv4crc                    |
-| swf     | application/x-shockwave-flash           |
-| t       | application/x-troff                     |
-| tar     | application/x-tar                       |
-| tcl     | application/x-tcl                       |
-| tex     | application/x-tex                       |
-| texi    | application/x-texinfo                   |
-| texinfo | application/x-texinfo                   |
-| tgz     | application/x-compressed                |
-| tif     | image/tiff                              |
-| tiff    | image/tiff                              |
-| tr      | application/x-troff                     |
-| trm     | application/x-msterminal                |
-| tsv     | text/tab-separated-values               |
-| txt     | text/plain                              |
-| uls     | text/iuls                               |
-| ustar   | application/x-ustar                     |
-| vcf     | text/x-vcard                            |
-| vrml    | x-world/x-vrml                          |
-| wav     | audio/x-wav                             |
-| wcm     | application/vnd.ms-works                |
-| wdb     | application/vnd.ms-works                |
-| wks     | application/vnd.ms-works                |
-| wmf     | application/x-msmetafile                |
-| wps     | application/vnd.ms-works                |
-| wri     | application/x-mswrite                   |
-| wrl     | x-world/x-vrml                          |
-| wrz     | x-world/x-vrml                          |
-| xaf     | x-world/x-vrml                          |
-| xbm     | image/x-xbitmap                         |
-| xla     | application/vnd.ms-excel                |
-| xlc     | application/vnd.ms-excel                |
-| xlm     | application/vnd.ms-excel                |
-| xls     | application/vnd.ms-excel                |
-| xlt     | application/vnd.ms-excel                |
-| xlw     | application/vnd.ms-excel                |
-| xof     | x-world/x-vrml                          |
-| xpm     | image/x-xpixmap                         |
-| xwd     | image/x-xwindowdump                     |
-| z       | application/x-compress                  |
-| zip     | application/zip                         |
-
-
-
  
 
 
@@ -2398,11 +2134,11 @@ aBCd
 
 
 
-### 两种实现方法
+## 两种实现方法
 
 
 
-#### Cookie实现Session
+### Cookie实现Session
 
 
 
@@ -2414,7 +2150,7 @@ Cookie会在浏览器关闭时清除,称为一个“会话”。
 
 
 
-#### URL重写
+### URL重写
 
 
 
@@ -2568,9 +2304,42 @@ AD域是Active Directory的缩写，它是基于windows的一个组合，它可�
 
 
 
-# Spring
+# SpringBoot
 
- 
+
+
+## 配置文件优先级
+
+
+
+
+
+
+
+@ConfigurationProperties
+
+
+
+```java
+//application.properties中配置  test.topAppKey=123456
+
+@Configuration
+@ConfigurationProperties("test")
+public class TestConfig {
+
+  private String topAppKey = "001234";
+
+  public String getTopAppKey() {
+    return topAppKey;
+  }
+
+  public void setTopAppKey(String topAppKey) {
+    this.topAppKey = topAppKey;
+  }
+}
+```
+
+
 
 
 
@@ -2578,69 +2347,27 @@ AD域是Active Directory的缩写，它是基于windows的一个组合，它可�
 
 
 
-Ioc—Inversion of Control，控制反转，是一种设计思想
-
-将设计好的对象交给容器控制，并非在对象内部直接控制
+Ioc—Inversion of Control 控制反转
 
 
 
-**谁控制谁，控制什么：**而IoC是有专门容器来创建对象，即Ioc容器控制对象创建,依赖对象的获取被反转了
+主动创建依赖对象会导致类与类之间高耦合
+
+把**创建和查找依赖对象的控制权交给容器**，依赖对象的获取被反转,由容器注入对象，低耦合
 
 
 
+### DI
 
+DI—Dependency Injection 依赖注入
 
-松耦合
+组件间依赖关系由容器在运行期决定，即由容器动态的将依赖关系注入到组件之中
 
-主动创建依赖对象，从而导致类与类之间高耦合，难测试
-
-IoC容器后，把创建和查找依赖对象的控制权交给容器，由容器注入组合对象，所以对象与对象之间松耦合，更方便测试，利于复用，使得程序的整个体系结构灵活
-
-**IoC很好的体现迪米特法则；即由IoC容器帮对象找相应的依赖对象并注入，而不是由对象主动去找。**
-
-
-
-### 1.3、IoC和DI
-
-　　**DI—Dependency Injection，即“依赖注入”**：**组件之间依赖关系**由容器在运行期决定，形象的说，即**由容器动态的将某个依赖关系注入到组件之中**。**依赖注入的目的并非为软件系统带来更多功能，而是为了提升组件重用的频率，并为系统搭建一个灵活、可扩展的平台。**通过依赖注入机制，我们只需要通过简单的配置，而无需任何代码就可指定目标需要的资源，完成自身的业务逻辑，而不需要关心具体的资源来自何处，由谁实现。
-
-　　理解DI的关键是：“谁依赖谁，为什么需要依赖，谁注入谁，注入了什么”，那我们来深入分析一下：
-
-　　●**谁依赖于谁：**当然是**应用程序依赖于IoC容器**；
-
-　　●**为什么需要依赖：****应用程序需要IoC容器来提供对象需要的外部资源**；
-
-　　●**谁注入谁：**很明显是**IoC容器注入应用程序某个对象，应用程序依赖的对象**；
-
-　　**●注入了什么：**就是**注入某个对象所需要的外部资源（包括对象、资源、常量数据）**。
-
-　　**IoC和DI**由什么**关系**呢？其实它们**是同一个概念的不同角度描述**，由于控制反转概念比较含糊（可能只是理解为容器控制对象这一个层面，很难让人想到谁来维护对象关系），所以2004年大师级人物Martin Fowler又给出了一个新的名字：“依赖注入”，相对IoC 而言，**“****依赖注入”****明确描述了“被注入对象依赖IoC****容器配置依赖对象”。**
+应用程序的对象 需要IoC容器提供对象需要的 外部资源(对象、资源、常量数据)
 
 
 
-
-
-
-
-### IoC(控制反转)
-
-　　首先想说说**IoC（Inversion of Control，控制反转）**。这是**spring的核心**，贯穿始终。**所谓IoC，对于spring框架来说，就是由spring来负责控制对象的生命周期和对象间的关系。**这是什么意思呢，举个简单的例子，我们是如何找女朋友的？常见的情况是，我们到处去看哪里有长得漂亮身材又好的mm，然后打听她们的兴趣爱好、qq号、电话号、ip号、iq号………，想办法认识她们，投其所好送其所要，然后嘿嘿……这个过程是复杂深奥的，我们必须自己设计和面对每个环节。传统的程序开发也是如此，在一个对象中，如果要使用另外的对象，就必须得到它（自己new一个，或者从JNDI中查询一个），使用完之后还要将对象销毁（比如Connection等），对象始终会和其他的接口或类藕合起来。
-
-　　那么IoC是如何做的呢？有点像通过婚介找女朋友，在我和女朋友之间引入了一个第三者：婚姻介绍所。婚介管理了很多男男女女的资料，我可以向婚介提出一个列表，告诉它我想找个什么样的女朋友，比如长得像李嘉欣，身材像林熙雷，唱歌像周杰伦，速度像卡洛斯，技术像齐达内之类的，然后婚介就会按照我们的要求，提供一个mm，我们只需要去和她谈恋爱、结婚就行了。简单明了，如果婚介给我们的人选不符合要求，我们就会抛出异常。整个过程不再由我自己控制，而是有婚介这样一个类似容器的机构来控制。**Spring所倡导的开发方式**就是如此，**所有的类都会在spring容器中登记，告诉spring你是个什么东西，你需要什么东西，然后spring会在系统运行到适当的时候，把你要的东西主动给你，同时也把你交给其他需要你的东西。所有的类的创建、销毁都由 spring来控制，也就是说控制对象生存周期的不再是引用它的对象，而是spring。对于某个具体的对象而言，以前是它控制其他对象，现在是所有对象都被spring控制，所以这叫控制反转。**
-
-### 2.2、DI(依赖注入)
-
-　　**IoC的一个重点是在系统运行中，动态的向某个对象提供它所需要的其他对象。这一点是通过DI（Dependency Injection，依赖注入）来实现的**。比如对象A需要操作数据库，以前我们总是要在A中自己编写代码来获得一个Connection对象，有了 spring我们就只需要告诉spring，A中需要一个Connection，至于这个Connection怎么构造，何时构造，A不需要知道。在系统运行时，spring会在适当的时候制造一个Connection，然后像打针一样，注射到A当中，这样就完成了对各个对象之间关系的控制。A需要依赖 Connection才能正常运行，而这个Connection是由spring注入到A中的，依赖注入的名字就这么来的。那么DI是如何实现的呢？ Java 1.3之后一个重要特征是反射（reflection），它允许程序在运行的时候动态的生成对象、执行对象的方法、改变对象的属性，spring就是通过反射来实现注入的。
-
-　　理解了IoC和DI的概念后，一切都将变得简单明了，剩下的工作只是在spring的框架中堆积木而已。
-
-## IoC**(控制反转)**DI**(依赖注入)**
-
-　　在平时的java应用开发中，我们要实现某一个功能或者说是完成某个业务逻辑时至少需要两个或以上的对象来协作完成，在没有使用Spring的时候，每个对象在需要使用他的合作对象时，自己均要使用像new object() 这样的语法来将合作对象创建出来，这个合作对象是由自己主动创建出来的，创建合作对象的主动权在自己手上，自己需要哪个合作对象，就主动去创建，创建合作对象的主动权和创建时机是由自己把控的，而这样就会使得对象间的耦合度高了，A对象需要使用合作对象B来共同完成一件事，A要使用B，那么A就对B产生了依赖，也就是A和B之间存在一种耦合关系，并且是紧密耦合在一起，而使用了Spring之后就不一样了，创建合作对象B的工作是由Spring来做的，Spring创建好B对象，然后存储到一个容器里面，当A对象需要使用B对象时，Spring就从存放对象的那个容器里面取出A要使用的那个B对象，然后交给A对象使用，至于Spring是如何创建那个对象，以及什么时候创建好对象的，A对象不需要关心这些细节问题(你是什么时候生的，怎么生出来的我可不关心，能帮我干活就行)，A得到Spring给我们的对象之后，两个人一起协作完成要完成的工作即可。
-
-　　所以**控制反转IoC(Inversion of Control)是说创建对象的控制权进行转移，以前创建对象的主动权和创建时机是由自己把控的，而现在这种权力转移到第三方**，比如转移交给了IoC容器，它就是一个专门用来创建对象的工厂，你要什么对象，它就给你什么对象，有了 IoC容器，依赖关系就变了，原先的依赖关系就没了，它们都依赖IoC容器了，通过IoC容器来建立它们之间的关系。
-
-　　这是我对Spring的IoC**(控制反转)**的理解。DI**(依赖注入)**其实就是IOC的另外一种说法，DI是由Martin Fowler 在2004年初的一篇论文中首次提出的。他总结：**控制的什么被反转了？就是：获得依赖对象的方式反转了。**
+IoC和DI是同一个概念的不同角度描述
 
 
 
@@ -2744,11 +2471,20 @@ PROPAGATION_NESTED		支持状态保存点，当前事务回滚到某一个点，
 
 
 
-## 事务超时
+### 事务超时
 
 事务可能涉及对数据库的锁定，长时间运行事务会不必要地占用数据库资源。这时就可以声明一个事务在特定秒数后自动回滚，不必等它自己结束。
 
 由于超时时钟在一个事务启动的时候开始的，因此，只有对于那些具有可能启动一个新事务的传播行为（REQUIRES_NEW、REQUIRED、NESTED）的方法来说，声明事务超时才有意义
+
+
+
+### 注意事项
+
+1. private/protected methods 不要标记 @Transactional
+2. ==类内部调用 @Transactional 不起作用==
+3. @Transactional 的方法内，不要去抓取数据库相关异常
+4. 标记 @Transactional 的类不能为final，方法也不要final
 
 
 
@@ -2775,38 +2511,6 @@ PROPAGATION_NESTED		支持状态保存点，当前事务回滚到某一个点，
 5，提供生产就绪功能，如指标，健康检查和外部配置
 
 6，绝对没有代码生成，对XML没有要求配置
-
-　
-
-## 传统开发模式
-
-所有的功能打包在一个 WAR包里，基本没有外部依赖（除了容器），部署在一个JEE容器（Tomcat，JBoss，WebLogic）里，包含了 DO/DAO，Service，UI等所有逻辑。
-
- 
-
-* 优点：
-
-①开发简单，集中式管理
-
-②基本不会重复开发
-
-③功能都在本地，没有分布式的管理和调用消耗
-
-* 缺点：
-
-1、效率低：开发都在同一个项目改代码，相互等待，冲突不断
-
-2、维护难：代码功功能耦合在一起，新人不知道何从下手
-
-3、不灵活：构建时间长，任何小修改都要重构整个项目，耗时
-
-4、稳定性差：一个微小的问题，都可能导致整个应用挂掉
-
-5、扩展性不够：无法满足高并发下的业务需求
-
-6、对服务器的性能要求要统一，要高
-
-
 
 
 
