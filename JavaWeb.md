@@ -2122,7 +2122,515 @@ aBCd
 
 
 
+# 集群
+
+
+
+## 负载均衡
+
+集群中的应用服务器（节点）通常被设计成无状态，用户可以请求任何一个节点。
+
+负载均衡器会根据集群中每个节点的负载情况，将用户请求转发到合适的节点上。
+
+负载均衡器可以用来实现高可用以及伸缩性：
+
+- 高可用：当某个节点故障时，负载均衡器会将用户请求转发到另外的节点上，从而保证所有服务持续可用；
+- 伸缩性：根据系统整体负载情况，可以很容易地添加或移除节点。
+
+负载均衡器运行过程包含两个部分：
+
+1. 根据负载均衡算法得到转发的节点；
+2. 进行转发。
+
+### 负载均衡算法
+
+#### 1. 轮询（Round Robin）
+
+轮询算法把每个请求轮流发送到每个服务器上。
+
+下图中，一共有 6 个客户端产生了 6 个请求，这 6 个请求按 (1, 2, 3, 4, 5, 6) 的顺序发送。(1, 3, 5) 的请求会被发送到服务器 1，(2, 4, 6) 的请求会被发送到服务器 2。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/9daa3616-00a4-48c4-9146-792dc8499be3.jpg" width="500px"/> </div><br>
+
+
+该算法比较适合每个服务器的性能差不多的场景，如果有性能存在差异的情况下，那么性能较差的服务器可能无法承担过大的负载（下图的 Server 2）。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/bfea8772-d01b-4a51-8adc-edfd7d3dce84.jpg" width="500px"/> </div><br>
+
+#### 2. 加权轮询（Weighted Round Robbin）
+
+加权轮询是在轮询的基础上，根据服务器的性能差异，为服务器赋予一定的权值，性能高的服务器分配更高的权值。
+
+例如下图中，服务器 1 被赋予的权值为 5，服务器 2 被赋予的权值为 1，那么 (1, 2, 3, 4, 5) 请求会被发送到服务器 1，(6) 请求会被发送到服务器 2。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/4ab87717-e264-4232-825d-8aaf08f14e8b.jpg" width="500px"/> </div><br>
+
+#### 3. 最少连接（least Connections）
+
+由于每个请求的连接时间不一样，使用轮询或者加权轮询算法的话，可能会让一台服务器当前连接数过大，而另一台服务器的连接过小，造成负载不均衡。
+
+例如下图中，(1, 3, 5) 请求会被发送到服务器 1，但是 (1, 3) 很快就断开连接，此时只有 (5) 请求连接服务器 1；(2, 4, 6) 请求被发送到服务器 2，只有 (2) 的连接断开，此时 (6, 4) 请求连接服务器 2。该系统继续运行时，服务器 2 会承担过大的负载。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/e98deb5a-d5d4-4294-aa9b-9220d4483403.jpg" width="500px"/> </div><br>
+
+最少连接算法就是将请求发送给当前最少连接数的服务器上。
+
+例如下图中，服务器 1 当前连接数最小，那么新到来的请求 6 就会被发送到服务器 1 上。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/43d323ac-9f07-4e4a-a315-4eaf8c38766c.jpg" width="500px"/> </div><br>
+
+#### 4. 加权最少连接（Weighted Least Connection）
+
+在最少连接的基础上，根据服务器的性能为每台服务器分配权重，再根据权重计算出每台服务器能处理的连接数。
+
+#### 5. 随机算法（Random）
+
+把请求随机发送到服务器上。
+
+和轮询算法类似，该算法比较适合服务器性能差不多的场景。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/a42ad3a7-3574-4c48-a783-ed3d08a0688a.jpg" width="500px"/> </div><br>
+
+#### 6. 源地址哈希法 (IP Hash)
+
+源地址哈希通过对客户端 IP 计算哈希值之后，再对服务器数量取模得到目标服务器的序号。
+
+可以保证同一 IP 的客户端的请求会转发到同一台服务器上，用来实现会话粘滞（Sticky Session）
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/0f399a9f-1351-4b2d-b8a4-2ebe82b1a703.jpg" width="500px"/> </div><br>
+
+### 转发实现
+
+#### 1. HTTP 重定向
+
+HTTP 重定向负载均衡服务器使用某种负载均衡算法计算得到服务器的 IP 地址之后，将该地址写入 HTTP 重定向报文中，状态码为 302。客户端收到重定向报文之后，需要重新向服务器发起请求。
+
+缺点：
+
+- 需要两次请求，因此访问延迟比较高；
+- HTTP 负载均衡器处理能力有限，会限制集群的规模。
+
+该负载均衡转发的缺点比较明显，实际场景中很少使用它。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/02a1fbfd-7a9d-4114-95df-ca2445587a1f.jpg" width="500px"/> </div><br>
+
+#### 2. DNS 域名解析
+
+在 DNS 解析域名的同时使用负载均衡算法计算服务器 IP 地址。
+
+优点：
+
+- DNS 能够根据地理位置进行域名解析，返回离用户最近的服务器 IP 地址。
+
+缺点：
+
+- 由于 DNS 具有多级结构，每一级的域名记录都可能被缓存，当下线一台服务器需要修改 DNS 记录时，需要过很长一段时间才能生效。
+
+大型网站基本使用了 DNS 做为第一级负载均衡手段，然后在内部使用其它方式做第二级负载均衡。也就是说，域名解析的结果为内部的负载均衡服务器 IP 地址。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/d2c072cc-8b17-480c-813e-18cdb3b4b51f.jpg" width="500px"/> </div><br>
+
+#### 3. 反向代理服务器
+
+反向代理服务器位于源服务器前面，用户的请求需要先经过反向代理服务器才能到达源服务器。反向代理可以用来进行缓存、日志记录等，同时也可以用来做为负载均衡服务器。
+
+在这种负载均衡转发方式下，客户端不直接请求源服务器，因此源服务器不需要外部 IP 地址，而反向代理需要配置内部和外部两套 IP 地址。
+
+优点：
+
+- 与其它功能集成在一起，部署简单。
+
+缺点：
+
+- 所有请求和响应都需要经过反向代理服务器，它可能会成为性能瓶颈。
+
+#### 4. 网络层
+
+在操作系统内核进程获取网络数据包，根据负载均衡算法计算源服务器的 IP 地址，并修改请求数据包的目的 IP 地址，最后进行转发。
+
+源服务器返回的响应也需要经过负载均衡服务器，通常是让负载均衡服务器同时作为集群的网关服务器来实现。
+
+优点：
+
+- 在内核进程中进行处理，性能比较高。
+
+缺点：
+
+- 和反向代理一样，所有的请求和响应都经过负载均衡服务器，会成为性能瓶颈。
+
+#### 5. 链路层
+
+在链路层根据负载均衡算法计算源服务器的 MAC 地址，并修改请求数据包的目的 MAC 地址，并进行转发。
+
+通过配置源服务器的虚拟 IP 地址和负载均衡服务器的 IP 地址一致，从而不需要修改 IP 地址就可以进行转发。也正因为 IP 地址一样，所以源服务器的响应不需要转发回负载均衡服务器，可以直接转发给客户端，避免了负载均衡服务器的成为瓶颈。
+
+这是一种三角传输模式，被称为直接路由。对于提供下载和视频服务的网站来说，直接路由避免了大量的网络传输数据经过负载均衡服务器。
+
+这是目前大型网站使用最广负载均衡转发方式，在 Linux 平台可以使用的负载均衡服务器为 LVS（Linux Virtual Server）。
+
+参考：
+
+- [Comparing Load Balancing Algorithms](http://www.jscape.com/blog/load-balancing-algorithms)
+- [Redirection and Load Balancing](http://slideplayer.com/slide/6599069/#)
+
+## Session管理
+
+一个用户的 Session 信息如果存储在一个服务器上，那么当负载均衡器把用户的下一个请求转发到另一个服务器，由于服务器没有用户的 Session 信息，那么该用户就需要重新进行登录等操作
+
+### Sticky Session
+
+需要配置负载均衡器，使得一个用户的所有请求都路由到同一个服务器，这样就可以把用户的 Session 存放在该服务器中。
+
+缺点：
+
+- 当服务器宕机时，将丢失该服务器上的所有 Session。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/1623f524-b011-40c8-b83f-eab38d538f76.png" width="400px"/> </div><br>
+
+### Session Replication
+
+在服务器之间进行 Session 同步操作，每个服务器都有所有用户的 Session 信息，因此用户可以向任何一个服务器进行请求。
+
+缺点：
+
+- 占用过多内存；
+- 同步过程占用网络带宽以及服务器处理器时间。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/40c6570d-c1d7-4c38-843e-ba991b2328c2.png" width="400px"/> </div><br>
+
+### Session Server
+
+使用一个单独的服务器存储 Session 数据，可以使用传统的 MySQL，也使用 Redis 或者 Memcached 这种内存型数据库。
+
+优点：
+
+- 为了使得大型网站具有伸缩性，集群中的应用服务器通常需要保持无状态，那么应用服务器不能存储用户的会话信息。Session Server 将用户的会话信息单独进行存储，从而保证了应用服务器的无状态。
+
+缺点：
+
+- 需要去实现存取 Session 的代码。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/fdc45a09-f838-4348-8959-d2c793727788.png" width="600px"/> </div><br>
+
+
+
+
+
+
+
+
+
+
+
+
+
  
+
+# 分布式
+
+
+
+## 分布式锁
+
+
+
+### 数据库的唯一索引
+
+获得锁时向表中插入记录，释放锁时删除记录。唯一索引可以保证该记录只被插入一次
+
+
+
+**缺点**
+
+- 锁没有失效时间，解锁失败的话其它进程无法再获得该锁
+- 只能是非阻塞锁，插入失败直接就报错了，无法重试
+- 不可重入，已经获得锁的进程也必须重新获取锁
+
+
+
+### Redis 的 SETNX 指令
+
+SETNX（set if not exist）指令插入一个键值对，如果 Key 已经存在，那么会返回 False，否则插入成功并返回 True
+
+SETNX 指令和数据库的唯一索引类似，保证了只存在一个 Key 的键值对，那么可以用一个 Key 的键值对是否存在来判断是否存于锁定状态
+
+EXPIRE 指令可以为设置**过期时间**，避免数据库唯一索引实现方式中释放锁失败的问题
+
+
+
+### Redis 的 RedLock 算法
+
+Redis集群实现分布式锁，保证在发生单点故障时仍然可用
+
+- 尝试从 N 个互相独立 Redis 实例获取锁
+- 计算获取锁消耗的时间，只有时间小于锁的过期时间，并且从大多数（N / 2 + 1）实例上获取了锁，才认为获取锁成功
+- 如果获取锁失败，就到每个实例上释放锁
+
+
+
+### Zookeeper 的有序节点
+
+
+
+- 创建一个锁目录 /lock
+- 当一个客户端需要获取锁时，在 /lock 下创建**临时且有序的子节点**
+- 客户端获取 /lock 下的子节点列表，判断自己创建的子节点是否为当前子节点列表中序号最小的子节点，如果是则认为获得锁；否则**监听前一个子节点**，获得子节点的变更通知后重复此步骤直至获得锁
+- 执行业务代码，完成后，删除对应的子节点
+  - 如果获得锁的会话超时,因为创建的是临时节点，其它会话依然能够获得锁
+
+
+
+
+
+## 二、分布式事务
+
+指事务的操作位于不同的节点上，需要保证事务的 ACID 特性。
+
+例如在下单场景下，库存和订单如果不在同一个节点上，就涉及分布式事务。
+
+分布式锁和分布式事务区别：
+
+- 锁问题的关键在于进程操作的互斥关系，例如多个进程同时修改账户的余额，如果没有互斥关系则会导致该账户的余额不正确。
+- 而事务问题的关键则在于事务涉及的一系列操作需要满足 ACID 特性，例如要满足原子性操作则需要这些操作要么都执行，要么都不执行。
+
+### 2PC
+
+两阶段提交（Two-phase Commit，2PC），通过引入协调者（Coordinator）来协调参与者的行为，并最终决定这些参与者是否要真正执行事务。
+
+#### 1. 运行过程
+
+##### 1.1 准备阶段
+
+协调者询问参与者事务是否执行成功，参与者发回事务执行结果。询问可以看成一种投票，需要参与者都同意才能执行。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/44d33643-1004-43a3-b99a-4d688a08d0a1.png" width="550px"> </div><br>
+
+##### 1.2 提交阶段
+
+如果事务在每个参与者上都执行成功，事务协调者发送通知让参与者提交事务；否则，协调者发送通知让参与者回滚事务。
+
+需要注意的是，在准备阶段，参与者执行了事务，但是还未提交。只有在提交阶段接收到协调者发来的通知后，才进行提交或者回滚。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/d2ae9932-e2b1-4191-8ee9-e573f36d3895.png" width="550px"> </div><br>
+
+#### 2. 存在的问题
+
+##### 2.1 同步阻塞
+
+所有事务参与者在等待其它参与者响应的时候都处于同步阻塞等待状态，无法进行其它操作。
+
+##### 2.2 单点问题
+
+协调者在 2PC 中起到非常大的作用，发生故障将会造成很大影响。特别是在提交阶段发生故障，所有参与者会一直同步阻塞等待，无法完成其它操作。
+
+##### 2.3 数据不一致
+
+在提交阶段，如果协调者只发送了部分 Commit 消息，此时网络发生异常，那么只有部分参与者接收到 Commit 消息，也就是说只有部分参与者提交了事务，使得系统数据不一致。
+
+##### 2.4 太过保守
+
+任意一个节点失败就会导致整个事务失败，没有完善的容错机制。
+
+### 本地消息表
+
+本地消息表与业务数据表处于同一个数据库中，这样就能利用本地事务来保证在对这两个表的操作满足事务特性，并且使用了消息队列来保证最终一致性。
+
+1. 在分布式事务操作的一方完成写业务数据的操作之后向本地消息表发送一个消息，本地事务能保证这个消息一定会被写入本地消息表中。
+2. 之后将本地消息表中的消息转发到消息队列中，如果转发成功则将消息从本地消息表中删除，否则继续重新转发。
+3. 在分布式事务操作的另一方从消息队列中读取一个消息，并执行消息中的操作。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/476329d4-e2ef-4f7b-8ac9-a52a6f784600.png" width="740px"> </div><br>
+
+
+## 三、CAP
+
+分布式系统不可能同时满足一致性（C：Consistency）、可用性（A：Availability）和分区容忍性（P：Partition Tolerance），最多只能同时满足其中两项。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/a14268b3-b937-4ffa-a34a-4cc53071686b.jpg" width="450px"> </div><br>
+
+### 一致性
+
+一致性指的是多个数据副本是否能保持一致的特性，在一致性的条件下，系统在执行数据更新操作之后能够从一致性状态转移到另一个一致性状态。
+
+对系统的一个数据更新成功之后，如果所有用户都能够读取到最新的值，该系统就被认为具有强一致性。
+
+### 可用性
+
+可用性指分布式系统在面对各种异常时可以提供正常服务的能力，可以用系统可用时间占总时间的比值来衡量，4 个 9 的可用性表示系统 99.99% 的时间是可用的。
+
+在可用性条件下，要求系统提供的服务一直处于可用的状态，对于用户的每一个操作请求总是能够在有限的时间内返回结果。
+
+### 分区容忍性
+
+网络分区指分布式系统中的节点被划分为多个区域，每个区域内部可以通信，但是区域之间无法通信。
+
+在分区容忍性条件下，分布式系统在遇到任何网络分区故障的时候，仍然需要能对外提供一致性和可用性的服务，除非是整个网络环境都发生了故障。
+
+### 权衡
+
+在分布式系统中，分区容忍性必不可少，因为需要总是假设网络是不可靠的。因此，CAP 理论实际上是要在可用性和一致性之间做权衡。
+
+可用性和一致性往往是冲突的，很难使它们同时满足。在多个节点之间进行数据同步时，
+
+- 为了保证一致性（CP），不能访问未同步完成的节点，也就失去了部分可用性；
+- 为了保证可用性（AP），允许读取所有节点的数据，但是数据可能不一致。
+
+## 四、BASE
+
+BASE 是基本可用（Basically Available）、软状态（Soft State）和最终一致性（Eventually Consistent）三个短语的缩写。
+
+BASE 理论是对 CAP 中一致性和可用性权衡的结果，它的核心思想是：即使无法做到强一致性，但每个应用都可以根据自身业务特点，采用适当的方式来使系统达到最终一致性。
+
+
+### 基本可用
+
+指分布式系统在出现故障的时候，保证核心可用，允许损失部分可用性。
+
+例如，电商在做促销时，为了保证购物系统的稳定性，部分消费者可能会被引导到一个降级的页面。
+
+### 软状态
+
+指允许系统中的数据存在中间状态，并认为该中间状态不会影响系统整体可用性，即允许系统不同节点的数据副本之间进行同步的过程存在时延。
+
+### 最终一致性
+
+最终一致性强调的是系统中所有的数据副本，在经过一段时间的同步后，最终能达到一致的状态。
+
+ACID 要求强一致性，通常运用在传统的数据库系统上。而 BASE 要求最终一致性，通过牺牲强一致性来达到可用性，通常运用在大型分布式系统中。
+
+在实际的分布式场景中，不同业务单元和组件对一致性的要求是不同的，因此 ACID 和 BASE 往往会结合在一起使用。
+
+## 五、Paxos
+
+用于达成共识性问题，即对多个节点产生的值，该算法能保证只选出唯一一个值。
+
+主要有三类节点：
+
+- 提议者（Proposer）：提议一个值；
+- 接受者（Acceptor）：对每个提议进行投票；
+- 告知者（Learner）：被告知投票的结果，不参与投票过程。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/b988877c-0f0a-4593-916d-de2081320628.jpg"/> </div><br>
+
+### 执行过程
+
+规定一个提议包含两个字段：[n, v]，其中 n 为序号（具有唯一性），v 为提议值。
+
+#### 1. Prepare 阶段
+
+下图演示了两个 Proposer 和三个 Acceptor 的系统中运行该算法的初始过程，每个 Proposer 都会向所有 Acceptor 发送 Prepare 请求。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/1a9977e4-2f5c-49a6-aec9-f3027c9f46a7.png"/> </div><br>
+
+当 Acceptor 接收到一个 Prepare 请求，包含的提议为 [n1, v1]，并且之前还未接收过 Prepare 请求，那么发送一个 Prepare 响应，设置当前接收到的提议为 [n1, v1]，并且保证以后不会再接受序号小于 n1 的提议。
+
+如下图，Acceptor X 在收到 [n=2, v=8] 的 Prepare 请求时，由于之前没有接收过提议，因此就发送一个 [no previous] 的 Prepare 响应，设置当前接收到的提议为 [n=2, v=8]，并且保证以后不会再接受序号小于 2 的提议。其它的 Acceptor 类似。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/fb44307f-8e98-4ff7-a918-31dacfa564b4.jpg"/> </div><br>
+
+如果 Acceptor 接收到一个 Prepare 请求，包含的提议为 [n2, v2]，并且之前已经接收过提议 [n1, v1]。如果 n1 \> n2，那么就丢弃该提议请求；否则，发送 Prepare 响应，该 Prepare 响应包含之前已经接收过的提议 [n1, v1]，设置当前接收到的提议为 [n2, v2]，并且保证以后不会再接受序号小于 n2 的提议。
+
+如下图，Acceptor Z 收到 Proposer A 发来的 [n=2, v=8] 的 Prepare 请求，由于之前已经接收过 [n=4, v=5] 的提议，并且 n \> 2，因此就抛弃该提议请求；Acceptor X 收到 Proposer B 发来的 [n=4, v=5] 的 Prepare 请求，因为之前接收到的提议为 [n=2, v=8]，并且 2 \<= 4，因此就发送 [n=2, v=8] 的 Prepare 响应，设置当前接收到的提议为 [n=4, v=5]，并且保证以后不会再接受序号小于 4 的提议。Acceptor Y 类似。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2bcc58ad-bf7f-485c-89b5-e7cafc211ce2.jpg"/> </div><br>
+
+#### 2. Accept 阶段
+
+当一个 Proposer 接收到超过一半 Acceptor 的 Prepare 响应时，就可以发送 Accept 请求。
+
+Proposer A 接收到两个 Prepare 响应之后，就发送 [n=2, v=8] Accept 请求。该 Accept 请求会被所有 Acceptor 丢弃，因为此时所有 Acceptor 都保证不接受序号小于 4 的提议。
+
+Proposer B 过后也收到了两个 Prepare 响应，因此也开始发送 Accept 请求。需要注意的是，Accept 请求的 v 需要取它收到的最大提议编号对应的 v 值，也就是 8。因此它发送 [n=4, v=8] 的 Accept 请求。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/9b838aee-0996-44a5-9b0f-3d1e3e2f5100.png"/> </div><br>
+
+#### 3. Learn 阶段
+
+Acceptor 接收到 Accept 请求时，如果序号大于等于该 Acceptor 承诺的最小序号，那么就发送 Learn 提议给所有的 Learner。当 Learner 发现有大多数的 Acceptor 接收了某个提议，那么该提议的提议值就被 Paxos 选择出来。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/bf667594-bb4b-4634-bf9b-0596a45415ba.jpg"/> </div><br>
+
+### 约束条件
+
+#### 1\. 正确性
+
+指只有一个提议值会生效。
+
+因为 Paxos 协议要求每个生效的提议被多数 Acceptor 接收，并且 Acceptor 不会接受两个不同的提议，因此可以保证正确性。
+
+#### 2\. 可终止性
+
+指最后总会有一个提议生效。
+
+Paxos 协议能够让 Proposer 发送的提议朝着能被大多数 Acceptor 接受的那个提议靠拢，因此能够保证可终止性。
+
+## 六、Raft
+
+Raft 也是分布式一致性协议，主要是用来竞选主节点。
+
+- [Raft: Understandable Distributed Consensus](http://thesecretlivesofdata.com/raft)
+
+### 单个 Candidate 的竞选
+
+有三种节点：Follower、Candidate 和 Leader。Leader 会周期性的发送心跳包给 Follower。每个 Follower 都设置了一个随机的竞选超时时间，一般为 150ms\~300ms，如果在这个时间内没有收到 Leader 的心跳包，就会变成 Candidate，进入竞选阶段。
+
+- 下图展示一个分布式系统的最初阶段，此时只有 Follower 没有 Leader。Node A 等待一个随机的竞选超时时间之后，没收到 Leader 发来的心跳包，因此进入竞选阶段。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118015898.gif"/> </div><br>
+
+- 此时 Node A 发送投票请求给其它所有节点。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118445538.gif"/> </div><br>
+
+- 其它节点会对请求进行回复，如果超过一半的节点回复了，那么该 Candidate 就会变成 Leader。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118483039.gif"/> </div><br>
+
+- 之后 Leader 会周期性地发送心跳包给 Follower，Follower 接收到心跳包，会重新开始计时。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118640738.gif"/> </div><br>
+
+### 多个 Candidate 竞选
+
+- 如果有多个 Follower 成为 Candidate，并且所获得票数相同，那么就需要重新开始投票。例如下图中 Node B 和 Node D 都获得两票，需要重新开始投票。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521119203347.gif"/> </div><br>
+
+- 由于每个节点设置的随机竞选超时时间不同，因此下一次再次出现多个 Candidate 并获得同样票数的概率很低。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521119368714.gif"/> </div><br>
+
+### 数据同步
+
+- 来自客户端的修改都会被传入 Leader。注意该修改还未被提交，只是写入日志中。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/71550414107576.gif"/> </div><br>
+
+- Leader 会把修改复制到所有 Follower。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/91550414131331.gif"/> </div><br>
+
+- Leader 会等待大多数的 Follower 也进行了修改，然后才将修改提交。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/101550414151983.gif"/> </div><br>
+
+- 此时 Leader 会通知的所有 Follower 让它们也提交修改，此时所有节点的值达成一致。
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111550414182638.gif"/> </div><br>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

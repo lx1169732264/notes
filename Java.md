@@ -1,65 +1,4 @@
-# 序列化
 
-
-
-将实例对象的状态信息写入==字节流==,通过socket进行传输或者持久化.然后通过反序列化恢复对象状态
-
-通过ObjectInputStream和ObjectOutputStream实现序列化和反序列化
-
-序列化是把内存对象保存到存储介质中，反序列化就是把存储介质中的数据转化为Java对象。java。需要进行序列化的对象必须实现Serializable接口，通常情况下需要满足以下条件：
-（1）强烈建议手动生成serialVersionUID常量
-（2）需要加解密则实现readObject()和writeObject()
-（3）使用Hibernate二级缓存或其他缓存服务器时，对象必须是可序列化的
-（4）如果需要远程调用对象或传值的话，则对象需要序列化
-（5）**序列化类的可序列化成员必须也是可序列化的，不需要序列化的属性用transient修饰**
-
-
-
-## 两种实现方法
-
-
-
-实现Serializable接口，所有的序列化将会自动进行
-
-实现**Externalizable接口**,在writeExternal方法中进行手工指定所要序列化的变量
-
-
-
-## 原理
-
-
-
-==有AB两个类，B含有指向A类对象的引用，进行实例化时,系统会将a的数据复制一份到b，从文件中恢复对象(重新加载到内存)，对象a同时存在两份==
-
-
-
-
-
-序列化，**只对状态保存，不管对象的方法**
-
-**父类实现序列化，**子类自动序列化
-
-引用对象自动序列化
-
-并非所有的对象都可以序列化	socket/thread无法序列化，即使序列化了也无法对它们重新分配资源
-
- 
-
-## serialversionUID
-
-目的是序列化对象版本控制。如果在新版本中这个值修改了，新版本就不兼容旧版本，反序列化抛出InvalidClassException。如果修改较小，比如仅仅是增加了一个属性，我们希望向下兼容，那就不用修改；如果我们删除了一个属性，或者更改了类的继承关系，必然不兼容旧数据，这时就应该手动更新版本号
-
- 
-
-
-
-两种生成方式：
-
-默认的1L
-
-根据类名、接口名、成员方法及属性等来生成一个64位的哈希字段
-
-**不指定serialVersionUID生成方式将导致添加或修改类中的任何字段时, 已序列化类将无法恢复**
 
 
 
@@ -4151,10 +4090,6 @@ epoll 的描述符事件有两种触发模式：LT（level trigger）和 ET（ed
 
 
 
-
-
-
-
 ## BIO
 
 以流为基本单位处理数据，传输单位字节
@@ -4190,6 +4125,37 @@ while (true) {
 
 
 
+### 装饰器模式
+
+
+
+- InputStream 是抽象组件
+- FileInputStream 是 InputStream 的子类，属于具体组件，提供了字节流的输入操作
+- FilterInputStream 属于抽象装饰器。例如 BufferedInputStream 为 FileInputStream 提供缓存的功能
+
+
+
+![](image.assets/9709694b-db05-4cce-8d2f-1c8b09f4d921.png)
+
+
+
+
+
+实例化一个具有缓存功能的字节流对象时，只需要在 FileInputStream 对象上再套一层 BufferedInputStream 对象即可
+
+```java
+FileInputStream fileInputStream = new FileInputStream(filePath);
+BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+```
+
+DataInputStream 装饰者提供了对更多数据类型进行输入的操作，比如 int、double 等基本类型
+
+
+
+
+
+
+
 ### InputStream
 
 InputStream 所有输入字节流的抽象基类
@@ -4200,8 +4166,6 @@ InputStream 所有输入字节流的抽象基类
 - DataInputStream、BufferedInputStream 和 PushBackInputStream 都是处理流，对基本的节点流进行封装并增强
 - PipiedInputStream 用于多线程通信，可以与其它线程公用一个管道，读取管道中的数据。
 - ObjectInputStream 用于对象的反序列化，将对象的字节数据读入内存中，通过该流对象可以将字节数据转换成对应的对象
-
-
 
 
 
@@ -4296,6 +4260,30 @@ OutputStream 所有输出字节流的抽象基类
 
 
 
+#### ObjectOutputStream
+
+用于对象的序列化，将对象转换成字节数组后，将所有的字节都写入到指定位置中
+
+
+
+##### writeObject
+
+序列化
+
+
+
+
+
+##### readObject
+
+反序列化
+
+
+
+
+
+
+
 
 
 
@@ -4312,7 +4300,7 @@ OutputStream 所有输出字节流的抽象基类
 
 ### Reader
 
-Reader 是字符输入流的抽象基类，它内部的重要方法如下所示。
+
 
 重要方法方法功能public int read(java.nio.CharBuffer target)将读入的字符存入指定的字符缓冲区中public int read()读取一个字符public int read(char cbuf[])读入字符放入整个字符数组中abstract public int read(char cbuf[], int off, int len)将字符读入字符数组中的指定范围中
 
@@ -4354,7 +4342,71 @@ Reader 是字符输出流的抽象基类，它内部的重要方法如下所示�
 
 
 
+### 序列化
 
+
+
+将**对象**状态写入==字节流==,进行传输/持久化,通过反序列化恢复对象状态 -> **不会对静态变量进行序列化**，序列化只保存对象的状态，静态变量属于类的状态
+
+
+
+通过ObjectInputStream和ObjectOutputStream实现序列化和反序列化
+
+序列化是把内存对象保存到存储介质中，反序列化就是把存储介质中的数据转化为Java对象。java。需要进行序列化的对象必须实现Serializable接口，通常情况下需要满足以下条件：
+（1）强烈建议手动生成serialVersionUID常量
+（2）需要加解密则实现readObject()和writeObject()
+（3）使用Hibernate二级缓存或其他缓存服务器时，对象必须是可序列化的
+（4）如果需要远程调用对象或传值的话，则对象需要序列化
+（5）**序列化类的可序列化成员必须也是可序列化的，不需要序列化的属性用transient修饰**
+
+
+
+#### 实现方法
+
+
+
+1. 实现Serializable接口，所有的序列化将会自动进行
+
+2. 实现**Externalizable接口**,在writeExternal方法中进行手工指定所要序列化的变量
+3. [OutputStream](#OutputStream)
+
+
+
+#### 原理
+
+
+
+==有AB两个类，B含有指向A类对象的引用，进行实例化时,系统会将a的数据复制一份到b，从文件中恢复对象(重新加载到内存)，对象a同时存在两份==
+
+
+
+
+
+序列化，**只对状态保存，不管对象的方法**
+
+**父类实现序列化，**子类自动序列化
+
+引用对象自动序列化
+
+并非所有的对象都可以序列化	socket/thread无法序列化，即使序列化了也无法对它们重新分配资源
+
+ 
+
+#### serialversionUID
+
+目的是序列化对象版本控制。如果在新版本中这个值修改了，新版本就不兼容旧版本，反序列化抛出InvalidClassException。如果修改较小，比如仅仅是增加了一个属性，我们希望向下兼容，那就不用修改；如果我们删除了一个属性，或者更改了类的继承关系，必然不兼容旧数据，这时就应该手动更新版本号
+
+ 
+
+
+
+**两种生成方式**
+
+默认的1L
+
+根据类名、接口名、成员方法及属性等来生成一个64位的哈希字段
+
+**不指定serialVersionUID生成方式将导致添加或修改类中的任何字段时, 已序列化类将无法恢复**
 
 
 
@@ -11353,7 +11405,32 @@ static int indexOf(char[] source, int sourceOffset, int sourceCount,
 
 
 
-#### 编码转换
+#### 编码/解码
+
+编码:字符 -> 字节
+
+解码:字节 -> 字符
+
+乱码:编码和解码过程使用不同的编码方式
+
+
+
+- GBK 编码中，中文字符占 2 个字节，英文字符占 1 个字节
+- UTF-8 编码中，中文字符占 3 个字节，英文字符占 1 个字节
+- UTF-16be 编码中，中文字符和英文字符都占 2 个字节
+
+UTF-16be 中的 be 指的是 Big Endian，也就是大端。相应地也有 UTF-16le，le 指的是 Little Endian，也就是小端。
+
+Java 的内存编码使用双字节编码 UTF-16be，这不是指 Java 只支持这一种编码方式，而是说 char 这种类型使用 UTF-16be 进行编码。char 类型占 16 位，也就是两个字节，Java 使用这种双字节编码是为了让一个中文或者一个英文都能使用一个 char 来存储。
+
+
+
+```java
+String str1 = "中文";
+byte[] bytes = str1.getBytes("UTF-8");
+String str2 = new String(bytes, "UTF-8");
+System.out.println(str2);
+```
 
 
 

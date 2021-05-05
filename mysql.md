@@ -37,7 +37,7 @@ Mysql客户端和服务器的通信是==半双工==的 -> 查询和返回结果�
 
 
 
-# SQL分类
+## SQL分类
 
 
 
@@ -46,6 +46,34 @@ Mysql客户端和服务器的通信是==半双工==的 -> 查询和返回结果�
 | SELECT <字段名表> | INSERT      | CREATE VIEW/INDEX                  | ROLLBACK [WORK] TO [SAVEPOINT] |
 | FROM <表或视图名> | UPDATE      |                                    | COMMIT [WORK]                  |
 | WHERE <查询条件>  | DELETE      |                                    | GRANT授权                      |
+
+
+
+## Buffer Cache
+
+当有请求数据，CPU就要去读取数据，如果直接从磁盘读取（并且数据量很大），那么会导致IO过高，速度过慢。
+
+为了解决这个问题，就产生了“中间站” -- buffer cache（数据高速缓存区）{位于内存中}
+
+所有请求的数据都会先写入到“中间站”，再定时将数据更新到磁盘中，这样就避免了点对点的压力过大
+
+
+
+### 缓冲区策略
+
+**steal**：commit前把内存中的数据写入磁盘。此时**需要undo**，在commit前宕机时,已经有数据写入磁盘，要恢复到崩溃前的状态必须undo这些写入操作，否则磁盘存在脏数据
+
+no steal：不允许事务commit前把内存中的数据写入磁盘。不需要undo
+
+force：内存中的数据最晚在commit的时候写入磁盘。不需要redo
+
+**no force**：内存中的数据可以一直保留，在commit后延迟写入磁盘。此时需要redo，因为数据在系统崩溃的时候可能还没写入磁盘，如果不redo，磁盘上的数据就是不完整的
+
+
+
+Mysql为steal/no force组合,能保证内存调度的灵活性，提高系统性能，但需要undo和redo
+
+
 
 
 
@@ -877,42 +905,6 @@ MySQL难以优化引用了可空列的查询,会使索引、索引统计和值�
 
 
 
-## 缓冲区策略
-
-
-
-**steal**：commit前把内存中的数据写入磁盘。此时**需要undo**，因为系统在commit前崩溃时，已经有数据写入磁盘，要恢复到崩溃前的状态，必须undo这些写入操作，否则磁盘上存在脏数据
-
-no steal：不允许事务commit前把内存中的数据写入磁盘。不需要undo
-
-force：内存中的数据最晚在commit的时候写入磁盘。不需要redo
-
-**no force**：内存中的数据可以一直保留，在commit后延迟写入磁盘。此时需要redo，因为数据在系统崩溃的时候可能还没写入磁盘，如果不redo，磁盘上的数据就是不完整的
-
-
-
-Mysql为steal/no force组合,能保证内存调度的灵活性，提高系统性能，但需要undo和redo
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # Explain
@@ -1622,7 +1614,7 @@ Select substr(email,1,instr(email,’@’,)-1) from 表
 | MAX(expression)                    | 返回字段 expression 中的最大值                               | 返回数据表 Products 中字段 Price 的最大值：`SELECT MAX(Price) AS LargestPrice FROM Products;` |
 | MIN(expression)                    | 返回字段 expression 中的最小值                               | 返回数据表 Products 中字段 Price 的最小值：`SELECT MIN(Price) AS MinPrice FROM Products;` |
 | MOD(x,y)                           | 取余                                                         | 5 除于 2 的余数：`SELECT MOD(5,2) -- 1`                      |
-| PI()                               | 返回圆周率(3.141593）                                        | `SELECT PI() --3.141593`                                     |
+| PI()                               | 圆周率                                                       |                                                              |
 | POW(x,y)                           | 返回 x 的 y 次方                                             | 2 的 3 次方：`SELECT POW(2,3) -- 8`                          |
 | POWER(x,y)                         | 返回 x 的 y 次方                                             | 2 的 3 次方：`SELECT POWER(2,3) -- 8`                        |
 | RADIANS(x)                         | 将角度转换为弧度                                             | 180 度转换为弧度：`SELECT RADIANS(180) -- 3.1415926535898`   |
@@ -1635,7 +1627,7 @@ Select substr(email,1,instr(email,’@’,)-1) from 表
 | TAN(x)                             | 求正切值(参数是弧度)                                         | `SELECT TAN(1.75);  -- -5.52037992250933`                    |
 | TRUNCATE(x,y)                      | 返回数值 x 保留到小数点后 y 位的值（与 ROUND 最大的区别是不会进行四舍五入） | `SELECT TRUNCATE(1.23456,3) -- 1.234`                        |
 
-------
+
 
 ## 日期函数
 
@@ -2017,9 +2009,7 @@ Commit;
 
 
 
-## ACID
-
-
+**ACID**
 
 * A 原子性：全完成/全不完成
 
@@ -2259,778 +2249,18 @@ Mysql中各个存储引擎是完全独立(参与者),所以跨存储引擎的事
 
 
 
+## 只读事务
 
+Read-Only transaction
 
+InnoDB通过如下两种方式来判断一个事务是否为只读事务
+１）在InnoDB中通过 start transaction read only 命令来开启，只读事务是指在事务中只允许读操作，不允许修改操作。如果在只读事务中尝试对数据库做修改操作会报错，报错后该事务依然是只读事务，'ERROR 1792 (25006): Cannot execute statement in a READ ONLY transaction.'
+２）autocommit 开关打开，并且语句是单条语句，并且这条语句是"non-locking" SELECT 语句，也就是不使用 FOR UPDATE/LOCK IN SHARE MODE 的 SELECT 语句。
+优势：１）只读事务避免了为事务分配事务ID(TRX_ID域)的开销；２）对于密集读的场景，可以将一组查询请求包裹在只读事务中，既能提高性能，又能保证查询数据的一致性。
 
 
-## 日志
 
-
-
-日志的写入形式是顺序,循环的	logfile0写完从logfile1继续，logfile3写完则logfile0继续
-
-
-
-```shell
-innodb_max_undo_log_size#控制最大undo tablespace文件的大小，启动innodb_undo_log_truncate 时，undo tablespace 超过innodb_max_undo_log_size 阀值时才会尝试truncate。该值默认大小为1G，truncate后的大小默认为10M
-
-innodb_undo_tablespaces	#undo的独立表空间个数,当DB写压力大时，通过独立表空间，把UNDO写入高速磁盘，提高写入性能
-```
-
-
-
-
-
-
-
-
-
-### Log buffer
-
-
-
-
-
-
-
-### log file
-
-
-
-
-
-
-
-
-
-### bin
-
-记录表结构变更（CREATE、ALTER TABLE…）以及数据修改（INSERT、UPDATE、DELETE…）,SELECT和SHOW记录在通用日志
-
-
-
-修改无需每次都持久到硬盘,**日志是追加形式的顺序IO,无需移动磁头**
-
-事务日志持久后,内存中被修改的数据再慢慢地刷回磁盘
-
-
-
-二进制日志包括两类文件：
-
-* 索引文件（后缀.index）,记录所有的二进制文件
-* 日志文件（后缀.00000*）记录数据库所有的DDL和DML(除查询)语句事件
-
-
-
-
-
-| Server | InnoDb存储引擎 专属 |
-| ------ | ------------------- |
-| binlog | undo                |
-| relay  | redo                |
-| error  |                     |
-
-
-
-
-
-
-
-
-
-
-
-#### 开启binlog
-
-
-
-```shell
-vi /etc/my.cnf 
-
-log-bin=mysql-bin
-binlog-format=ROW	#推荐row模式，准确性高，但文件大
-server_id=1	#配置mysql replaction需要定义，不能和canal的slaveId重复
-```
-
-
-
-binlog-format
-
-![](image.assets/binlog格式.jpeg)
-
-
-
-#### 刷盘
-
-
-
-将缓存中的日志刷到磁盘上
-
-binlog_cache_size过大，造成内存浪费。过小，会频繁将缓冲日志写入临时文件
-
-sync_binlog=0	刷新binlog时间点由操作系统自身来决定,性能好
-
-sync_binlog=1	每次事务提交时就会刷新binlog到磁盘
-
-sync_binlog=N	每N个事务提交会进行一次binlog刷新(数据丢失)
-
-
-
-binlog是多文件存储，定位一个LogEvent需要通过binlog filename +  binlog position进行定位
-
-
-
-
-
-
-
-### undo
-
-逻辑日志
-
-维护数据修改前的值,保证==原子性==,存放在系统表空间(ibdata)中,5.6+可以使用独立的Undo表空间	**随机IO**
-
-undo使快照无需保存事务开启时行记录的历史状态 -> `delete`时，记录`相反的insert`记录;`update`时，记录`相反的update`记录。rollback根据undo的记录进行回滚
-
-
-
-
-
-记录undo的操作本身也会有对应的redo
-
-
-
-由于数据库的steal策略，事务在更新一个页面后，==数据库可以把未提交的数据刷入磁盘,并利用undo的版本链实现MVCC的行版本控制,维护未提交数据的可见性==，这时发生崩溃，==恢复时也通过undo中到数据的历史状态==
-
-
-
-在事务提交前,undo一直在内存中,提交时落盘(**所有数据在落盘前都先经过内存**)
-
-`行版本控制`也是通过undo log来实现的：当读取的某一行被其他事务锁定时，从undo log中倒推历史数据，实现`非锁定一致性`读取
-
-
-
-
-
-
-Undo保证了事务失败或主动abort时的机能，除此之外，系统崩溃恢复时，也确保数据库状态能恢复到一致。
-
-系统恢复时，Undo需要Redo的配合来实现，或者说二者是一套机制的两个方面。因为在Redo日志有commit或abort记录的事务是无需undo的。
-假设以静止的检查点为日志类型，以<CKPT (t0,…,tn)>做检查点，期间不接受新事务进入，整个Undo过程可以描述如下：
-1.以进行检查点时记录的活跃事务(t0,…,tn)为undo-list
-2.在Redo阶段，发现<T,START>记录，就将T加入undo-list，发现<T,END>或<T,ABORT>记录，就将T移出undo-list
-4.最后undo-list中的事务都是些未提交也没回滚的事务，系统如同普通的事务回滚样进行具体的undo操作
-5.当undo-list中发现<T,START>时，说明完成了具体的回滚操作，系统写入一个<T,ABORT>记录，并从undo-list中删除T。
-6.直到undo-list为空，撤销阶段完成
-
- 
-
-Undo的原语表示可以如下：
-![](image.assets/360077-20191231145606328-1689697598.png)
-
- 
-
-**1.4 写日志**
-写日志有2种处理：一是等待一次IO，直接写入到存储介质。二是先写入到缓冲，在之后的某一时间点统一写入磁盘
-
-fsync() VS sync()
-fsync函数等待磁盘操作结束，然后返回，它能确保数据持久化到存储介质，而不是停留在OS或存储的写缓冲中
-sync则把修改过的块缓冲区排入OS的写队列后就返回。fsync能确保数据写入，同时，这也意味着一次IO及性能消耗
-
-
-
-不同的数据库部件有各自的设计目的，负责不同的命令，Read和Write由事务发起，Input和Output由缓冲区管理器发出。也就是说，日志记录响应的是写入内存的write命令，而不是写入磁盘的output命令，除非显示的控制
-
-具体的实现上会有很多策略，但应保证一些原则：
-
-针对Undo
-1.如果事务T改变了数据库元素X，那么必须保证对应的一条Undo记录在X的新值写入磁盘之前落盘。
-2.如果发生commit，那么该条commit记录写入磁盘前，所有之前的修改能确保先行落盘。
-
-针对Redo，先写日志规则（Write-Ahead Logging，WAL）:
-1.对数据库元素X的修改被写入磁盘前，一条对应的Redo日志保证先行落盘。
-2.提交时，修改的数据库元素在写入磁盘前，一条commit记录保证落盘。
-
-注意这里说的数据库元素X，不是事务层面的更新记录集，通常假定是一个最小的原子处理单位，一个磁盘块。当某块在output时，不能有对该块的write。为此在某块输出时可以在块上设置排他锁，这种短期持有的闩锁（latch）与事务并发控制的锁无关，按照非两阶段的方式释放这样的锁对于事务可串行性没有影响。如果数据库元素小于单个块，一个糟糕的情景是不同事务的2个数据元素位于同一块，这时候一个事务对块的写磁盘动作可能导致另一个事务违反写入规则，一个建议是以块作为数据库元素。
-
-
-
-在InnoDB的实现中，并不严格按照WAL规则，而是通过一种事务的序列编号LSN保证逻辑上的WAL。下面对InnoDB的一些实现细节尝试分析下。
-
- 
-
-**2.MySQL InnoDB中的实现
-
-**
-
-**2.1 redo log**
-每个Innodb存储引擎至少有一个重做日志文件组(group)，每个文件组下至少有2个重做日志文件，如默认的ib_logfile0和ib_logfile1，其默认路径位于引擎的数据目录。
-
- 
-
-设置多个日志文件时，其名字以ib_logfile[num]形式命名。多个日志文件循环利用，第一个文件写满时，换到第二个日志文件，最后一个文件写满时，回到第一个文件，组成逻辑上无限大的空间。在Innodb1.2.x前，重做日志文件的总大小不能大于等于4GB，1.2.x版本该限制以扩大到512GB.
-
- 
-
-重做日志文件设置的越大，越可以减少checkpoint刷新脏页的频率，这有时候对提升MySQL的性能非常重要，但缺点是增加了恢复时的耗时；如果设置的过小，则可能需要频繁地切换文件，甚至一个事务的日志要多次切换文件，导致性能的抖动。
-
- 
-
-Innodb中各种不同的操作有着不同类型的重做日志，类型数量有几十种，但记录条目的基本格式可以如下表示：
-
-![img](image.assets/360077-20200103202310809-148368254.png)
-图2.1
-
-
-
- 
-
-在存储结构上，redo log文件以block块来组织，每个block大小为512字节。每个文件的开头有一个2k大小的File Header区域用来保存一些控制信息，File Header之后就是连续的block。虽然每个redo log文件在头部划出了File Header区域，但实际存储信息的只有group中第一个redo log文件。
-
-![img](image.assets/360077-20200103202741021-1479399536.png)
-
-图2.2
-
- 
-
-当redo log实际由mtr（Mini transaction）产生时，首先位于mtr的cache，之后输出到redo log 缓冲区，再从缓冲区写入到磁盘。Log buffer与文件中的block大小对应，以512字节为单位对齐，一个mtr日志可能不足一个block，也可能跨block。
-
- 
-
-**File Header**
-File Header位于每个redo log文件的开始，大小为2k，格式如下：
-![img](image.assets/360077-20200103203032242-1722062623.png)
-
-图2.3
-
-log group中的第一个文件实际存储这些信息，其他文件仅保留了空间。在写入日志时，除了完成block部分，还要更新File Header里的信息，这些信息对Innodb引擎的恢复操作非常关键。
-
-
-
-**Block**
-一个block块有512字节大小，每块中还有块头和块尾，中间是日志本身。其中块头Block Header占有12字节大小，块尾Block Trailer占有4字节大小，中间实际的日志存储容量为496字节(512-12-4)：
-
-![img](image.assets/360077-20200103203319731-2109921920.png)
-图2.4
-
- 
-
-LOG_BLOCK_HDR_NO
-在log buffer内部，可以看成是单位大小是512字节的log block组成的数组，LOG_BLOCK_HDR_NO就用来标记数组中的位置。其根据该块的LSN计算转换而来，递增且循环使用，占有4个字节，第一位用来判断是否flush bit，所以总容量是2G。(LSN在之后一段说明)
-
-LOG_BLOCK_HDR_DATA_LEN
-标识写入本block的日志长度，占有2个字节，当写满时用0X200表示，即有512字节。
-
-LOG_BLOCK_FIRST_REC_GROUP
-占有2个字节，记录本block中第一个记录的偏移量。如果该值与LOG_BLOCK_HDR_DATA_LEN
-相同，说明此block被单一记录占有，不包含新的日志。如果有新日志写入，LOG_BLOCK_FIRST_REC_GROUP就是新日志的位置。
-
-![img](image.assets/360077-20200103203502621-1542672235.png)图2.5
-
- 
-
-LOG_BLOCK_CHECKPOINT_NO
-占有4字节，记录该block最后被写入时检查点第4字节值。
-
-LOG_BLOCK_TRL_NO
-Block trailer中只由这1个部分组成。记录本block中的checksum值，与LOG_BLOCK_HDR_NO值相同。
-
- 
-
-**LSN**
-LSN是Log Sequence Number的缩写，占有8字节，单调递增，记录重做日志写入的字节总量，也表示日志序列号。
-
-LSN除了记录在redo日志中，还存于每个页中。页的头部有一个FIL_PAGE_LSN用于记录该页的LSN，反应的是页的当前版本。
-
-LSN同样也用于记录checkpoint的位置。使用SHOW ENGINE INNODB STATUS命令查看LSN情况时，Log sequence number是当前LSN，Log flushed up to 是刷新到重做日志文件的LSN，Last checkpoint at 是刷新到磁盘的LSN。
-
-由于LSN具有单调增长性，如果重做日志中的LSN大于当前页中LSN，说明页是滞后的，如果日志记录的LSN对应的事务已经提交，那么当前页需要重做恢复。
-如果页被新事务修改了，页中LSN记录的是新写入的结束点的LSN，大于重做日志中的LSN，那么当前页是新数据，是脏页。
-脏页根据提交情况可能需要加入flush list中，此时flush list上的所以脏页也是以LSN排序。
-
-写redo log时是追加写，需要保证写入顺序，或者说应保证LSN的有序。当并发写时可以通过加锁来控制顺序但效率低下，8.0中使用了无锁的方式完成并发写，mtr写时已经提前知道自己在log buffer上的区间位置，不必等待直接写入log buffer就可。这样大的LSN值可能先写到log buffer上，而小的LSN还没写入，即log buffer上有空洞。所以有一个单独的线程log_write，负责不断的扫描log buffer，检测新的连续内容并进行刷新，是真正的写线程。
-
- 
-
-2.2 Undo
-
-undo是逻辑日志，在事务回滚时对数据库进行一些补偿性的修改，以使数据在逻辑上回到修改前的样子，它并不幂等
-在Innodb中使用表空间，回滚段，页等多级概念结构实现undo功能，并随版本多次改进，为方便讨论，下面放一张5.7版本的大致结构图，在此基础上进行描述：
-
-![img](image.assets/360077-20200103212507447-294605537.png)
-图2.6
-
- 
-
-\1. 在undo这部分，MySQL 5.7版本在5.6(InnoDB 1.2)的基础上主要增加有innodb_undo_log_truncate 收缩等功能，但在大致结构方面5.6可以参考上面5.7的图。
-
-\2. 在5.5(Innodb1.1)版本之前，只有一个undo回滚段(rollback segment)，支持1024个事务同时在线。
-
-3.在5.5版中，支持最大128个回滚段，理论上支持128*1024个事务同时在线。
-
-4.在之前的版本中，回滚段都存储于共享表空间中，一个常见的问题是ibdata膨胀。在5.6版本(Innodb1.2)时，可以对回滚段做更多的设置：
-innodb_undo_directory
-innodb_undo_logs
-innodb_undo_tablespaces
-这3个参数分别用来设置
-（1）回滚段文件所在位置，这意味着回滚段可以存储到共享表空降值外，能使用独立的表空间。
-（2）回滚段的数量，默认是128个。
-（3）回滚段文件的数量。如设置为3个，则在上面指定的directory文件生成3个undo为前缀的文件：undo001，undo002，undo003，默认的128个回滚段将被依次平均分配到这3个文件中。具体分配时，总是从第一个space开始轮询，所以如果将回滚段的数量依次递增到128，那所有的段都将落入undo001中。
-
-
-\5. 如上图，共享表空间偏移量为5的页记录有所有回滚段的指向信息，这页的类型为FIL_PAGE_TYPE_SYS（trx_sys）。 0号回滚段被预留在ibdata中，1~32号的32个回滚段是临时表的回滚段，存储于ibtmpl文件，其余从33号开始的回滚段才是可配置的，因此InnoDB实际支出96*1024个普通事务同时在线。
-
-6.每个回滚段的头部维护着一个段头页，该页中划分了1024个槽位slot（TRX_RSEG_N_SLOTS），每个slot可以对应一个undo log对象，这也是为什么说一个回滚段支持1024个事务。
-
-7.MySQL8.0中，每个Undo tablespace都可以创建128个回滚段，所以总共可以有总共有innodb_rollback_segments * innodb_undo_tablespaces个回滚段。
-
- 
-
-**结构体**
-回滚段的信息以数组的形式存放，数组大小为128，数组位于trx_sys->rseg_array
-rseg_array数组中的元素类型是trx_rseg_t，表示一个回滚段。
-每个trx_rseg_t中管理着许多trx_undo_t，这些trx_undo_t同时也属于多个链表，不同的链表有着不同的功能，如insert_undo_list或update_undo_list等。
-![img](image.assets/360077-20200103210946397-1192489016.png)
-
-图2.7
-
- 
-
-
-**undo log格式**
-
-
-Innodb中undo log可以分为两种：
-inser undo log
-update undo log
-
-
-insert undo log是insert操作中产生的undo log，因为只对本事务可见，该类undo log在事务提交后就可以删除，不需要进行purge操作。格式如下：
-![img](image.assets/360077-20200103211111316-1268543300.png)
-
-图2.8
-
- 
-
-update undo log是delete和update操作产生的undo log。此类undo log是MVCC的基础，在本事务提交后不能简单的删除，需要放入purge队列purge_sys->purge_queue
-等待purge线程进行最后的删除。格式如下：
-
-![img](image.assets/360077-20200103211223378-18625767.png)图2.9
-
-图上可见update undo log的格式比insert undo log复杂，同名的部分功能类似，其中的type_cmpl部分，由于update undo log本身还有分类，所以值可能有：
-TRX_UNDO_DEL_MARK_REC，将记录标记为delete
-TRX_UNDO_UPD_DEL_REC，将delete的记录标记为not delete
-TRX_UNDO_UPD_EXIST_REC，更新未被标记delete的记录
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-innodb对undo的操作是，如果你update 一条记录，那么就先把记录cp到undo中，记录undo的redo，加锁，修改数据，记录page的redo，事务提交，判断是否有事务引用undo log，有等待，没有则回收undo log。
-
-如果在事务进行中崩溃了，那么就需要redo进行恢复，并检测redo中有没有该事务的提交信息，如果有，那么前滚，undo log就没用了，如果没有提交信息，就需要进行回滚，这时候需要把undo log中的记录信息在cp回去。所以undo log也需要落盘把。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### 存储
-
-UNDO内部由128个回滚段Rollback segment组成,即支持128*1024个undo操作，通过`innodb_undo_logs` 设置回滚段个数。undo log`默认存放`在`共享表空间`中。如果开启了`innodb_file_per_table` ，将放在每个表的`.ibd`文件中。
-
-在MySQL5.6中，undo的存放位置还可以通过变量 `innodb_undo_directory` 来`自定义存放目录`，默认值为"."表示datadir
-
-默认rollback segment全部写在一个文件中，但可以通过设置变量 `innodb_undo_tablespaces` 平均分配到多少个文件中。该变量`默认值为0`，即`全部写入一个表空间文件`。该变量为静态变量，只能在数据库示例停止状态下修改，如写入配置文件或启动时带上对应参数。但是innodb存储引擎在启动过程中提示，`不建议修改为非0`的值
-
-
-
-insert在提交前只对当前事务可见 -> 记录至==insert undo log==,**提交后直接删除** (刚插入的数据没有可见性要求)
-
-update/delete需要维护多版本信息 -> 记录至==update undo log==,提交后放到 history list，等待 purge 线程进行删除
-
-
-
-update流程
-
-```
-假设之前插⼊该⾏的事务 ID 为 100，事务 A 的 ID 为 200，该⾏的隐藏主键为 1
-
-对⾏记录加排他锁,把该⾏原本的值拷⻉到 undo log 中，DB_TRX_ID 和 DB_ROLL_PTR 都不动
-事务A修改该⾏,产⽣新版本，更新 DATA_TRX_ID=200，DATA_ROLL_PTR=100,指向拷⻉到 undo log 链中的旧版本记录
-```
-
-
-
-
-
-采用==回滚段==的方式来维护undo log的并发写入和持久化。回滚段是 Undo 文件组织方式
-
-每个回滚段由`1024`个`undo log slot`组成。`每个undo操作`在记录的时候`占用一个undo log slot`,同时记录,redo log，因为undo log也需要`持久化`
-
-![](image.assets/27e30226a2c2478389b8d49df4426b1c.jpeg)
-
-
-
-rseg0		预留给系统表空间
-
-rseg 1~32	预留给临时表空间，每次数据库重启的时候，都会重建临时表空间
-
-rseg 33~127	则根据配置存放到独立undo表空间中（如果没有打开独立Undo表空间，则存放于ibdata中）
-
-
-
-每个回滚段维护了一个段头页，在该page中又划分了1024个slot(TRX_RSEG_N_SLOTS)，每个slot又对应到一个undo log对象，因此理论上InnoDB最多支持 96 * 1024个普通事务
-
-
-
-**关键结构体**
-
-为了便于管理和使用undo记录，在内存中维护关键结构体对象：
-
-1. 所有回滚段都记录在trx_sys->rseg_array，数组大小为128，分别对应不同的回滚段
-2. rseg_array数组类型为trx_rseg_t，用于维护回滚段相关信息
-3. 每个回滚段对象trx_rseg_t还要管理undo log信息，对应结构体为trx_undo_t，使用多个链表来维护trx_undo_t信息
-4. 事务开启时，会专门给他指定一个回滚段，以后该事务用到的undo log页，就从该回滚段上分配
-5. 事务提交后，需要purge的回滚段会被放到purge队列上(purge_sys->purge_queue)
-
-
-
-![](image.assets/eabcb7f0a84245c1964d6943f4c351e6.jpeg)
-
-
-
-
-
-
-
-
-
-
-
-### redo
-
-物理日志
-
-链式记录数据每次修改前的备份 -> ==原子性== -> **顺序IO**,数据库运行时不需要对redo log进行读取
-
-
-
-Force Log at commit机制
-
-事务提交前持久化redo,再调用fsync刷新内存;数据本身不需要在提交时完成持久化 -> ==持久性==
-
-
-
-#### 操作数据原语
-
-Input(X)：将X值从存储介质读入缓冲区
-Read(X,t)：将X值从缓冲区读入事务内的变量t，如果缓冲中不存在，则触发Input
-Write(X,t): 将事务内的t写入到缓冲区X块，如果缓冲中X不存在，则触发Input(X)，再完成write
-Output(X)：将缓冲区X写入到存储中
-
-![](image.assets/360077-20191231144542432-753158298.png)
-
-
-
-
-
-Redo日志往往是由多个事务交织在一起的，错误也随时能发生
-
-![](image.assets/360077-20191231144439062-1454724302.png)
-
-(a) 事务未提交&&宕机,需要重做redo
-
-(b) 日志中T0已经提交了，必须要对T0 进行Redo，而部分T1也需要Redo
-(c) 日志中T0已经提交了，必须要对T0进行Redo,而T1虽然abort也需要Redo
-
-
-
-对于已commit的事务,宕机时必须重做Redo，但未提交的事务可以不必进行Redo，但这样会增加Redo阶段的复杂性，Mysql**根据Redo全部重做，之后的撤销工作交给Undo来进行 -> **Redo事务无关性
-
-
-
-#### Checkpoint
-
-原则上，系统恢复时可以通过检查整个日志来完成
-
-但日志过长时
-
-1. 搜索慢
-2. 全部redo都重做慢
-3. 事务commit日志记录写入磁盘后,恢复时不再需要这部分的undo.但由于其他事务可能在使用Undo中的旧值。为此需要checkpoint来处理这些当前活跃的事务
-
-
-
-Ib_logfile的checkpoint field
-实际上不仅要记录checkpoint做到哪儿（LOG_CHECKPOINT_LSN），还要记录用到了哪个位置（LOG_CHECKPOINT_OFFSET）等其他信息。所以在ib_logfile0的头部预留了空间，用于记录这些信息。
-因此即使使用后面的logfile，每次checkpoint完成后，ib_logfile0都是要更新的。同时你会发现所谓的顺序写盘，也并不是绝对的
-
-相关的一些数字
-a) InnoDB留了两个checkpoint filed，按照注释的解释，目的是为了能够“write alternately”
-b) 每个checkpint field需要的大小空间为304字节。(相关定义在log0log.h)
-c) 第一个checkpoint的起始位置在ib_logfile0的第512字节(OS_FILE_LOG_BLOCK_SIZE)处；
-d) 第二个在1536 (3 * OS_FILE_LOG_BLOCK_SIZE)字节处。
-
-
-
-
-
-
-
-
-
-##### 简单检查点
-（1）**停止接受新的事务**
-（2）等待当前所有活跃事务完成或中止，并在日志中写入commit或abort记录
-（3）将当前位于内存的日志缓冲块刷新到磁盘
-（4）写入日志记录<CKPT>，并再次刷新到磁盘
-（5）重新开始接受事务
-系统恢复时，可以从日志尾端反向搜索，直到找到第一个<CKPT>标志，而没有必要处理<CKPT>之前的记录
-
-
-
-**非静止检查点**
-简单检查点期间需要停止响应，非静止检查点允许进行检查点时接受新事务进入，步骤如下：
-（1）写入日志记录<START CKPT(t1,…tn)>，其中t1,…tn是当前活跃的事务
-（2）等待t1,…tn所有事务提交或中止，但仍接受新事务的进入
-（3）当t1,…tn所有事务都已完成，写入日志记录<END CKPT>
-
- 
-
-当使用非静止检查点技术，恢复时的也是从日志尾向前扫描，可能先遇到<START CKPT>标志，也可能先遇到<END CKPT>标志：
-1.先遇到<START CKPT(t1,…tn)>时，说明系统在检查点过程中崩溃，未完成事务包括2部分：(t1,…tn)记录的部分及<START>标志后新进入部分。这部分事务中最早那个事务的开始点就是扫描的截止点，再往前可以不必扫描。
-
-2.先遇到<END CKPT>，说明系统完成了上一个周期的检查点，新的检查点还没开始。需要处理2部分事务：<END CKPT>标志之后到系统崩溃时这段时间内的事务及上一个<START>，<END>区间内新接受的事务。为此扫描到上一个检查点<START CKPT()>就可以截止。
-
-多说一句，很容易发现，非静止检查点是将一个点扩展为一个处理区间了，类似的设计其他技术也有，如JVM的GC处理，从stop the world到安全区的处理
-
- 
-
- 
-
-
-
-
-
-
-
-
-
-数据修改时，先把数据页从磁盘读到buffer pool中并进行修改，导致buffer pool中数据页与磁盘上数据页内容不一致,此时Mysql宕机会导致，buffer pool中的内存数据丢失
-
-buffer pool的数据页变更后，修改记录**顺序IO**至redo log，那么当Mysql恢复时，根据redo内容，**找到需要重新刷新到磁盘文件的记录**
-
-如果在buffer pool的数据页变更后直接flush到disk file，是随机IO -> 事务提交慢
-
-
-
-修改表中 id=2的行数据’B’-> B2’，那么redo记录‘B2’ -> ‘B’，如果这个修改在flush到磁盘文件时异常，可以使用redo实现重做，保证持久性
-
-
-
-#### redo VS bin
-
-redo是存储引擎层产生的，而bin是数据库层产生的
-
-事务执行过程中不断往redo顺序IO，而bin不作处理，直到事务提交，一次性地写入bin
-
-
-
-```mysql
-innodb_log_files_in_group	#redo文件个数，命名方式如：ib_logfile0，iblogfile1… iblogfilen。默认2个，最大100个
-innodb_log_file_size	#文件大小(所有redo之和)，默认值48M，最大值512G
-innodb_log_group_home_dir	#文件存放路径
-
-innodb_log_buffer_size	#Redo Buffer，默认8M，可设置1-8M。延迟事务日志写入磁盘，把redo log 放到该缓冲区，然后根据 innodb_flush_log_at_trx_commit参数的设置，再把日志从buffer 中flush 到磁盘中。
-
-
-```
-
-
-
-
-
-
-
-#### 三种落盘方式
-
-Buffer Pool **每秒**-> OS Buffer 每次-> 磁盘	Mysql宕机问题
-
-Buffer Pool 每次-> OS Buffer **每秒**-> 磁盘	OS宕机问题
-
-Buffer Pool 每次-> OS Buffer 每次-> 磁盘	性能问题
-
-```mysql
-innodb_flush_log_at_trx_commit
-
-innodb_flush_log_at_trx_commit=1，每次commit都会把redo log从redo log buffer写入到system，并fsync刷新到磁盘文件中。
-
-innodb_flush_log_at_trx_commit=2，每次事务提交时MySQL会把日志从redo log buffer写入到system，但只写入到file system buffer，由系统内部来fsync到磁盘文件。如果数据库实例crash，不会丢失redo log，但是如果服务器crash，由于file system buffer还来不及fsync到磁盘文件，所以会丢失这一部分的数据。
-innodb_flush_log_at_trx_commit=0，事务发生过程，日志一直激励在redo log buffer中，跟其他设置一样，但是在事务提交时，不产生redo 写操作，而是MySQL内部每秒操作一次，从redo log buffer，把数据写入到系统中去。如果发生crash，即丢失1s内的事务修改操作。
-
-注意：由于进程调度策略问题,这个“每秒执行一次 flush(刷到磁盘)操作”并不是保证100%的“每秒”
-```
-
-
-
-![image-20210414225643181](image.assets/image-20210414225643181.png)
-
-mysql路径/var/lib/mysql/下,ib_logfile0/1两个文件用于redo的持久化,能防止mysql宕机
-
-0用于
-
-
-
-ib_logfile文件个数由innodb_log_files_in_group决定，并进行循环使用，binary log不是循环使用，在写满或者重启之后，会生成新的binary log文件
-
-ib_logfile包含commit和uncommit的数据
-
-binary log只有commit的数据
-
-
-
-假设有A、B两个数据，值分别为1,2，开始⼀个事务，事务的操作内容为：把1修改为3，2修改为4，那 么实际的记录如下（简化）： A.事务开始. B.记录A=1到undo log. C.修改A=3. D.记录A=3到redo log. E. 记录B=2到undo log. F.修改B=4. G.记录B=4到redo log. H.将redo log写⼊磁盘（随机IO）。 I.事务提交 undo ⽇志的记录内容如下，只进⾏顺序追加的操作，当⼀个事务需要回滚时，它的Redo Log记录也不 会从Redo Log中删除掉
-
-
-
-
-
-**undo log** ==事务开始前==，先将需操作的数据备份,作为数据旧版本快照,供其他并发事务快照读
-
-* insert undo log
-  
-  * 只在事务回滚时需要，提交后可以被立即丢弃
-* ==update undo log==   实现**原子性**,不仅在事务回滚时需要，在快照读时也需要
-  * 先对该行加排它锁,拷贝该行记录到update undo log
-  * 修改记录,更新``事务ID的隐藏字段``(依据事务ID,呈**链式**存储)
-  * 提交事务,释放排它锁
-
-
-**redo log**  备份事务过程中的最新的数据
-
-* ==在事务的执行过程中，开始写入==,实现**事务的未入磁盘数据进行持久化**
-* 配置落盘策略,防止在发生故障的时间点，尚有脏页未写入磁盘，在重启mysql服务时，根据redo log进行重做
-* 事务提交且数据持久化落盘后，Redo log中的事务记录就失去了意义，所以**Redo是日志文件循环写入的**
-
-
-
-```shell
-#redo log 配置
-innodb_log_group_home_dir 指定存储目录
-innodb_log_files_in_group	指定Redo log日志文件组中的数量 默认2
-innodb_log_file_size	指定Redo log每一个日志文件最大存储量 默认48
-
-innodb_log_buffer_size	指定Redo log在cache/buffer中的buffer池大小 默认16
-
-Innodb_flush_log_at_trx_commit：持久化Redo的策略， 
-		0 每秒 [可能丢失一秒的事务数据]
-		1 默认值，每次事务提交 [最安全，性能最差]
-		2 
-```
-
-
-
-#### 恢复策略
-
-
-
-未提交的事务和回滚事务也会记录Redo Log，因此在进行恢复时,这些事务要进行特殊处理
-
-
-
-**2种恢复策略**
-
-1. 只重做已经提交了的事务
-2. **重做redo所有事务(未提交/回滚),然后通过Undo Log回滚那些未提交的事务** InnoDB默认
-
-
-
-
-
-
-
-A. 在重做Redo Log时，并不关心事务性。 恢复时，没有BEGIN，也没有COMMIT,ROLLBACK的行为。也不关心每个日志是哪个事务的。尽管事务ID等事务相关的内容会记入Redo Log，这些内容只是被当作要操作的数据的一部分。
-
-
-
-
-
-**重做redo所有事务(未提交/回滚),然后通过Undo Log回滚那些未提交的事务** InnoDB默认
-
-此策略必须将Undo持久化，而且必须在写Redo之前将Undo写入磁盘。Undo和Redo Log的这种关联，使得持久化变得复杂起来。为了降低复杂度，InnoDB将Undo Log看作数据，因此记录Undo Log的操作也会记录到redo log中,这样undo就可以象数据一样缓存起来，而不用在redo log之前写入磁盘了
-
-包含Undo Log操作的Redo Log，看起来是这样的：
-
-```mysql
-     记录1: <trx1, Undo log insert <undo_insert …>>
-     记录2: <trx1, insert …>
-     记录3: <trx2, Undo log insert <undo_update …>>
-     记录4: <trx2, update …>
-     记录5: <trx3, Undo log insert <undo_delete …>>
-     记录6: <trx3, delete …>123456
-```
-
-
-
-到这里，还有一个问题没有弄清楚。既然Redo没有事务性，那岂不是会重新执行被回滚了的事务？
-确实是这样。同时Innodb也会将事务回滚时的操作也记录到redo log中。回滚操作本质上也是
-对数据进行修改，因此回滚时对数据的操作也会记录到Redo Log中。
-一个回滚了的事务的Redo Log，看起来是这样的：
-
-```
-  记录1: <trx1, Undo log insert <undo_insert …>>
-     记录2: <trx1, insert A…>
-     记录3: <trx1, Undo log insert <undo_update …>>
-     记录4: <trx1, update B…>
-     记录5: <trx1, Undo log insert <undo_delete …>>
-     记录6: <trx1, delete C…>
-     记录7: <trx1, insert C>
-     记录8: <trx1, update B to old value>
-     记录9: <trx1, delete A>123456789
- 一个被回滚了的事务在恢复时的操作就是先redo再undo，因此不会破坏数据的一致性。
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### 事务中的非事务性语句
+## 事务中的非事务性语句
 
 
 
@@ -3044,111 +2274,11 @@ A. 在重做Redo Log时，并不关心事务性。 恢复时，没有BEGIN，也
 
 
 
-
-
-
-
-#### 数据更新流程
-
-![](image.assets/image-20210414232250132.png)
-
-
-
-
-
-
-
-### Undo + Redo事务的简化过程
-
-假设有A、B两个数据，值分别为1,2，开始一个事务，事务的操作内容为：把1修改为3，2修改为4
-
-1. 事务开始
-2. 记录A=1到undo log
-   C.修改A=3
-   D.记录A=3到redo log
-   E.记录B=2到undo log
-   F.修改B=4
-   G.记录B=4到redo log
-   H.将redo log写入磁盘
-   I.事务提交
-
-
-
-### IO影响
-
-Undo + Redo的设计主要考虑的是提升IO性能，增大数据库吞吐量。可以看出，B D E G H，均是新增操作，但是B D E G 是缓冲到buffer区，只有G是增加了IO操作，为了保证Redo Log能够有比较好的IO性能，InnoDB 的 Redo Log的设计有以下几个特点：
-
-A. 尽量保持Redo Log存储在一段连续的空间上。因此在系统第一次启动时就会将日志文件的空间完全分配。 以顺序追加的方式记录Redo Log,通过顺序IO来改善性能。
-B. 批量写入日志。日志并不是直接写入文件，而是先写入redo log buffer.当需要将日志刷新到磁盘时 (如事务提交),将许多日志一起写入磁盘.
-C. 并发的事务共享Redo Log的存储空间，它们的Redo Log按语句的执行顺序，依次交替的记录在一起，
-以减少日志占用的空间。例如,Redo Log中的记录内容可能是这样的：
-
-```
- 记录1: <trx1, insert …>
- 记录2: <trx2, update …>
- 记录3: <trx1, delete …>
- 记录4: <trx3, update …>
- 记录5: <trx2, insert …>
-12345
-```
-
-D. 因为C的原因,当一个事务将Redo Log写入磁盘时，也会将其他未提交的事务的日志写入磁盘。
-E. Redo Log上只进行顺序追加的操作，当一个事务需要回滚时，它的Redo Log记录也不会从Redo Log中删除掉。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### 慢查询日志
-
-
-
-
-
-
-
-### relay
-
-
-
-
-
-### error
-
-
-
-
-
-
-
-## 只读事务
-
-Read-Only transaction
-
-InnoDB通过如下两种方式来判断一个事务是否为只读事务
-１）在InnoDB中通过 start transaction read only 命令来开启，只读事务是指在事务中只允许读操作，不允许修改操作。如果在只读事务中尝试对数据库做修改操作会报错，报错后该事务依然是只读事务，'ERROR 1792 (25006): Cannot execute statement in a READ ONLY transaction.'
-２）autocommit 开关打开，并且语句是单条语句，并且这条语句是"non-locking" SELECT 语句，也就是不使用 FOR UPDATE/LOCK IN SHARE MODE 的 SELECT 语句。
-优势：１）只读事务避免了为事务分配事务ID(TRX_ID域)的开销；２）对于密集读的场景，可以将一组查询请求包裹在只读事务中，既能提高性能，又能保证查询数据的一致性。
-
-
-
-
-
 ## mini transaction
 
 
 
-主要用于redo / undo log写入
+保证并发事务下数据页中数据的一致性,主要用于redo / undo log写入
 
 
 
@@ -3183,23 +2313,23 @@ mtr_commit 主要包含以下步骤
 
 **The FIX Rules**
 
-修改需要获得该页的x-latch
+修改需要获得该页的x-latch;访问需要获得该页的s/x-latch
 
-访问是需要获得该页的s-latch或者x-latch
-
-持有latch直到修改/访问该页的操作完成
+持有latch直到修改/访问页的操作完成
 
 
 
-**Write-Ahead Log** (只保证单个数据页一致性，无法保证事务持久性 : 事务可以同时修改多个页)
+<a name="WriteAheadLog">Write-Ahead Log</a> 预先日志持久化
 
 持久化数据页前，必须先将内存中相应的日志页持久化
 
-每个页有一个 **日志序号**(LSN:Log sequence number),每次页修改需要维护LSN,当页需要写入持久化设备时，要求内存中小于该页LSN的日志必须先持久化
+每个页都有 **日志序号**(LSN:Log sequence number),每次页修改需要维护LSN,当页需要持久化时，要求内存中小于该页LSN的日志必须先持久化
+
+==只保证单个数据页一致性，无法保证事务持久性 : 事务可以同时修改多个页==
 
 
 
-**Force-log-at-commit**
+<a name="ForceLogAtCommit">Force Log at commit</a>
 
 事务提交时，其产生所有的mini-transaction日志必须先持久化
 
@@ -3297,11 +2427,11 @@ Multi-Version Concurrency Control 多版本并发控制
 
 ### 隐式字段
 
-| DB_ROLL_PTR  | 回滚指针，指向上一个版本（存储于rollback segment）  | 7字节 |
-| ------------ | --------------------------------------------------- | ----- |
-| DATA_TRX_ID  | 最近更新行记录的事务ID                              | 6     |
-| DB_ROW_ID    | 隐藏的自增ID，==没有主键则以DB_ROW_ID生成聚簇索引== | 6     |
-| deleted_flag | 标志删除,==不将过时的记录删除,实现MVCC==            |       |
+| DB_ROLL_PTR   | 回滚指针，指向上一个版本（存储于rollback segment） | 7字节 |
+| ------------- | -------------------------------------------------- | ----- |
+| DATA_TRX_ID   | 最近更新行记录的事务ID                             | 6     |
+| ~~DB_ROW_ID~~ | 没有主键则追加DB_ROW_ID字段生成聚簇索引            | 6     |
+| deleted_flag  | 标志删除,==不将过时的记录删除,实现MVCC==           |       |
 
 
 
@@ -3309,7 +2439,8 @@ Multi-Version Concurrency Control 多版本并发控制
 
 ### Purge
 
-MVCC的update/delete都只改动deleted_bit，在提交后由purge线程清理deleted记录
+1. MVCC的update/delete都只改动deleted_bit，在提交后由purge线程清理deleted记录
+2. 清除undo页中的无用信息
 
 ==purge线程自身维护了一个read view==，保证删除时的可见性
 
@@ -3481,6 +2612,616 @@ T’ = 2 * t2
 
 
 
+
+# 日志
+
+
+
+日志的写入形式是顺序,循环的	logfile0写完从logfile1继续，logfile3写完则logfile0继续
+
+
+
+```shell
+innodb_max_undo_log_size#控制最大undo tablespace文件的大小，启动innodb_undo_log_truncate 时，undo tablespace 超过innodb_max_undo_log_size 阀值时才会尝试truncate。该值默认大小为1G，truncate后的大小默认为10M
+
+innodb_undo_tablespaces	#undo的独立表空间个数,当DB写压力大时，通过独立表空间，把UNDO写入高速磁盘，提高写入性能
+```
+
+
+
+![](image.assets/5652417-a5f90ca64ed10d4d.png)
+
+1. 原始数据从磁盘读入内存，修改数据的内存拷贝
+2. 生成重做日志写入redo log buffer，记录的数据被修改后的值
+3. 当事务commit时，将redo log buffer中的内容追加到 redo log file，对 redo log file采用追加写的方式
+4. 定期将内存中修改的数据刷新到磁盘
+
+
+
+
+
+| Server | InnoDb存储引擎 专属 |
+| ------ | ------------------- |
+| binlog | undo                |
+| relay  | redo                |
+| error  |                     |
+
+
+
+
+
+
+
+| bin                                                          | redo                           |
+| ------------------------------------------------------------ | ------------------------------ |
+| Server层 -> **所有存储引擎都有bin，但不一定有redo**          | 存储引擎层                     |
+| 事务提交时一次性地写入bin -> 主从一致性                      | 顺序IO                         |
+| 非循环写入,写满/重启生产新的bin log                          | ib_logfile循环写入             |
+| 手动数据恢复/主从复制                                        | 异常宕机恢复(不能用于手动恢复) |
+| statement格式记录的是sql语句，row格式记录的是行内容更新前/后的两条数据 | 记录数据页上的修改,物理日志    |
+
+
+
+
+
+## bin
+
+记录表结构变更（CREATE、ALTER TABLE…）,数据修改（INSERT、UPDATE、DELETE…）,未命中的数据更改（不匹配任何行的DELETE）
+
+不记录不修改数据的SELECT/SHOW
+
+**事务提交时一次性落盘**
+
+
+
+二进制日志包括两类文件：
+
+* 索引文件（后缀.index）,记录所有的二进制文件
+* 日志文件（后缀.00000*）记录数据库所有的DDL和DML(除查询)语句事件
+
+
+
+```shell
+binlog-format=ROW
+
+#落盘
+sync_binlog=0	刷新binlog时间点由操作系统自身来决定,性能好
+sync_binlog=1	每次事务提交时就会刷新binlog到磁盘
+sync_binlog=N	每N个事务提交会进行一次binlog刷新(数据丢失)
+```
+
+
+
+binlog-format
+
+![](image.assets/binlog格式.jpeg)
+
+
+
+
+
+## undo
+
+逻辑日志
+
+维护数据修改前的值,保证==原子性==,undo log`默认存放`在`共享表空间`中。5.6+如果开启`innodb_file_per_table` ，将放在每个表的`.ibd`文件中	**随机IO**
+
+快照无需保存事务开启前行记录历史状态 -> 记录`相反的DML语句`,根据undo进行回滚，`非锁定一致性`读 -> ==MVCC==
+
+**直接写入磁盘,顺序写**
+
+[缓冲池steal策略](#缓冲区策略)
+
+
+
+**宕机重启 -> 检测redo中事务提交信息 ? 已提交,前滚,undo失效 : 未提交/abort,根据undo回滚** -> 存储引擎层不知道执行DML语句后，被rollback还是commit
+
+
+
+* insert undo log
+
+  * 新增数据没有可见性要求,只用于回滚,提交后可以被立即丢弃
+* ==update undo log==   实现**原子性**,用于回滚/快照读
+  * 先对该行加排它锁,拷贝该行记录到update undo log
+  * 修改记录,更新``事务ID的隐藏字段``(依据事务ID,呈**链式**存储)
+  * 提交事务,释放排它锁
+  * 等待[purge](#purge)删除
+
+
+
+
+
+### 回滚段
+
+UNDO由Rollback segment组成
+
+在5.5(Innodb1.1)版本之前，只有1个undo回滚段,5.5+，支持128个回滚段
+
+
+
+rseg0		预留给系统表空间
+
+rseg 1~32	预留给临时表空间，每次数据库重启的时候，都会重建临时表空间
+
+rseg 33~127	则根据配置存放到独立undo表空间中（如果没有打开独立Undo表空间，则存放于ibdata中） -> **最多支持 96 * 1024个普通事务**
+
+
+
+默认rollback segment全部写在一个文件中，通过设置 `innodb_undo_tablespaces` 平均分配到多少个文件中。该变量`默认值为0`，即`全部写入一个表空间文件`。该变量为静态变量，只能在数据库示例停止状态下修改，如写入配置文件或启动时带上对应参数。但是innodb存储引擎在启动过程中提示，`不建议修改为非0`的值
+
+
+
+采用==回滚段==的方式来维护undo log的并发写入和持久化。回滚段是 Undo 文件组织方式
+
+每个回滚段由`1024`个`undo log slot`组成。`每个undo操作`在记录的时候`占用一个undo log slot`,同时记录,redo log，因为undo log也需要`持久化`
+
+![](image.assets/27e30226a2c2478389b8d49df4426b1c.jpeg)
+
+
+
+
+
+
+
+### 关键结构体
+
+为了便于管理和使用undo记录，在内存中维护关键结构体对象：
+
+1. 所有回滚段都记录在trx_sys->rseg_array，数组大小为128，分别对应不同的回滚段
+2. rseg_array数组类型为trx_rseg_t，用于维护回滚段相关信息
+3. 每个回滚段对象trx_rseg_t还要管理undo log信息，对应结构体为trx_undo_t，使用多个链表来维护trx_undo_t信息
+4. 事务开启时，会专门给他指定一个回滚段，以后该事务用到的undo log页，就从该回滚段上分配
+5. 事务提交后，需要purge的回滚段会被放到purge队列上(purge_sys->purge_queue)
+
+
+
+![](image.assets/eabcb7f0a84245c1964d6943f4c351e6.jpeg)
+
+
+
+
+
+
+
+### 写入时机
+
+
+
+- DML操作修改聚簇索引前，记录undo日志
+- 二级索引记录的修改，不记录undo日志
+
+记录undo操作本身也会有对应的redo : [undo需要redo的持久化保护](#undo需要redo的持久化保护)
+
+
+
+| insert                       | 记录插入数据的rowId  |
+| ---------------------------- | -------------------- |
+| update                       | 记录被更新字段的旧值 |
+| delete（资源使用高，易堵塞） | 记录一整行完整的数据 |
+| select                       | 不处理               |
+
+
+
+#### update流程
+
+
+
+```mysql
+--假设sal=3000
+update emp set sal = 4000 where empno = 02 
+```
+
+1. 在buffer cache里找undo segment相应的empno=02数据块（不存在，则在3中创建数据块）
+
+   相当于查看之前empno是否被修改过，已经存在了缓存中
+
+2. 在回滚段的事务表分配事务槽 ==> 记录redo
+
+3. 从回滚段读sal的数据 / buffer cache里创建数据块 ==> 记录redo
+
+4. 修改数据 ==> **记录undo**
+
+5. 修改结束 ==> 记录redo
+
+6. commit ==> 在redo log buffer里记录提交信息，并在回滚段标记该事务为inactive
+
+
+
+
+
+| undo块状态            |                                                              |
+| --------------------- | ------------------------------------------------------------ |
+| Active                | 未提交事务的undo数据，这些数据永远不能覆盖，用于回滚事务     |
+| Inactive              | 可以被其他事务覆盖                                           |
+| Expired               | 该undo持续inactive的时间超过undo_retention所指定的时间;可以被其他事务覆盖 |
+| Inexpired（未过期的） | 事务已提交，但事务提交前，有些查询正在进行，它要读取的是提交前的数据，这部分数据就是未过期数据。 |
+| Freed                 | 空闲块                                                       |
+
+
+
+
+
+### undo为什么需要落盘
+
+由于innodb的delta存储结构，数据页中一直保持着最新的版本，undo记录更新前的数据
+
+由于数据库的steal策略，事务修改页的操作不是原子性的,并且会涉及到多个页的修改;在修改过程中数据库可以把未提交的数据刷入磁盘，这时如果发生崩溃，恢复时先重做redo,检查 存在该事务的提交信息 ? 前滚，undo废弃 : 回滚，恢复至undo的原始数据
+
+
+
+
+
+## redo
+
+物理日志
+
+记录相反的DML语句,**顺序IO**,运行时对redo**只写不读**
+
+
+
+设置多个日志文件时，其名字以ib_logfile[num]形式命名。多个日志文件循环利用，第一个文件写满时，换到第二个日志文件，最后一个文件写满时，回到第一个文件，组成逻辑上无限大的空间
+
+重做日志阈值↑,checkpoint刷新脏页频率↓,性能↑,但恢复耗时↑
+
+阈值↓，可能需要频繁地切换文件，导致性能抖动
+
+
+
+==redo不记录事务状态==，活动的事务列表需要通过找rollback segment
+
+对于已commit的事务,宕机时必须重做Redo，但未提交的事务可以不必进行Redo，但这样会增加Redo阶段的复杂性，Mysql**根据Redo全部重做，之后的撤销工作交给Undo来进行 -> **Redo事务无关性
+
+
+
+[Force Log at commit](#ForceLogAtCommit) 提交前先将redo log buffer写入到redo log file进行持久化,然后调用[fsync](#fsync落盘方式);数据本身不需要在提交时完成持久化 -> ==持久性==
+
+[Write-Ahead Log](#WriteAheadLog) 在InnoDB的实现中，并不严格按照WAL规则，而是通过一种事务的序列编号LSN保证逻辑上的WAL
+
+
+
+
+
+### redo结构
+
+Innodb中各种不同的操作有着不同类型的重做日志，类型数量有几十种，但记录条目的基本格式可以如下表示：
+
+![img](image.assets/360077-20200103202310809-148368254.png)
+
+
+
+在存储结构上，redo log文件以block块来组织，每个block大小为512字节。每个文件的开头有一个2k大小的File Header区域用来保存一些控制信息，File Header之后就是连续的block。虽然每个redo log文件在头部划出了File Header区域，但实际存储信息的只有group中第一个redo log文件。
+
+![img](image.assets/360077-20200103202741021-1479399536.png)
+
+ 
+
+当redo log实际由mtr（Mini transaction）产生时，首先位于mtr的cache，之后输出到redo log 缓冲区，再从缓冲区写入到磁盘。Log buffer与文件中的block大小对应，以512字节为单位对齐，一个mtr日志可能不足一个block，也可能跨block。
+
+ 
+
+**File Header**
+File Header位于每个redo log文件的开始，大小为2k，格式如下：
+![img](image.assets/360077-20200103203032242-1722062623.png)
+
+
+
+log group中的第一个文件实际存储这些信息，其他文件仅保留了空间。在写入日志时，除了完成block部分，还要更新File Header里的信息，这些信息对Innodb引擎的恢复操作非常关键。
+
+
+
+**Block**
+一个block块有512字节大小，每块中还有块头和块尾，中间是日志本身。其中块头Block Header占有12字节大小，块尾Block Trailer占有4字节大小，中间实际的日志存储容量为496字节(512-12-4)：
+
+![img](image.assets/360077-20200103203319731-2109921920.png)
+
+
+
+
+LOG_BLOCK_HDR_NO
+在log buffer内部，可以看成是单位大小是512字节的log block组成的数组，LOG_BLOCK_HDR_NO就用来标记数组中的位置。其根据该块的LSN计算转换而来，递增且循环使用，占有4个字节，第一位用来判断是否flush bit，所以总容量是2G。(LSN在之后一段说明)
+
+LOG_BLOCK_HDR_DATA_LEN
+标识写入本block的日志长度，占有2个字节，当写满时用0X200表示，即有512字节。
+
+LOG_BLOCK_FIRST_REC_GROUP
+占有2个字节，记录本block中第一个记录的偏移量。如果该值与LOG_BLOCK_HDR_DATA_LEN
+相同，说明此block被单一记录占有，不包含新的日志。如果有新日志写入，LOG_BLOCK_FIRST_REC_GROUP就是新日志的位置。
+
+![img](image.assets/360077-20200103203502621-1542672235.png)图2.5
+
+ 
+
+LOG_BLOCK_CHECKPOINT_NO
+占有4字节，记录该block最后被写入时检查点第4字节值。
+
+LOG_BLOCK_TRL_NO
+Block trailer中只由这1个部分组成。记录本block中的checksum值，与LOG_BLOCK_HDR_NO值相同。
+
+ 
+
+**LSN**
+LSN是Log Sequence Number的缩写，占有8字节，单调递增，记录重做日志写入的字节总量，也表示日志序列号。
+
+LSN除了记录在redo日志中，还存于每个页中。页的头部有一个FIL_PAGE_LSN用于记录该页的LSN，反应的是页的当前版本。
+
+LSN同样也用于记录checkpoint的位置。使用SHOW ENGINE INNODB STATUS命令查看LSN情况时，Log sequence number是当前LSN，Log flushed up to 是刷新到重做日志文件的LSN，Last checkpoint at 是刷新到磁盘的LSN。
+
+由于LSN具有单调增长性，如果重做日志中的LSN大于当前页中LSN，说明页是滞后的，如果日志记录的LSN对应的事务已经提交，那么当前页需要重做恢复。
+如果页被新事务修改了，页中LSN记录的是新写入的结束点的LSN，大于重做日志中的LSN，那么当前页是新数据，是脏页。
+脏页根据提交情况可能需要加入flush list中，此时flush list上的所以脏页也是以LSN排序。
+
+写redo log时是追加写，需要保证写入顺序，或者说应保证LSN的有序。当并发写时可以通过加锁来控制顺序但效率低下，8.0中使用了无锁的方式完成并发写，mtr写时已经提前知道自己在log buffer上的区间位置，不必等待直接写入log buffer就可。这样大的LSN值可能先写到log buffer上，而小的LSN还没写入，即log buffer上有空洞。所以有一个单独的线程log_write，负责不断的扫描log buffer，检测新的连续内容并进行刷新，是真正的写线程
+
+
+
+
+
+### 写入流程
+
+每个DML语句由[mini transaction](#mini transaction)保证redo日志写入mini-transaction私有的Buffer中
+
+mini-transaction结束后,将私有buffer写入Redo Log Buffer
+
+在事务提交时,将Redo Log Buffer写入Redo Log File
+
+![](image.assets/redo写入.png)
+
+
+
+
+
+### 原语
+
+Input(X)：将X值从存储介质读入缓冲区
+Read(X,t)：将X值从缓冲区读入事务内的变量t，如果缓冲中不存在，则触发Input
+Write(X,t): 将事务内的t写入到缓冲区X块，如果缓冲中X不存在，则触发Input(X)，再完成write
+Output(X)：将缓冲区X写入到存储中
+
+![](image.assets/360077-20191231144542432-753158298.png)
+
+
+
+
+
+Redo日志往往是由多个事务交织在一起的，错误也随时能发生
+
+![](image.assets/360077-20191231144439062-1454724302.png)
+
+(a) 事务未提交&&宕机,需要重做redo
+
+(b) 日志中T0已经提交了，必须要对T0 进行Redo，而部分T1也需要Redo
+(c) 日志中T0已经提交了，必须要对T0进行Redo,而T1虽然abort也需要Redo
+
+
+
+
+
+### checkpoint
+
+表示一个时间点，在CHECKPOINT LSN之前的更改都已经保存到了持久存储。恢复时只需从最后一个CHECKPOINT LSN开始
+
+
+
+原则上，系统恢复时可以通过检查整个日志来完成,但日志过长时
+
+1. 搜索慢
+2. 全部redo都重做慢
+3. 事务commit日志记录写入磁盘后,恢复时不再需要这部分的undo.但由于其他事务可能在使用Undo中的旧值。为此需要checkpoint来处理这些当前活跃的事务
+
+
+
+Ib_logfile的checkpoint field
+实际上不仅要记录checkpoint做到哪儿（LOG_CHECKPOINT_LSN），还要记录用到了哪个位置（LOG_CHECKPOINT_OFFSET）等其他信息。所以在ib_logfile0的头部预留了空间，用于记录这些信息。
+因此即使使用后面的logfile，每次checkpoint完成后，ib_logfile0都是要更新的。同时你会发现所谓的顺序写盘，也并不是绝对的
+
+相关的一些数字
+a) InnoDB留了两个checkpoint filed，按照注释的解释，目的是为了能够“write alternately”
+b) 每个checkpint field需要的大小空间为304字节。(相关定义在log0log.h)
+c) 第一个checkpoint的起始位置在ib_logfile0的第512字节(OS_FILE_LOG_BLOCK_SIZE)处；
+d) 第二个在1536 (3 * OS_FILE_LOG_BLOCK_SIZE)字节处。
+
+
+
+
+
+##### 简单检查点
+
+（1）**停止接受新的事务**
+（2）等待当前所有活跃事务完成或中止，并在日志中写入commit或abort记录
+（3）将当前位于内存的日志缓冲块刷新到磁盘
+（4）写入日志记录<CKPT>，并再次刷新到磁盘
+（5）重新开始接受事务
+系统恢复时，可以从日志尾端反向搜索，直到找到第一个<CKPT>标志，而没有必要处理<CKPT>之前的记录
+
+
+
+**非静止检查点**
+简单检查点期间需要停止响应，非静止检查点允许进行检查点时接受新事务进入，步骤如下：
+（1）写入日志记录<START CKPT(t1,…tn)>，其中t1,…tn是当前活跃的事务
+（2）等待t1,…tn所有事务提交或中止，但仍接受新事务的进入
+（3）当t1,…tn所有事务都已完成，写入日志记录<END CKPT>
+
+ 
+
+当使用非静止检查点技术，恢复时的也是从日志尾向前扫描，可能先遇到<START CKPT>标志，也可能先遇到<END CKPT>标志：
+1.先遇到<START CKPT(t1,…tn)>时，说明系统在检查点过程中崩溃，未完成事务包括2部分：(t1,…tn)记录的部分及<START>标志后新进入部分。这部分事务中最早那个事务的开始点就是扫描的截止点，再往前可以不必扫描。
+
+2.先遇到<END CKPT>，说明系统完成了上一个周期的检查点，新的检查点还没开始。需要处理2部分事务：<END CKPT>标志之后到系统崩溃时这段时间内的事务及上一个<START>，<END>区间内新接受的事务。为此扫描到上一个检查点<START CKPT()>就可以截止。
+
+
+
+#### 落盘方式
+
+
+
+fsync() VS sync()
+fsync函数等待磁盘操作结束，然后返回，它能确保数据持久化到存储介质，而不是停留在OS或存储的写缓冲中
+sync则把修改过的块缓冲区排入OS的写队列后就返回。fsync能确保数据写入，同时意味着一次IO及性能消耗
+
+
+
+`innodb_flush_log_at_trx_commit`决定调用fsync的时机	由于进程调度策略,无法保证100%的“每秒”
+
+= 0		Buffer Pool **每秒**-> OS Buffer 立即fsync-> 磁盘	事务提交**不产生redo**,只依赖于每秒的fsync -> Mysql宕机将丢失1s数据
+
+= 1 **默认**	Buffer Pool 每次-> OS Buffer 立即fsync-> 磁盘	安全性高,不会数据丢失;性能问题
+
+= 2 		Buffer Pool 每次-> OS Buffer **每秒**fsync-> 磁盘	事务提交将redo log buffer写入OS Buffer,由系统决定fsync时机 -> OS宕机问题
+
+
+
+![image-20210414225643181](image.assets/image-20210414225643181.png)
+
+mysql路径/var/lib/mysql/下,ib_logfile0/1两个文件用于redo的持久化,能防止mysql宕机
+
+
+
+
+
+
+
+
+**redo log**  备份事务过程中的最新的数据
+
+* ==在事务的执行过程中，开始写入==,实现**事务的未入磁盘数据进行持久化**
+* 配置落盘策略,防止在发生故障的时间点，尚有脏页未写入磁盘，在重启mysql服务时，根据redo log进行重做
+* 事务提交且数据持久化落盘后，Redo log中的事务记录就失去了意义，所以**Redo是日志文件循环写入的**
+
+
+
+
+
+
+
+
+
+
+
+## IO影响
+
+
+
+Log存储在连续空间上 -> 以顺序IO记录Log,系统第一次启动时就将日志文件的空间完全分配
+
+存在Log Buffer -> 从Buffer批量写入File -> IO次数↓
+
+
+
+
+
+**Redo特性**
+
+并发事务共享Redo Log空间，按语句执行顺序进行依次交替记录 -> 减少日志占用的空间
+
+```
+ 记录1: <trx1, insert …>
+ 记录2: <trx2, update …>
+ 记录3: <trx1, delete …>
+ 记录4: <trx3, update …>
+ 记录5: <trx2, insert …>
+```
+
+==当一个事务将Redo Log写入磁盘时，也会将其他未提交的事务的日志写入磁盘==
+Redo Log只进行顺序追加，事务回滚不删除Redo
+
+
+
+## Redo+Undo数据恢复
+
+1. 检查点记录的活跃事务列表undo-list(t0,…,tn)
+
+2. 在Redo阶段，发现<T,START>记录，就将T加入undo-list，发现<T,END> / <T,ABORT>记录，就将T移出undo-list
+
+3. 最后undo-list中的事务都是 未提交也没回滚 的事务，需要根据undo进行回滚
+
+   当执行undo回滚中发现<T,START>时，说明完成了具体的回滚操作，系统写入一个<T,ABORT>记录，并从undo-list中删除T
+
+4. 直到undo-list为空，撤销阶段完成
+
+
+![](image.assets/360077-20191231145606328-1689697598.png)
+
+ 
+
+
+
+### 恢复策略
+
+未提交的事务和回滚事务也会记录Redo Log，因此在进行恢复时,通过undo处理未提交事务
+
+
+
+**2种恢复策略**
+
+1. 只重做已经提交了的事务
+2. **重做redo所有事务(未提交/回滚),然后通过Undo Log回滚那些未提交的事务** InnoDB默认
+
+
+
+由于==redo不关心事务性==,没有记录BEGIN/COMMIT/ROLLBACK的行为,也不关心日志归属于哪个事务的,尽管事务ID等事务相关的内容会记入Redo Log，这些内容只是被当作要操作的数据的一部分 -> **只重做提交事务非常困难**
+
+
+
+==重做redo所有事务(未提交/回滚),然后通过Undo Log回滚未提交事务== **InnoDB默认**
+
+此策略 **必须将Undo持久化** && **必须在Redo前将Undo持久化**。Undo和Redo Log的关联使得持久化更为复杂。为了降低复杂度，InnoDB将Undo Log看作数据，因此<a name="undo需要redo的持久化保护">记录Undo的操作也会记录到redo log中</a>,这样undo就可以象数据一样缓存起来，而不用在redo前写入磁盘了
+
+包含Undo Log操作的Redo Log，看起来是这样的：
+
+```mysql
+     记录1: <trx1, Undo log insert <undo_insert …>>
+     记录2: <trx1, insert …>
+     记录3: <trx2, Undo log insert <undo_update …>>
+     记录4: <trx2, update …>
+     记录5: <trx3, Undo log insert <undo_delete …>>
+     记录6: <trx3, delete …>123456
+```
+
+
+
+由于Redo没有事务性，会重新执行被回滚了的事务
+一个回滚了的事务的Redo Log，看起来是这样的：
+
+```mysql
+  记录1: <trx1, Undo log insert <undo_insert …>>
+     记录2: <trx1, insert A…>
+     记录3: <trx1, Undo log insert <undo_update …>>
+     记录4: <trx1, update B…>
+     记录5: <trx1, Undo log insert <undo_delete …>>
+     记录6: <trx1, delete C…>
+     记录7: <trx1, insert C>
+     记录8: <trx1, update B to old value>
+     记录9: <trx1, delete A>123456789
+ 已回滚事务在恢复时的操作就是先redo再undo，不会破坏数据的一致性
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 慢查询
+
+
+
+
+
+
+
+## relay
+
+
+
+
+
+## error
 
 
 
@@ -4385,57 +4126,6 @@ latch coupling 除了上面提到的从父节点到子节点遍历的情况，�
 
 ## 案例
 
- 
-
-
-
-SLELCT … FROM
-前三种级别不加锁，SERIALIZABLE级别下，会对SELECT 默认带上LOCK IN SHARE MODE，S锁
-
-SELECT…FOR UPDATE / SELECT … LOCK IN SHARE MODE
-扫描到的行都会加上锁（不符合where子句条件的记录锁会被释放）
-
-SELECT … LOCK IN SHARE MODE
-在搜索遇到的所有索引记录上加 next-key lock（S）。对于使用唯一索引搜索唯一行的语句，只需在对应的索引上加锁（行锁S）
-
-SELECT … FOR UPDATE
-在搜索遇到的所有索引记录上加 next-key lock (X)。对于使用唯一索引搜索唯一行的语句，只需在对应的索引上加锁（行锁X）。
-
-UPDATE … WHERE
-在搜索遇到的所有索引记录上加 next-key lock (X)。对于使用唯一索引搜索唯一行的语句，只需在对应的索引上加锁（行锁X）。
-当UPDATE修改聚集索引记录时，对受影响的辅助索引记录进行隐式锁定。在插入新的二级索引记录之前执行 duplicate check扫描时，以及在插入新的二级索引记录时，UPDATE操作还会在受影响的二级索引记录上获得共享锁。
-
-DELETE FROM … WHERE …
-在搜索遇到的所有索引记录上加 next-key lock (X)。对于使用唯一索引搜索唯一行的语句，只需在对应的索引上加锁（行锁X）。
-
-INSERT
-在插入的行上设置行锁（X）。
-在插入之前，会先设置一个gap锁，称为insert intention gap lock。（insert intention gap lock和insert intention gap lock是兼容的，例如现在有索引4，7；事务A,B分别要插入5，6；事务A，B在获取X锁之前，会获取这个i gap，锁定4和7的间隙，A,B彼此不会阻塞，因为行没有冲突。）
-如果insert 的事务出现了duplicate-key error ，事务会对duplicate index record加共享锁。这个共享锁在并发的情况下是会产生死锁的。
-
-
-INSERT … ON DUPLICATE KEY UPDATE
-和INSERT的区别是，在发生duplicate key error 时，加的是X锁，而不是S锁。
-主键冲突时，加的行锁（X）；唯一键冲突时，加的是next-key lock（X）。【前面描述出自官方文档，但是有网上有博客说官方文档有bug，主键冲突也加的是next-key lock】
-
-REPLACE …
-
-replace into 跟 insert 功能类似，不同点在于：replace into 首先尝试插入数据到表中， 1. 如果发现表中已经有此行数据（根据主键或者唯一索引判断）则先删除此行数据，然后插入新的数据。 2. 否则，直接插入新数据。
-
-如果插入没有冲突，和insert一样，否则，加next-key lock (X)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ![](image.assets/加锁案例.jpg)
@@ -4784,7 +4474,19 @@ lock_rec_lock();
 
 
 
+### INSERT ON DUPLICATE KEY UPDATE
 
+和INSERT的区别是，在发生duplicate key error 时，加的是X锁，而不是S锁
+
+
+
+### REPLACE
+
+replace into 跟 insert 功能类似，不同点在于：
+
+replace into 首先尝试插入数据到表中
+
+主键/唯一索引重复 ? 申请X锁先删除此行数据，然后插入新的数据 : 直接插入新数据
 
 
 
