@@ -63,7 +63,7 @@ ls
 which redis-server
 ```
 
-### 启动
+## 启动
 
 /usr/local/redis/bin/redis-server  /usr/local/myredis/redis.conf
 
@@ -83,7 +83,7 @@ vim /etc/rc.local
 
 
 
-### 停止
+## 停止
 
 ```
 /usr/local/redis/bin/redis-cli shutdown
@@ -278,8 +278,6 @@ aof-load-truncated yes
 
 单线程**避免了不必要的上下文切换和竞争条件，不存在多线程切换消耗CPU**，不存在加锁释放锁操作，不存在死锁
 
-利用setnx实现锁的功能
-
 没有线程切换消耗CPU/线程安全
 
 CPU不是Redis的瓶颈，**Redis的瓶颈是机器内存的大小/网络带宽**
@@ -316,7 +314,7 @@ set if not exists
 
 无论是哪种类型，Redis都不会直接存储，而是通过redisObject对象进行存储
 
-Redis中不存在表这个概念，首先考虑哪种数据类型适合业务，此外，我们无法像在关系数据库中那样，使用sql来操作Redis中的数据，需要直接使用API发送对应的命令，来操作想要操作的数据
+Redis中不存在表的概念
 
 
 
@@ -328,11 +326,11 @@ Select [index]   切换对应下标的数据库
 
 4，常用基本命令
 
-dbsize查看当前数据库的key的数量
+dbsize	当前数据库的key的数量
 
-flushdb：清空当前库
+flushdb	清空当前库
 
-Flushall；清空全部库
+Flushall	清空全部库
 
 
 
@@ -378,7 +376,6 @@ redis 的 string是二进制安全的,可以包含任何数据。如数字，字
 * mset k1 v1 k2 v2 		批量设置
 * mget key1 key2 批量获取
 
-* setnx key value 			不存在就插入
 * setrange key index value 从index开始替换value
 
 * incr age 递增
@@ -459,7 +456,6 @@ redis 的 string是二进制安全的,可以包含任何数据。如数字，字
     hmget myhash       批量获取
     hgetall myhash     获取所有
     hexists myhash name        是否存在
-    hsetnx myhash score 100    存在则不做处理,不存在则设置
     hincrby myhash id 1        按1递增
     hdel myhash name           删除
     hkeys myhash       只取key
@@ -572,12 +568,19 @@ Zset增加了一个**权重参数score**，实现有序排列
   * 文件比RDB大,**文件过大后将重写至新的aof**
   * 恢复速度慢
 
-* 同步策略
-  * 每修改同步：appendfsync always   性能较差但数据完整性好
-  * 每秒同步：appendfsync everysec   异步操作,如果一秒内宕机，有数据丢失
-  * 不同步：appendfsync no
-
 * 修复AOF文件	Redis-check-aof --fix
+
+
+
+### 策略
+
+
+
+|         选项         |         同步频率         |
+| :------------------: | :----------------------: |
+|  appendfsync always  |     每个写命令都同步     |
+| appendfsync everysec |       每秒同步一次       |
+|    appendfsync no    | 让操作系统来决定何时同步 |
 
 
 
@@ -1099,8 +1102,6 @@ Unwatch	取消对key的监视
 
 
 # 分布式锁
-
-
 
 
 
