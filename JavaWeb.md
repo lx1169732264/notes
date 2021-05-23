@@ -1725,6 +1725,22 @@ Bean实例的名称默认是Bean类的首字母小写，其他部分不变
 
 
 
+## Lombok
+
+
+
+@EqualsAndHashCode
+
+默认使用非静态，非瞬态的属性
+
+参数exclude排除属性	参数of指定仅使用哪些属性
+
+默认callSuper=false	仅使用类中定义的属性,不调用父类属性和方法
+
+
+
+
+
 
 
 ### @ControllerAdvice
