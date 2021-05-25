@@ -1561,6 +1561,108 @@ Sign Your Work	在你的作品上签名
 
 
 
+# 写法优化
+
+
+
+
+
+## 字符串分割->列表
+
+
+
+```java
+List<String> customerNicks = Lists.newArrayList();
+for (String nick : nicks.split(",")) {
+  customerNicks.add(nick);
+}
+-->
+  Lists.newArrayList(nicks.split(","));
+```
+
+
+
+
+
+## 匹配的第一个
+
+
+
+```java
+for (FieldValueComparator fieldValueComparator : comparators) {
+  if (fieldValueComparator.isMatch(comparator)) {
+    return fieldValueComparator;
+  }
+}
+return null;
+-->
+return comparators.stream().filter(a->a.isMatch(comparator)).findFirst();
+```
+
+
+
+## 匹配个数统计
+
+
+
+```java
+int total = 0;
+for (Object obj : values) {
+  if (isObjAvailable(obj)) {
+    total++;
+  }
+}
+return total;
+-->
+return values.stream().filter(this::isObjAvailable).count();
+```
+
+
+
+
+
+## 合并集合
+
+
+
+```java
+List<UnitFilter> filters = new ArrayList<>();
+for (CampaignFilterTier tier : tiers) {
+  filters.addAll(tier.getAllFilters());
+}
+return filters;
+-->
+return Iterables.concat(Lists.transform(tiers, CampaignFilterTier::getAllFilters));
+```
+
+
+
+```java
+boolean objAvailable = true;
+for (Condition condition : conditions) {
+  if (!condition.match(obj)) {
+    objAvailable = false;
+  }
+}
+return objAvailable;
+-->
+return Iterables.all(conditions, c->c.match(obj));
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

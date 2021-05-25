@@ -1,3 +1,74 @@
+# 暂定
+
+#### JDK 和 JRE
+
+Java Development Kit是功能齐全的 Java SDK。拥有 JRE 所拥有的一切，还有编译器（javac）和工具（如 javadoc 和 jdb）。能够创建和编译程序
+
+JRE 是 Java 运行时环境。它是运行已编译 Java 程序所需的所有内容的集合，包括 Java 虚拟机（JVM），Java 类库，java 命令和其他的一些基础构件。但是，它不能用于创建新程序。
+
+如果你只是为了运行一下 Java 程序的话，那么你只需要安装 JRE 就可以了。如果你需要进行一些 Java 编程方面的工作，那么你就需要安装 JDK 了。但是，这不是绝对的。有时，即使您不打算在计算机上进行任何 Java 开发，仍然需要安装 JDK。例如，如果要使用 JSP 部署 Web 应用程序，那么从技术上讲，您只是在应用程序服务器中运行 Java 程序。那你为什么需要 JDK 呢？因为应用程序服务器会将 JSP 转换为 Java servlet，并且需要使用 JDK 来编译 servlet。
+
+
+
+
+
+### 编译与解释并存
+
+
+
+高级编程语言按照程序的执行方式分为编译型和解释型两种。简单来说，编译型语言是指编译器针对特定的操作系统将源代码一次性翻译成可被该平台执行的机器码；解释型语言是指解释器对源程序逐行解释成特定平台的机器码并立即执行
+
+Java的编译	[类加载,.java->.class](#类加载)
+
+Java的解释	[JIT](#JIT)
+
+
+
+**面向对象**带来创建实例/分配内存**并非Java性能低的根本原因**,面向过程也需要分配内存，计算内存偏移量
+
+**面向过程的语言大多被直接编译成机器码,而Java是半编译半解释**
+
+
+
+
+
+### 静态不能调用非静态
+
+
+
+静态方法属于类,在[加载](加载)时根据.class在堆中创建class对象 -> 支持通过类名直接访问
+
+非静态成员属于实例,此时内存中还不存在实例,也不存在实例的方法,所以无法被静态地访问
+
+
+
+### Java只有值传递
+
+方法得到的是参数值的拷贝，无法修改原参数的内容
+
+
+
+对于基本类型,传地址
+
+对于其他类型,传引用地址,也是地址的值
+
+
+
+Java虽然传地址的值,但不是引用调用
+
+
+
+### 成员变量 VS 局部变量
+
+1. 从语法形式上看，成员变量是属于类的，而局部变量是在代码块或方法中定义的变量或是方法的参数；成员变量可以被 `public`,`private`,`static` 等修饰符所修饰，而局部变量不能被访问控制修饰符及 `static` 所修饰；但是，成员变量和局部变量都能被 `final` 所修饰。
+2. 从变量在内存中的存储方式来看,如果成员变量是使用 `static` 修饰的，那么这个成员变量是属于类的，如果没有使用 `static` 修饰，这个成员变量是属于实例的。而对象存在于堆内存，局部变量则存在于栈内存。
+3. 从变量在内存中的生存时间上看，成员变量是对象的一部分，它随着对象的创建而存在，而局部变量随着方法的调用而自动消失。
+4. 从变量是否有默认值来看，成员变量如果没有被赋初，则会自动以类型的默认值而赋值（一种情况例外:被 `final` 修饰的成员变量也必须显式地赋值），而局部变量则不会自动赋值
+
+
+
+
+
 
 
 # 继承
@@ -5,6 +76,8 @@
 
 
 超类和子类 成员变量名称相同
+
+子类拥有父类对象所有的属性和方法（包括私有属性和私有方法），但是父类中的私有属性和方法子类是无法访问，**只是拥有**
 
 不会重写父类成员变量,**子类中将有两个相同名称的变量**
 
@@ -199,6 +272,21 @@ class Square extends Recyangle {
 打上@Override能利用编译器的检查,减少此类bug
 
 也能及时发现有@Override却没有重写方法
+
+
+
+## 重写
+
+
+
+1. 返回值类型、方法名、参数列表相同
+2. 抛出的异常<=父类异常，访问修饰符范围>=父类
+3. 如果父类方法访问修饰符为 `private/final/static` 则子类就不能重写该方法，但是被 static 修饰的方法能够被再次声明
+4. 构造方法无法被重写
+
+
+
+
 
 
 
@@ -755,7 +843,7 @@ Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
 
 
 
-
+构造方法只能重载,不能重写
 
 
 
@@ -928,25 +1016,222 @@ reduce ： 66
 
 
 
-| List                       | Set                      | Map                 |
-| -------------------------- | ------------------------ | ------------------- |
-| 单列                       | 单列                     | 双列                |
-| 重复(重复存储多个对象指针) | 不重复,add()返回boolean  | key不重复,value重复 |
-| 有序                       | 无序，只能以Iterator遍历 |                     |
+| List                       | Set                     | Map                 |
+| -------------------------- | ----------------------- | ------------------- |
+| 单列                       | 单列                    | 双列                |
+| 重复(重复存储多个对象指针) | 不重复,add()返回boolean | key不重复,value重复 |
+| 有序                       | TreeSet支持排序         | LinkedHashMap有序   |
 
 
 
-| Data Structure                               | 新增     | **查询/Find** | 删除/Delete | GetByIndex |
-| -------------------------------------------- | -------- | ------------- | ----------- | ---------- |
-| 数组 Array (T[])                             | O(n)     | **O(n)**      | O(n)        | O(1)       |
-| 链表 Linked list (LinkedList<T>)             | O(1)     | **O(n)**      | O(n)        | O(n)       |
-| Resizable array list (List<T>)               | O(1)     | **O(n)**      | O(n)        | O(1)       |
-| Stack (Stack<T>)                             | O(1)     | **-**         | O(1)        | -          |
-| Queue (Queue<T>)                             | O(1)     | **-**         | O(1)        | -          |
-| Hash table (Dictionary<K,T>)                 | O(1)     | **O(1)**      | O(1)        | -          |
-| Tree-based dictionary(SortedDictionary<K,T>) | O(log n) | **O(log n)**  | O(log n)    | -          |
-| Hash table based set (HashSet<T>)            | O(1)     | **O(1)**      | O(1)        | -          |
-| Tree based set (SortedSet<T>)                | O(log n) | **O(log n)**  | O(log n)    | -          |
+|                                              | add      | find         | delete   | GetByIndex |
+| -------------------------------------------- | -------- | ------------ | -------- | ---------- |
+| 数组 Array (T[])                             | O(n)     | **O(n)**     | O(n)     | O(1)       |
+| 链表 Linked list (LinkedList<T>)             | O(1)     | **O(n)**     | O(n)     | O(n)       |
+| Resizable array list (List<T>)               | O(1)     | **O(n)**     | O(n)     | O(1)       |
+| Stack (Stack<T>)                             | O(1)     | **-**        | O(1)     | -          |
+| Queue (Queue<T>)                             | O(1)     | **-**        | O(1)     | -          |
+| Hash table (Dictionary<K,T>)                 | O(1)     | **O(1)**     | O(1)     | -          |
+| Tree-based dictionary(SortedDictionary<K,T>) | O(log n) | **O(log n)** | O(log n) | -          |
+| Hash table based set (HashSet<T>)            | O(1)     | **O(1)**     | O(1)     | -          |
+| Tree based set (SortedSet<T>)                | O(log n) | **O(log n)** | O(log n) | -          |
+
+
+
+## Collection
+
+
+
+## Collections
+
+
+
+### 排序
+
+```java
+void reverse(List list)//反转
+void shuffle(List list)//随机排序
+void sort(List list)//按自然排序的升序排序
+void sort(List list, Comparator c)//定制排序，由Comparator控制排序逻辑
+void swap(List list, int i , int j)//交换两个索引位置的元素
+void rotate(List list, int distance)//旋转。当distance为正数时，将list后distance个元素整体移到前面。当distance为负数时，将 list的前distance个元素整体移到后面
+```
+
+
+
+
+
+### 查找/替换
+
+```java
+int binarySearch(List list, Object key)//对List进行二分查找，返回索引，注意List必须是有序的
+int max(Collection coll)//根据元素的自然顺序，返回最大的元素。 类比int min(Collection coll)
+int max(Collection coll, Comparator c)//根据定制排序，返回最大元素，排序规则由Comparatator类控制。类比int min(Collection coll, Comparator c)
+void fill(List list, Object obj)//用指定的元素代替指定list中的所有元素。
+int frequency(Collection c, Object o)//统计元素出现次数
+int indexOfSubList(List list, List target)//统计target在list中第一次出现的索引，找不到则返回-1，类比int lastIndexOfSubList(List source, list target).
+boolean replaceAll(List list, Object oldVal, Object newVal), 用新元素替换旧元素
+```
+
+
+
+### ~~同步集合~~
+
+转换成线程安全的集合（==装潢模式==，将已有对象传入另一个类的构造器中,创建新对象来增加新功能）
+
+**最好不要用这些方法，效率低，需要线程安全的集合类型时请考虑使用 JUC 包下的并发集合**
+
+```java
+synchronizedCollection(Collection<T>  c)
+synchronizedList(List<T> list)
+synchronizedMap(Map<K,V> m) //返回由指定映射支持的同步（线程安全的）Map。
+synchronizedSet(Set<T> s) //返回指定 set 支持的同步（线程安全的）set。
+```
+
+
+
+
+
+### toArray
+
+
+
+toArray的空参方法返回的是Object[]
+
+可以调用有参构造,传入有类型的初始数组作为参数,因为参数只起到声明类型的作用,参数数组的长度可以为0
+
+```java
+public <T> T[] toArray(T[] a) {
+  if (a.length < size)
+    // 调用Arrays.copyOf(),传入了参数的class属性,利用反射
+    return (T[]) Arrays.copyOf(elementData, size, a.getClass());
+  System.arraycopy(elementData, 0, a, 0, size);
+  if (a.length > size)    a[size] = null;
+  return a;
+}
+```
+
+
+
+### unmodifiableList
+
+
+
+==装饰器模式==
+
+传入一个List实例la，返回这个list的只读视图，类型依然是List
+
+之后对视图进行add、remove等改变其内容的操作,直接抛出异常UnsupportedOperationException
+
+```java
+static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements List<E> {
+
+  final List<? extends E> list;
+
+  UnmodifiableList(List<? extends E> list) {
+    super(list);
+    this.list = list;
+  }
+
+  public boolean equals(Object o) {return o == this || list.equals(o);}
+  public int hashCode()           {return list.hashCode();}
+
+  public E get(int index) {return list.get(index);}
+  public E set(int index, E element) {
+    throw new UnsupportedOperationException();
+  }
+  public void add(int index, E element) {    throw new UnsupportedOperationException();}
+  public E remove(int index) {   throw new UnsupportedOperationException(); }
+  public int indexOf(Object o)            {return list.indexOf(o);}
+  public int lastIndexOf(Object o)        {return list.lastIndexOf(o);}
+  public boolean addAll(int index, Collection<? extends E> c) {    throw new UnsupportedOperationException();}
+
+  @Override
+  public void replaceAll(UnaryOperator<E> operator) {   
+    throw new UnsupportedOperationException();
+  }
+  @Override
+  public void sort(Comparator<? super E> c) {  
+    throw new UnsupportedOperationException();
+  }
+```
+
+
+
+### <a name="Collections.sort">sort</a>
+
+```java
+public static <T> void sort(List<T> list, Comparator<? super T> c) {
+  list.sort(c);
+}
+```
+
+
+
+
+
+
+
+### toArray
+
+为泛型方法,无入参则返回`Object`类型数组
+
+入参数组只需定义类型 && 长度为0即可,节省空间,只起到声明返回值类型的作用
+
+```java
+<T> T[] toArray(T[] a);
+
+String [] s= new String[]{
+  "dog", "lazy", "a", "over", "jumps", "fox", "brown", "quick", "A"
+};
+List<String> list = Arrays.asList(s);
+Collections.reverse(list);
+s=list.toArray(new String[0]);//没有指定类型的话会报错
+```
+
+
+
+
+
+### 排序
+
+
+
+#### Comparable(函数式接口)
+
+支持简单的等同性比较,并支持**顺序比较**
+
+Comparable能够与众多泛型算法/集合进行协作
+
+Java类库中所有值类,以及值类的枚举都实现了Comparable
+
+```java
+public interface Comparable<T> {
+  public int compareTo(T o);	//0代表相等
+}
+```
+
+
+
+Java所有基本类型类型的装箱都声明了compare(),不需要通过><的比较符去实现compareTo()
+
+
+
+#### Comparator(内部比较器)
+
+==策略模式==	在进行int的计算时,容易整数溢出
+
+o1<o2 -> 负数	o1=o2 -> 0	o1>o2 -> 正数
+
+```java
+public interface Comparator<T> {
+  int compare(T o1, T o2);
+}
+```
+
+
+
+[Collections.sort](#Collections.sort)
 
 
 
@@ -956,23 +1241,38 @@ reduce ： 66
 
 ### HashSet
 
-
-
-哈希表的查询快，O(1)
-
-**自定义类放入hash类集合，必须重写hashcode**
+==基于HashMap实现==,这也使得HashSet的源码非常非常少，除了clone()、writeObject()、readObject()是HashSet自己不得不实现之外，其他方法都是直接调用HashMap的方法
 
 
 
-==向HashSet中add的原理==
+```java
+public class HashSet<E> extends AbstractSet<E> implements Set<E>, Cloneable, Serializable{
+  private transient HashMap<E,Object> map;
+  private static final Object PRESENT = new Object();
+  public HashSet() {
+    map = new HashMap<>();
+  }
+  public HashSet(Collection<? extends E> c) {
+    map = new HashMap<>(Math.max((int) (c.size()/.75f) + 1, 16));
+    addAll(c);
+  }
+```
+
+
+
+#### add
+
+
 
 * 计算hashCode得到位置
   * 该位置没有对象，直接插入
-  * 有对象，equals()
-    * false,放到重新散列后的新地址
-    * true，元素重复,不插入
+  * 有对象，equals() ? 元素重复,不插入 : ==重新散列并插入==
 
 **hashCode决定存储位置，equals判断重复**
+
+
+
+
 
 
 
@@ -986,9 +1286,25 @@ reduce ： 66
 
 
 
+额外实现了NavigableMap,带来了集合中的元素根据键排序的能力,也可以通过构造器指定比较器
 
 
 
+```java
+public class TreeMap<K,V> extends AbstractMap<K,V> implements NavigableMap<K,V>, Cloneable, Serializable{
+  private final Comparator<? super K> comparator;
+  private transient Entry<K,V> root;
+  private transient int size = 0;
+  private transient int modCount = 0;
+
+  public TreeMap() {
+    comparator = null;
+  }
+  public TreeMap(Comparator<? super K> comparator) {
+    this.comparator = comparator;
+  }
+}
+```
 
 
 
@@ -1014,6 +1330,20 @@ List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变�
 | ---- | --------------------------- | ---------- |
 | O(1) | 下标搜索，**末尾插入/删除** | 插入、删除 |
 | O(n) | 搜索                        | 查找       |
+
+
+
+
+
+| ArrayList                      | LinkedList | Vector                          |
+| ------------------------------ | ---------- | ------------------------------- |
+| Object[]                       | Object[]   | Node的双向链表                  |
+| 线程不安全                     | 不安全     | 安全                            |
+| 指定位置插入O(n) copy数组耗时  |            | 指定位置插入O(n) 额外的查找耗时 |
+| 支持RandomAccess(快速随机访问) |            |                                 |
+| 扩容的额外预留空间             |            | 存储前后节点的额外空间          |
+|                                |            |                                 |
+|                                |            |                                 |
 
 
 
@@ -1109,44 +1439,40 @@ class SubList<E> extends AbstractList<E> {
 public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
 
   private static final int DEFAULT_CAPACITY = 10;	//初始大小10
-  private static final Object[] EMPTY_ELEMENTDATA = {};
+  private static final Object[] EMPTY_ELEMENTDATA = {};//单例的空集合
   private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
   transient Object[] elementData;
   private int size;
   private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
+  public ArrayList() {　　//无参构造时容量0,第一次add时分配DEFAULT_CAPACITY的容量
+    super();
+    this.elementData = EMPTY_ELEMENTDATA;
+  }
+
+  public ArrayList(int initialCapacity) {
+    super();
+    if (initialCapacity < 0)
+      throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
+    this.elementData = new Object[initialCapacity];
+  }
+
+  public ArrayList(Collection<? extends E> c) {
+    elementData = c.toArray();	//集合的入参也是先转成数组
+    if ((size = elementData.length) != 0) {
+      //集合的toarray()的实现不同，如果不是Object[].class，就使用ArrayList中的方法改造一下
+      if (elementData.getClass() != Object[].class)
+        elementData = Arrays.copyOf(elementData, size, Object[].class);
+    } else {
+      this.elementData = EMPTY_ELEMENTDATA;
+    }
+  }
 }
 ```
 
 
 
-elementData被[transient](#transient)修饰,因为这个数组是动态扩展的，并不是所有的空间都被使用，不需要所有的内容都被序列化。通过重写序列化和反序列化方法，使得可以只序列化数组中有内容的那部分数据。
-
-
-
-#### 构造
-
-
-
-```java
-public ArrayList() {　　
-  super();        //调用父类无参构造，父类中的是个空的构造方法
-  this.elementData = EMPTY_ELEMENTDATA;//EMPTY_ELEMENTDATA：空的Object[]
-}
-
-public ArrayList(int initialCapacity) {
-  super(); //父类中空的构造方法
-  if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
-  this.elementData = new Object[initialCapacity];
-}
-
-public ArrayList(Collection<? extends E> c) {
-  elementData = c.toArray();
-  size = elementData.length;
-  //每个集合的toarray()的实现方法不一样，如果不是Object[].class，就需要使用ArrayList中的方法去改造一下
-  if (elementData.getClass() != Object[].class) 。
-    elementData = Arrays.copyOf(elementData, size, Object[].class);
-}
-```
+elementData被[transient](#transient)修饰,因为这个数组是动态扩展的，并不是所有的空间都被使用，不需要所有内容都被序列化。通过重写序列化和反序列化方法，使得可以只序列化数组中有内容的那部分数据
 
 
 
@@ -1154,11 +1480,9 @@ public ArrayList(Collection<? extends E> c) {
 
 
 
-原数组是空的，add()时数组容量变为10
+原数组是空的，add时数组容量变为10
 
 原数组不为空，扩容1.5倍
-
-
 
 ```java
 public boolean add(E e) {    
@@ -1167,8 +1491,7 @@ public boolean add(E e) {
   return true;
 }
 
-//数组容量检查，不够则进行扩容，只供类内部使用
-private void ensureCapacityInternal(int minCapacity) {
+private void ensureCapacityInternal(int minCapacity) {//数组容量检查
   ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
 }
 
@@ -1180,10 +1503,9 @@ private static int calculateCapacity(Object[] elementData, int minCapacity) {
   return minCapacity;
 }
 
-private void ensureExplicitCapacity(int minCapacity) {	// minCapacity 想要的最小容量
+private void ensureExplicitCapacity(int minCapacity) {
   modCount++;
-  //最小容量>数组缓冲区当前长度
-  if (minCapacity - elementData.length > 0)
+  if (minCapacity - elementData.length > 0)	//最小容量>数组缓冲区当前长度
     grow(minCapacity);//扩容
 }
 
@@ -1212,16 +1534,10 @@ private static int hugeCapacity(int minCapacity) {
 
 ```java
 public void add(int index, E element) {
-  //越界检查
   rangeCheckForAdd(index);
   ensureCapacityInternal(size + 1);
-  // 对数组进行复制处理，目的是空出index的位置插入element，并将index后的所有元素后移一个位置
-  //arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，复制数量)
-  //复制的时只是复制容器里的引用，只在写的时候会创建新对象添加到新容器里，而旧容器的对象还在使用
   System.arraycopy(elementData, index, elementData, index + 1,size - index);
-  //将指定的index位置赋值为element
   elementData[index] = element;
-  //实际容量+1
   size++;
 }
 
@@ -1298,21 +1614,60 @@ private void fastRemove(int index) {
 
 
 
-范围删除
+范围删除	[fromIndex,toIndex)	不包含右边界
 
 ```java
-[fromIndex,toIndex)	不包含右边界
- protected void removeRange(int fromIndex, int toIndex) {
-   modCount++;
-   int numMoved = size - toIndex;//被删除的索引后面的个数
-   System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
+protected void removeRange(int fromIndex, int toIndex) {
+  modCount++;
+  int numMoved = size - toIndex;//被删除的索引后面的个数
+  System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
 
-   int newSize = size - (toIndex-fromIndex);
-   for (int i = newSize; i < size; i++) {
-     elementData[i] = null;
-   }
-   size = newSize;
- }
+  int newSize = size - (toIndex-fromIndex);
+  for (int i = newSize; i < size; i++) {
+    elementData[i] = null;
+  }
+  size = newSize;
+}
+```
+
+
+
+#### toArray
+
+
+
+```java
+public Object[] toArray() {
+  return Arrays.copyOf(elementData, size);
+}
+
+public <T> T[] toArray(T[] a) {
+  if (a.length < size)
+    return (T[]) Arrays.copyOf(elementData, size, a.getClass());
+  System.arraycopy(elementData, 0, a, 0, size);
+  if (a.length > size)
+    a[size] = null;
+  return a;
+}
+```
+
+
+
+#### ensureCapacity
+
+内部未使用这个方法,public修饰转为外部使用
+
+在需要大量插入元素时,提前分配足额空间
+
+```java
+public void ensureCapacity(int minCapacity) {
+  int minExpand = (elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
+    ? 0 : DEFAULT_CAPACITY;
+
+  if (minCapacity > minExpand) {
+    ensureExplicitCapacity(minCapacity);
+  }
+}
 ```
 
 
@@ -1321,10 +1676,9 @@ private void fastRemove(int index) {
 
 #### retainAll
 
-
+检测两个集合是否有交集
 
 ```java
-//检测两个集合是否有交集
 //如果集合list中的元素都在集合list2中则list中的元素不做移除操作，反之如果只要有一个不在list2中则会进行移除操作
 //即：list进行移除操作返回值为：true，反之返回值则为false
 public boolean retainAll(Collection<?> c) {
@@ -1335,7 +1689,6 @@ boolean batchRemove(Collection<?> c, boolean complement, final int from, final i
   Objects.requireNonNull(c);//非空检查
   final Object[] es = elementData;//原集合
   int r;
-  // Optimize for initial run of survivors
   for (r = from;; r++) {//from等于0，end等于size
     if (r == end)
       return false;
@@ -1362,40 +1715,6 @@ boolean batchRemove(Collection<?> c, boolean complement, final int from, final i
     shiftTailOverGap(es, w, end);
   }
   return true;
-}
-
-public boolean contains(Object o) {
-  return indexOf(o) >= 0;
-}
-
-public int indexOf(Object o) {
-  return indexOfRange(o, 0, size);
-}
-
-int indexOfRange(Object o, int start, int end) {
-  //一开始start为0，end等于size
-  Object[] es = elementData;
-  if (o == null) {
-    for (int i = start; i < end; i++) {
-      if (es[i] == null) {
-        return i;
-      }
-    }
-  } else {
-    for (int i = start; i < end; i++) {
-      if (o.equals(es[i])) {
-        return i;
-      }
-    }
-  }
-  return -1;
-}
-//移除元素的核心操作 
-private void shiftTailOverGap(Object[] es, int lo, int hi) {
-  //arraycopy(原数组，源数组中的起始位置，目标数组，目标数据中的起始位置，要复制的数组元素的数量)
-  System.arraycopy(es, hi, es, lo, size - hi);
-  for (int to = size, i = (size -= hi - lo); i < to; i++)
-    es[i] = null;
 }
 ```
 
@@ -1449,6 +1768,67 @@ public void clear() {
 ```
 
 
+
+
+
+#### trimToSize
+
+取消将扩容预留的空间,最小化所占的存储空间
+
+```java
+public void trimToSize() {
+  modCount++;
+  if (size < elementData.length) {
+    elementData = (size == 0) ? EMPTY_ELEMENTDATA : Arrays.copyOf(elementData, size);
+  }
+}
+```
+
+
+
+
+
+#### clone
+
+
+
+```java
+public Object clone() {
+  ArrayList<?> v = (ArrayList<?>) super.clone();
+  v.elementData = Arrays.copyOf(elementData, size);
+  v.modCount = 0;
+  return v;
+}
+```
+
+
+
+
+
+
+
+#### 支持RandomAccess
+
+不定义方法,只标识实现这个接口的类具有随机访问功能
+
+```java
+public interface RandomAccess {}
+```
+
+
+
+`binarySearch（)`中要判断传入的 list 是否 `RamdomAccess` 的实例，如果是，调用`indexedBinarySearch()`方法，如果不是，那么调用`iteratorBinarySearch()`方法
+
+```java
+public static <T> int binarySearch(List<? extends Comparable<? super T>> list, T key) {
+  if (list instanceof RandomAccess || list.size()<BINARYSEARCH_THRESHOLD)
+    return Collections.indexedBinarySearch(list, key);
+  else
+    return Collections.iteratorBinarySearch(list, key);
+}
+```
+
+`ArrayList` 实现了 `RandomAccess` 接口， 而 `LinkedList` 没有实现。为什么呢？我觉得还是和底层数据结构有关！`ArrayList` 底层是数组，而 `LinkedList` 底层是链表。数组天然支持随机访问，时间复杂度为 O(1)，所以称为快速随机访问。链表需要遍历到特定位置才能访问特定位置的元素，时间复杂度为 O(n)，所以不支持快速随机访问。，`ArrayList` 实现了 `RandomAccess` 接口，就表明了他具有快速随机访问功能。 `RandomAccess` 接口只是标识，并不是说 `ArrayList` 实现 `RandomAccess` 接口才具有快速随机访问功能的！
 
 
 
@@ -1550,7 +1930,20 @@ CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读�
 
 
 
-大量数据时效率高
+```java
+public class LinkedList<E> extends AbstractSequentialList<E> implements List<E>, Deque<E>, Cloneable, Serializable{
+  transient int size = 0;
+  transient Node<E> first;
+  transient Node<E> last;
+
+  public LinkedList() {
+  }
+
+  public LinkedList(Collection<? extends E> c) {
+    this();
+    addAll(c);
+  }
+```
 
 
 
@@ -1574,6 +1967,29 @@ private static class Node<E> {
 
 
 
+#### add
+
+
+
+```java
+public boolean add(E e) {
+  linkLast(e);
+  return true;
+}
+
+void linkLast(E e) {
+  final Node<E> l = last;
+  final Node<E> newNode = new Node<>(l, e, null);
+  last = newNode;
+  if (l == null) first = newNode;
+  else l.next = newNode;
+  size++;
+  modCount++;
+}
+```
+
+
+
 
 
 
@@ -1587,6 +2003,18 @@ private static class Node<E> {
 **在方法中进行了同步,线程安全**
 
 **2倍扩容**,适合数据量大的存储
+
+```java
+public class Vector<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, Serializable{
+  protected Object[] elementData;
+  protected int elementCount;
+  protected int capacityIncrement;
+}
+```
+
+
+
+
 
 
 
@@ -1742,7 +2170,6 @@ static final int tableSizeFor(int cap) {
   n |= n >>> 16;
   return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
 }
-
 
 //参数为Map的构造
 public HashMap(Map<? extends K, ? extends V> m) {
@@ -3549,54 +3976,6 @@ public final class ConcurrentCache<K, V> {
 
 
 
-## 排序
-
-
-
-### Comparable(函数式接口)
-
-支持简单的等同性比较,并支持**顺序比较**
-
-Comparable能够与众多泛型算法/集合进行协作
-
-Java类库中所有值类,以及值类的枚举都实现了Comparable
-
-```java
-public interface Comparable<T> {
-  public int compareTo(T o);	//0代表相等
-}
-```
-
-
-
-Java所有基本类型类型的装箱都声明了compare(),不需要通过><的比较符去实现compareTo()
-
-
-
-
-
-
-
-
-
-### Comparator(内部比较器)
-
-
-
-==策略模式==
-
-比较器接口
-
-o1<o2 -> 负数	o1=o2 -> 0	o1>o2 -> 正数
-
-```java
-public interface Comparator<T> {
-  int compare(T o1, T o2);	//在进行int的计算时,会出现整数溢出
-}
-```
-
-
-
 
 
 
@@ -3669,102 +4048,34 @@ foreach是通过iterator实现的遍历
 
 
 
-### fail-fast机制
+### fail-fast
 
 
 
-在迭代时对该集合进行修改，迭代器抛出 ConcurrentModificationException(并发修改)
+迭代时对该集合进行修改，迭代器抛出 ConcurrentModificationException(并发修改)
 
-如果**单线程违反了规则，也会抛出该异常**
+**单线程违反了规则，也会抛出该异常**
 
-迭代器的快速失败行为无法得到保证，它不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常
-
-
-
-为提高并发修改集合的正确性,依赖于此异常是错误的
-
-正确做法是：
-
-* ConcurrentModificationException 仅用于检测 bug
-
-* synchronized  (阻塞问题)
-
-* 使用CopyOnWriteArrayList来替换ArrayList，其所有修改值的操作都对底层数组复制来实现
-  * 无需同步,就能实现并发
-  * 遍历操作的数量远超可变操作数量
+迭代器的快速失败行为无法得到保证，不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常
 
 
 
-ArrayList
+ArrayList内部类Itr
 
 ```java
- public E next() {    
-            checkForComodification();    
-            /** 省略 */    
-        }    
-
-        public void remove() {    
-            if (this.lastRet < 0)    
-                throw new IllegalStateException();    
-            checkForComodification();    
-            /** 省略 */    
-        }
-
-//迭代器调用next()、remove()都会调用checkForComodification()，该方法主要就是检测modCount == expectedModCount,若不等则抛出ConcurrentModificationException 异常，从而产生fail-fast机制。
-
-//expectedModCount 在Itr中定义：int expectedModCount = ArrayList.this.modCount;它的值是不可能修改的，会变的只有modCount
-//modCount在 AbstractList 中定义的，为全局变量
-protected transient int modCount = 0; 
-```
+public E next() {    
+  checkForComodification();	//检查modCount是否被改变
+  ......
+}
 
 
+public void remove() {
+  checkForComodification();
+  ......
+}
 
-无论add、remove、clear方法,都会导致modCount的改变
-
-```java
-public boolean add(E paramE) {    
-    ensureCapacityInternal(this.size + 1);    
-    /** 省略此处代码 */    
-}    
-
-private void ensureCapacityInternal(int paramInt) {    
-    if (this.elementData == EMPTY_ELEMENTDATA)    
-        paramInt = Math.max(10, paramInt);    
-    ensureExplicitCapacity(paramInt);    
-}    
-
-private void ensureExplicitCapacity(int paramInt) {    
-    this.modCount += 1;    //修改modCount    
-    /** 省略此处代码 */    
-}    
-
-ublic boolean remove(Object paramObject) {    
-    int i;    
-    if (paramObject == null)    
-        for (i = 0; i < this.size; ++i) {    
-            if (this.elementData[i] != null)    
-                continue;    
-            fastRemove(i);    
-            return true;    
-        }    
-    else    
-        for (i = 0; i < this.size; ++i) {    
-            if (!(paramObject.equals(this.elementData[i])))    
-                continue;    
-            fastRemove(i);    
-            return true;    
-        }    
-    return false;    
-}    
-
-private void fastRemove(int paramInt) {    
-    this.modCount += 1;   //修改modCount    
-    /** 省略此处代码 */    
-}    
-
-public void clear() {    
-    this.modCount += 1;    //修改modCount    
-    /** 省略此处代码 */    
+final void checkForComodification() {
+  if (modCount != expectedModCount)	throw new ConcurrentModificationException();
 }
 ```
 
@@ -3774,137 +4085,13 @@ public void clear() {
 
 
 
-## Arrays
 
 
 
 
 
-### asList
 
-
-
-**不建议使用于基本数据类型的数组**
-
-该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
-
-
-
-==得到的List长度不可变==,不支持add()、remove()、clear()等,会抛出java.lang.UnsupportedOperationException
-
-```java
-public static <T> List<T> asList(T... a) {
-        return new ArrayList<>(a);	//是Arrays的内部类ArrayList(继承自AbstractList),没有实现add()、remove(),调用将直接抛出异常
-    }
-
-体现的是适配器模式，只转换接口，后台的数据仍是数组
-private static class ArrayList<E> extends AbstractList<E>implements RandomAccess, java.io.Serializable{
-        private final E[] a;
-
-        ArrayList(E[] array) { a = Objects.requireNonNull(array); }
-```
-
-
-
-转化列表后只是用来遍历，用Arrays.asList()
-
-List还要添加或删除元素，new java.util.ArrayList，然后循环添加元素
-
-
-
-
-
-
-
-## Collections
-
-
-
-专门用来操作集合类 ，提供一系列静态方法实现对各种集合的搜索、排序、线程安全化等操作
-
-
-
-### toArray
-
-
-
-toArray的空参方法返回的是Object[]
-
-可以调用有参构造,传入有类型的初始数组作为参数,因为参数只起到声明类型的作用,参数数组的长度可以为0
-
-```java
-public <T> T[] toArray(T[] a) {
-        if (a.length < size)
-            // 调用Arrays.copyOf(),传入了参数的class属性,利用反射
-            return (T[]) Arrays.copyOf(elementData, size, a.getClass());
-        System.arraycopy(elementData, 0, a, 0, size);
-        if (a.length > size)    a[size] = null;
-        return a;
-    }
-```
-
-
-
-### unmodifiableList()
-
-
-
-==装饰器模式==
-
-传入一个List实例la，返回这个list的只读视图，类型依然是List
-
-之后对视图进行add、remove等改变其内容的操作,直接抛出异常UnsupportedOperationException
-
-```java
-static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements List<E> {
-
-        final List<? extends E> list;
-
-        UnmodifiableList(List<? extends E> list) {
-            super(list);
-            this.list = list;
-        }
-
-        public boolean equals(Object o) {return o == this || list.equals(o);}
-        public int hashCode()           {return list.hashCode();}
-
-        public E get(int index) {return list.get(index);}
-        public E set(int index, E element) {
-            throw new UnsupportedOperationException();
-        }
-        public void add(int index, E element) {    throw new UnsupportedOperationException();}
-        public E remove(int index) {   throw new UnsupportedOperationException(); }
-        public int indexOf(Object o)            {return list.indexOf(o);}
-        public int lastIndexOf(Object o)        {return list.lastIndexOf(o);}
-        public boolean addAll(int index, Collection<? extends E> c) {    throw new UnsupportedOperationException();}
-
-        @Override
-        public void replaceAll(UnaryOperator<E> operator) {   throw new UnsupportedOperationException();}
-        @Override
-        public void sort(Comparator<? super E> c) {  throw new UnsupportedOperationException();}
-```
-
-
-
-
-
-### synchronizedList
-
-
-
-转换成线程安全的容器（==装潢模式==，将已有对象传入另一个类的构造器中,创建新对象来增加新功能）
-
-
-
-
-
-
-
-
-
-
-
-## 队列
+## Queue
 
 
 
@@ -3994,6 +4181,128 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
+### Arrays
+
+
+
+
+
+### asList
+
+
+
+**不建议使用于基本数据类型的数组**
+
+该方法将数组与List列表链接起来：当更新其一个时，另一个自动更新
+
+
+
+==适配器模式==，只转换接口，后台的数据仍是数组
+
+基于内部类Arrays.ArrayList实现,内部数组为final -> ==得到的List长度不可变==,不支持add/remove/clear,抛出UnsupportedOperationException
+
+```java
+public static <T> List<T> asList(T... a) {	//限定了泛型,无法传入基本类型
+  return new ArrayList<>(a);
+}
+
+private static class ArrayList<E> extends AbstractList<E>implements RandomAccess, Serializable{
+  private final E[] a;
+
+  ArrayList(E[] array) { 
+    a = Objects.requireNonNull(array); 
+  }
+```
+
+
+
+转化列表后只是用来遍历，用Arrays.asList()
+
+List还要添加或删除元素，new java.util.ArrayList，然后循环添加元素
+
+
+
+#### copyOf
+
+本质都是去调用System.arraycopy()
+
+```java
+public static boolean[] copyOf(boolean[] original, int newLength) {
+  boolean[] copy = new boolean[newLength];
+  System.arraycopy(original, 0, copy, 0, Math.min(original.length, newLength));
+  return copy;
+}
+```
+
+
+
+
+
+
+
+
+
+## 转换
+
+
+
+### 数组->ArrayList
+
+
+
+
+
+**2. 最简便的方法(推荐)**
+
+```java
+List list = new ArrayList<>(Arrays.asList("a", "b", "c"))
+```
+
+**3. 使用 Java8 的Stream(推荐)**
+
+```java
+Integer [] myArray = { 1, 2, 3 };
+List myList = Arrays.stream(myArray).collect(Collectors.toList());
+//基本类型也可以实现转换（依赖boxed的装箱操作）
+int [] myArray2 = { 1, 2, 3 };
+List myList = Arrays.stream(myArray2).boxed().collect(Collectors.toList());
+```
+
+**4. 使用 Guava(推荐)**
+
+对于不可变集合，你可以使用[`ImmutableList`](https://github.com/google/guava/blob/master/guava/src/com/google/common/collect/ImmutableList.java)类及其[`of()`](https://github.com/google/guava/blob/master/guava/src/com/google/common/collect/ImmutableList.java#L101)与[`copyOf()`](https://github.com/google/guava/blob/master/guava/src/com/google/common/collect/ImmutableList.java#L225)工厂方法：（参数不能为空）
+
+```java
+List<String> il = ImmutableList.of("string", "elements");  // from varargs
+List<String> il = ImmutableList.copyOf(aStringArray);      // from array
+```
+
+对于可变集合，你可以使用[`Lists`](https://github.com/google/guava/blob/master/guava/src/com/google/common/collect/Lists.java)类及其[`newArrayList()`](https://github.com/google/guava/blob/master/guava/src/com/google/common/collect/Lists.java#L87)工厂方法：
+
+```java
+List<String> l1 = Lists.newArrayList(anotherListOrCollection);    // from collection
+List<String> l2 = Lists.newArrayList(aStringArray);               // from array
+List<String> l3 = Lists.newArrayList("or", "string", "elements"); // from varargs
+```
+
+**5. 使用 Apache Commons Collections**
+
+```java
+List<String> list = new ArrayList<String>();
+CollectionUtils.addAll(list, str);
+```
+
+**6. Java9 的 `List.of()`方法**
+
+``` java
+Integer[] array = {1, 2, 3};
+List<Integer> list = List.of(array);
+System.out.println(list); /* [1, 2, 3] */
+/* 不支持基本数据类型 */
+```
+
+
+
 
 
 
@@ -4048,6 +4357,14 @@ Java 的 I/O 大概可以分成以下几类：
 ### 字符流
 
 以字符(2字节)为单位	Reader/Writer -> 只适合纯文本传输
+
+
+
+字符流是由JVM将字节流转换得到的，如果不知道编码类型就很容易出现乱码问题
+
+音频文件、图片等媒体文件用字节流比较好
+
+涉及到字符的话使用字符流比较好
 
 
 
@@ -4451,7 +4768,7 @@ OutputStream 所有输出字节流的抽象基类
 
 ##### writeObject
 
-序列化
+序列化	对象转换成二进制字节流
 
 
 
@@ -4459,7 +4776,7 @@ OutputStream 所有输出字节流的抽象基类
 
 ##### readObject
 
-反序列化
+反序列化	二进制字节流转换成对象
 
 
 
@@ -9603,6 +9920,12 @@ add.invoke(list, 5);
 
 
 
+JVM是运行 Java 字节码的虚拟机。针对不同系统的JVM特定实现（Windows，Linux，macOS），目的是使用相同的字节码，得到相同的结果。字节码和不同系统的 JVM 实现是 Java 语言“一次编译，随处可以运行”的关键所在
+
+
+
+
+
 Jconsole	查看JVM状态
 
 
@@ -9814,7 +10137,7 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-- **常量池** 是Class文件的一部分,可以理解为Class文件中的资源仓库，它是Class文件结构中与其他项目资源关联最多的数据类型,**数据在编译期被确定**
+- **常量池** 是.class的一部分,可以理解为.class中的资源仓库，它是.class结构中与其他项目资源关联最多的数据类型,**数据在编译期被确定**
   - **字符串常量池**：编译期,类中产生的字符串类型数据
   - **运行时常量池**：虚拟机加载Class后把常量池中的数据放入运行时常量池
     - 包含==基本类型和对象型的常量值==
@@ -10096,13 +10419,11 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 
 ## JIT
 
-
-
-Just-In-Time	及时编译
+Just-In-Time	**及时编译器**
 
 原本是JVM将语句一条条地解释,再执行
 
-当一个方法被高频率地调用(热点代码),将直接及时编译成机器语言
+当一个方法被高频率地调用(热点代码),将直接及时编译成机器码，下次无需编译/解释
 
 
 
@@ -10116,19 +10437,27 @@ Just-In-Time	及时编译
 
 
 
-源代码阶段
+源代码阶段	.java -> .class
 
-.java	成员变量，构造方法，成员方法通过**javac编译** ->	.class
-
-
-
-Class类对象阶段
-
-.class	ClassLoader类加载器 ->	class对象(加载了class文件中的成员变量，构造方法，成员方法)
+成员变量，构造方法，成员方法通过**javac编译** ->	.class
 
 
 
-Runtime运行时阶段
+.class的字节码不面向任何特定的处理器，只面向虚拟机 -> 平台无关,可移植
+
+通过字节码在一定程度上解决了传统解释型语言执行效率低的问题，同时又保留了解释型语言可移植的特点
+
+
+
+Class类对象阶段	.class -> 二进制机器码
+
+[类加载器加载字节码文件,](#加载)然后通过解释器逐行解释执行
+
+这种方式的执行速度较慢。而且，有些方法和代码块是经常需要被调用的(热点代码)，所以后面引进了 [JIT](#JIT)编译器
+
+
+
+Runtime运行阶段
 
 class对象	实例化->	对象
 
@@ -10536,7 +10865,7 @@ G1 把堆划分成多个大小相等的独立区域（Region），新生代和�
 
 **加载 验证 准备 解析 初始化**	5个阶段
 
-Class文件被类装载器装载后，在JVM中形成class对象(类的结构信息：构造函数，属性和方法等),==借由class对象间接调用类方法->反射==
+.class被类装载器装载后，在JVM中形成class对象(类的结构信息：构造函数，属性和方法等),==借由class对象间接调用类方法->反射==
 
 
 
@@ -10546,7 +10875,7 @@ Class文件被类装载器装载后，在JVM中形成class对象(类的结构信
 
 #### 类加载器
 
-负责读取 Java 字节码，并转换成Class对象
+读取 Java 字节码，并转换成Class对象
 
 每个类加载器都有独立的类名称空间,==类相同前提是被同一个类加载器加载==,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
 
@@ -10573,7 +10902,9 @@ Class文件被类装载器装载后，在JVM中形成class对象(类的结构信
 
 #### 加载
 
-将Class文件读入内存, 创建Class对象,封装类在方法区内的数据结构, 并提供访问方法区数据结构的接口
+将.class读入内存, 创建Class对象,封装类在方法区内的数据结构, 并提供访问方法区的接口
+
+加载了class文件中的成员变量，构造方法，成员方法
 
 通过自定义类加载器参与加载(**类加载唯一能控制的部分**,其余动作完全由JVM控制)
 
@@ -10594,13 +10925,11 @@ Class文件被类装载器装载后，在JVM中形成class对象(类的结构信
 
 
 
-
-
 #### 验证
 
-检查Class文件正确性
+检查.class正确性
 
-* 文件格式检验：检验字节流是否符合Class文件格式的规范, 并且能被当前版本的虚拟机处理
+* 文件格式检验：检验字节流是否符合.class格式的规范, 并且能被当前版本的虚拟机处理
 
 - 元数据检验：对字节码描述的信息进行语义分析, 以保证其描述的内容符合Java语言规范的要求
 - 字节码检验：通过数据流和控制流分析, 确定程序语义是合法、符合逻辑的
@@ -10805,24 +11134,18 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 
 
 
-装箱：基本数据类型->包装器类型      valueOf方法
-
-拆箱：包装器类型->基本数据类型      xxxValue方法
-
-
-
 ## 8种基本类型
 
 
 
-| 基本类型                         | 引用类型                                          |
-| -------------------------------- | ------------------------------------------------- |
-| 长度固定.不随机器变化,移植能力强 |                                                   |
-| 栈,传值,效率高                   | 堆,传引用                                         |
-| 声明时分配空间/赋值              | 声明时分配引用空间,实例化在堆内存中开辟空间后赋值 |
-| 非面向对象（没有属性、方法）     |                                                   |
-| 没有null                         |                                                   |
-|                                  | 可能值相同但不相等                                |
+| 基本类型                           | 引用类型                                      |
+| ---------------------------------- | --------------------------------------------- |
+| 长度固定.不随机器变化,移植能力强   |                                               |
+| 栈,传值,效率高                     | 堆,传引用                                     |
+| 声明时分配空间/赋值,存在局部变量表 | 声明时分配引用空间,实例化在堆中开辟空间后赋值 |
+| 非面向对象（没有属性、方法）       |                                               |
+| 没有null                           |                                               |
+|                                    | 可能值相同但不相等                            |
 
 
 
@@ -10835,11 +11158,17 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 | float               | 1符号+8指数+23尾数=4  | 0.0f           | Float     | -3.4e^45^~3.4e^38^        |
 | double              | 1符号+11指数+52尾数=8 | 0.0d           | Double    | -1.79e^308^ ~ +1.79e^308^ |
 | [boolean](#boolean) | 1                     | false          | Boolean   |                           |
-| char                | 2                     | \u0000  (null) | Character |                           |
+| **char**            | **2**                 | \u0000  (null) | Character |                           |
 
 
 
-<a name="boolean">boolean虽然可以被1bit存储,但JVM在编译时转换为 int</a>
+<a name="boolean">boolean虽然可以被1bit存储,但JVM在编译时转换为int</a>
+
+
+
+==浮点类型不能用==进行比较==
+
+
 
 
 
@@ -10864,6 +11193,22 @@ float f =(float)3.4	或 float f =3.4F		//正确
 
 
 
+### char无法代表所有字符
+
+JVM内部使用UTF-16编码。char将被无视编码地转化为UTF-16,且只用两个字节
+
+但2字节无法代表所有字符,4字节的空间利用率低
+
+
+
+Unicode将16位的字符集做了延申，并规定每2^16^为一个plane, 第一个plane称作 Basic Multilingual Plane（BMP）
+
+UTF-16只能表示Unicode中第一层（BMP）中的字符，对于其他字符会报错：Invalid Character Constant, 而String中是可以的
+
+
+
+
+
 
 
 ## 包装类型
@@ -10871,6 +11216,20 @@ float f =(float)3.4	或 float f =3.4F		//正确
 
 
 大多被final修饰,无法被继承/实现
+
+除Double/Float外都实现了常量池技术,`Byte`,`Short`,`Integer`,`Long` 默认创建了数值 **[-128，127]** 的相应类型的缓存数据，`Character` 创建了数值在[0,127]范围的缓存数据，`Boolean` 直接返回 `True/False`
+
+
+
+
+
+### 拆箱装箱
+
+
+
+装箱：基本数据类型->包装器类型      valueOf方法
+
+拆箱：包装器类型->基本数据类型      xxxValue
 
 
 
@@ -10961,9 +11320,11 @@ private static class IntegerCache {
 
 
 ```java
-private final char value[];
+public final class String implements Serializable, Comparable<String>, CharSequence {
+  private final char value[];
 
-public String() {this.value = "".value; }//对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
+  public String() {this.value = "".value; }//对于new String(),仅仅是分配了空字符串的数组地址,并没有产生新的对象
+}
 ```
 
  
@@ -11107,10 +11468,17 @@ System.out.println((a==c));
 
 ```java
 abstract class AbstractStringBuilder implements Appendable, CharSequence {
-  char[] value;	//不是final
+  char[] value;
   int count;	//数组长度
+  AbstractStringBuilder() {}
+
+  AbstractStringBuilder(int capacity) {
+    value = new char[capacity];
+  }
 }
 ```
+
+不是final的char[]提供了可变的字符串
 
 
 
@@ -11200,6 +11568,12 @@ public synchronized StringBuffer append(String str) {	//同步了append,线程�
 
 
 
+1. 操作少量的数据: `String`
+2. 单线程操作字符串缓冲区下操作大量数据:  `StringBuilder`
+3. 多线程操作字符串缓冲区下操作大量数据:  `StringBuffer`
+
+
+
 #### Splitter
 
 
@@ -11214,6 +11588,32 @@ List<String> list = splitter.splitToList("1,,,1,1    ,");
 #### intern
 
 如果池中已经包含一个等于此String的字符串，则返回代表池中这个字符串的String对象；否则，将此String对象包含的字符串添加到常量池中，并且返回此String对象的引用
+
+
+
+
+
+### BigDecimal
+
+
+
+针对浮点类型运算,创建BigDecimal的入参为string,避免精度丢失
+
+
+
+```
+a.compareTo(b)	-1 : a<b
+
+setScale	保留几位小数
+```
+
+
+
+
+
+
+
+
 
 
 
@@ -11289,9 +11689,9 @@ hashCode相同，equals()不一定true
 **==是关系运算符，equals()是方法**
 
 * ==
-  * 基本类型，比较值
-  * 引用类型，比较地址
+  * 基本类型比较值,引用类型比较地址
   * ==不能比较没有继承关系的对象==
+  * 因为 Java 只有值传递，所以，对于 == 来说，不管是比较基本数据类型，还是引用数据类型的变量，其本质比较的都是值，只是引用类型变量存的值是对象的地址
 
 * equals() 
   * 重写后比较内容
@@ -11416,7 +11816,15 @@ Cloneable只决定clone()的实现方式 -> Cloneable ? 返回对象的逐域拷
 
 #### 深浅克隆
 
-浅度拷贝即直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存。而深度拷贝为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
+浅度拷贝	Shallow Clone
+
+直接赋值，拷贝的只是原始对象的引用地址，在堆中仍然共用一块内存
+
+
+
+深拷贝	Deep Clone
+
+为新对象在堆中重新分配一块内存，所以对新对象的操作不会影响原始对象。
 
 要将可变对象和不可变对象相互转换，或者需要==操作新对象的时候不影响原始对象，用深度拷贝== ==copy-on-write==原则就是利用深度拷贝来实现的
 
@@ -11727,11 +12135,42 @@ minusDays()
 
 
 
+### EnumSet
+
+也是继承了AbstractSet
+
+```java
+public abstract class EnumSet<E extends Enum<E>> extends AbstractSet<E> implements Cloneable, Serializable {
+  final Class<E> elementType;
+  final Enum<?>[] universe;
+
+  private static Enum<?>[] ZERO_LENGTH_ENUM_ARRAY = new Enum<?>[0];
+
+  EnumSet(Class<E>elementType, Enum<?>[] universe) {
+    this.elementType = elementType;
+    this.universe    = universe;
+  }
+}
+```
 
 
-### EnumSet代替位域
+
+#### of
+
+```java
+public static <E extends Enum<E>> EnumSet<E> of(E first, E... rest) {
+  EnumSet<E> result = noneOf(first.getDeclaringClass());
+  result.add(first);
+  for (E e : rest)	result.add(e);
+  return result;
+}
+```
 
 
+
+
+
+#### EnumSet代替位域
 
 位域
 
@@ -11768,13 +12207,25 @@ text.applyStyles(EnumSet.of(Style.BLUE, Style.RED));
 
 
 
+### EnumMap
 
+```java
+public class EnumMap<K extends Enum<K>, V> extends AbstractMap<K, V> implements Serializable, Cloneable{
+  private final Class<K> keyType;
+  private transient K[] keyUniverse;
+  private transient Object[] vals;	//内部用数组
+  private transient int size = 0;
+  private static final Object NULL = new Object() {
+    public int hashCode() {
+      return 0;
+    }
 
-
-
-
-
-
+    public String toString() {
+      return "java.util.EnumMap.NULL";
+    }
+  };
+}
+```
 
 
 
@@ -12006,17 +12457,19 @@ null -> Optional.empty()
 
 # 异常
 
-![](image.assets/异常.png)
 
-两个子类:异常,错误
 
-==异常能被程序本身可以处理，错误是无法处理==
+![](image.assets/Java异常类层次结构图2.png)
 
 
 
-| Checked Exception                           | Unchecked Exception                             | Error                                 |
-| ------------------------------------------- | ----------------------------------------------- | ------------------------------------- |
-| 强制调用方对该异常进行处理,否则不能编译通过 | R**untime Exception都为Unchecked**,编译器不检查 | 程序无法处理的错误,通常与业务逻辑无关 |
+
+
+Exception能被程序本身处理，Error无法try-catch
+
+| Checked Exception                           | Unchecked Exception                   | Error              |
+| ------------------------------------------- | ------------------------------------- | ------------------ |
+| 强制调用方对该异常进行处理,否则不能编译通过 | **Runtime都为Unchecked**,编译器不检查 | 程序无法处理的错误 |
 
 
 
@@ -12024,10 +12477,7 @@ null -> Optional.empty()
 
 
 
-* 不管有没有异常，finally都会执行
-* catch中return，finally依然执行
-* return的是表达式,finally无法改变返回值;return的是引用类型，finally能改变返回值
-* finally代码中最好不要包含return，程序会提前退出，也就是说返回的值不是try或catch中的值
+不管有没有异常，finally都会执行,哪怕在catch中return
 
 
 
@@ -12036,6 +12486,68 @@ null -> Optional.empty()
 对catch的异常不作处理的话,注释写明不处理原因的
 
 当catch的异常被命名为expected, 此异常是被期望的且类型正确，此时可以在不作注释的情况下不处理异常
+
+
+
+## try-with-resources
+
+
+
+1. **适用范围**任何实现 `AutoCloseable`/`Closeable` 的对象
+2. **关闭资源和 finally 块的执行顺序：**在 `try-with-resources` 语句中，任何 catch 或 finally 块在声明的资源关闭后运行
+
+
+
+面对必须要关闭的资源，应优先使用 `try-with-resources`
+
+```java
+//try-catch
+Scanner scanner = null;
+try {
+  scanner = new Scanner(new File("D://read.txt"));
+  while (scanner.hasNext()) {
+    System.out.println(scanner.nextLine());
+  }
+} catch (FileNotFoundException e) {
+  e.printStackTrace();
+} finally {
+  if (scanner != null) {
+    scanner.close();
+  }
+}
+
+//用try-with-resources改造
+try (Scanner scanner = new Scanner(new File("test.txt"))) {
+  while (scanner.hasNext()) {
+    System.out.println(scanner.nextLine());
+  }
+} catch (FileNotFoundException fnfe) {
+  fnfe.printStackTrace();
+}
+```
+
+
+
+通过使用;分隔，可以在`try-with-resources`块中声明多个资源
+
+```java
+try (BufferedInputStream bin = new BufferedInputStream(new FileInputStream(new File("test.txt")));
+     BufferedOutputStream bout = new BufferedOutputStream(new FileOutputStream(new File("out.txt")))) {
+  int b;
+  while ((b = bin.read()) != -1) {
+    bout.write(b);
+  }
+}
+catch (IOException e) {
+  e.printStackTrace();
+}
+```
+
+
+
+
+
+
 
 
 
@@ -12160,8 +12672,6 @@ default	包内部的任何类
 protected	声明该类的子类可访问
 
 public	任何地方
-
-
 
 
 
@@ -12340,119 +12850,6 @@ String string = "Hello";
 ==对于case不需要break时,必须写注释,解释为何不需要break==
 
 必须包含一个default语句并且放在最后
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 写法优化
-
-
-
-
-
-## 字符串分割->列表
-
-
-
-```java
-List<String> customerNicks = Lists.newArrayList();
-for (String nick : nicks.split(",")) {
-  customerNicks.add(nick);
-}
--->
-  Lists.newArrayList(nicks.split(","));
-```
-
-
-
-
-
-## 匹配的第一个
-
-
-
-```java
-for (FieldValueComparator fieldValueComparator : comparators) {
-  if (fieldValueComparator.isMatch(comparator)) {
-    return fieldValueComparator;
-  }
-}
-return null;
--->
-return comparators.stream().filter(a->a.isMatch(comparator)).findFirst();
-```
-
-
-
-## 匹配个数统计
-
-
-
-```java
-int total = 0;
-for (Object obj : values) {
-  if (isObjAvailable(obj)) {
-    total++;
-  }
-}
-return total;
--->
-return values.stream().filter(this::isObjAvailable).count();
-```
-
-
-
-
-
-## 合并集合
-
-
-
-```java
-List<UnitFilter> filters = new ArrayList<>();
-for (CampaignFilterTier tier : tiers) {
-  filters.addAll(tier.getAllFilters());
-}
-return filters;
--->
-return Iterables.concat(Lists.transform(tiers, CampaignFilterTier::getAllFilters));
-```
-
-
-
-```java
-boolean objAvailable = true;
-for (Condition condition : conditions) {
-  if (!condition.match(obj)) {
-    objAvailable = false;
-  }
-}
-return objAvailable;
--->
-return Iterables.all(conditions, c->c.match(obj));
-```
-
-
-
-
-
-
-
 
 
 
