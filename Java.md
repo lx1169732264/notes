@@ -69,784 +69,6 @@ Java虽然传地址的值,但不是引用调用
 
 
 
-
-
-# 继承
-
-
-
-超类和子类 成员变量名称相同
-
-子类拥有父类对象所有的属性和方法（包括私有属性和私有方法），但是父类中的私有属性和方法子类是无法访问，**只是拥有**
-
-不会重写父类成员变量,**子类中将有两个相同名称的变量**
-
-==子类重写父类的方法，访问级别不允许低于父类== -> 里氏替换
-
-```java
-public class A {  
-  public int m = 1;  
-
-  public void view(){
-    System.out.println(this.m);
-  }  
-}  
-
-public class B extends A{  
-
-  public int m = 2;  
-
-  /**
- *  @Override
- *  public void view(){
- *      System.out.println(this.m);		//2
- *      System.out.println(super.m);	//1
- *  }
- */  
-
-  public static void main(String[] args) {
-    B b = new B();
-    b.view();		//1
-  }  
-}
-```
-
-
-
-==继承打破封装性==
-
-> 需求:继承HashSet实现新类,增加插入元素的计数的功能
->
-> 
->
-> 实现1:重写add和addAll,每加入一个元素计数+1,调用super.add/addAll
->
-> 然而HashSet的addAll依赖于add进行实现,这将使得addAll进行了+2
->
-> 
->
-> 实现2:完全重写addAll,不依赖于super.add实现
->
-> 这使得编程变得极为复杂
-
-哪怕不覆盖现有方法,也存在父类方法间互相调用而导致子类的实现有所差异
-
-子类将依赖于父类的特定功能的实现细节,当父类随着发行版本而变化,子类将必须随之改变
-
-
-
-## 复合
-
-将现有类变为新类的一个组件,完全不拓展现有类,而是在新类增加私有域去引用现有类的一个实例
-
-新类的每个方法都可以调用现有类的实现
-
-
-
-```java
-//继承
-public class CountSet<E> extends HashSet<E>{
-  private int count = 0;
-  public boolean add(E e) {
-    count++;
-    return super.add(e);
-  }
-}
-
-//复合
-public class CountSet<E> extends HashSet<E>{
-  private int count = 0;
-  HashSet s = new HashSet<>();
-  
-  public boolean add(E e) {
-    count++;
-    return s.add(e);
-  }
-}
-```
-
-
-
-只在真正是子类型,存在is-a关系时,才适合用继承
-
-每个B都是A么?	在大多数情况下,B只需包含A的一个私有实例,利用它的实现细节罢了
-
-
-
-在Java类库中,Stack并不是向量,却继承了向量Vector -> Vector废弃将导致Stack也废弃
-
-
-
-
-
-## 继承优于标签
-
-
-
-
-
-以标签区分类型,代码中将充斥着样板代码，包括枚举声明、标签域以及条件语句
-
-在标签过多时,也会加大bug的概率
-
-标签类完全可以转化为等价的继承关系
-
-```java
-public class Figure {
-  enum Shape {RECTANGLE, CIRCL}	//标签区分类型,决定用到的成员变量,area方法的计算方式
-  final Shape shape;
-	
-  double length;	//RECTANGLE专用
-  double width;
-
-  double radius;	//CIRCL专用
-
-  Figure(double radius) {
-    shape = Shape.CIRCL;
-    this.radius = radius;
-  }
-
-  public Figure(double length, double width) {
-    shape = Shape.RECTANGLE;
-    this.length = length;
-    this.width = width;
-  }
-
-  double area() {
-    switch (shape) {	//新增类型,构造器也需增加新的逻辑,否则运行失败
-      case CIRCL:
-        return Math.PI * (radius * radius);
-      case RECTANGLE:
-        return length * width;
-      default:
-        throw new AssertionError(shape);
-    }
-  }
-}
-```
-
-
-
-用继承改写后,带来了层级关系,去除了标签的冗余逻辑
-
-```java
-abstract class Figure {
-  abstract double area();	//公共的area()
-}
-
-class Cicle extends Figure {
-
-  final double radius;	//CIRCL类型对应(radius)
-
-  public Cicle(double radius) { this.radius = radius; }
-
-  @Override
-  double area() { return Math.PI * (radius * radius); }
-}
-```
-
-
-
-另外一点,子类的构造器也能反映与父类的关系
-
-```java
-class Square extends Recyangle {
-  Square(double side) {
-    super(side, side);
-  }
-}
-```
-
-
-
-
-
-## 永远打上Override
-
-
-
-[Object.equals](#equals)入参为Object,在子类往往因定义的入参不是Object,而导致仅仅重载equals
-
-
-
-打上@Override能利用编译器的检查,减少此类bug
-
-也能及时发现有@Override却没有重写方法
-
-
-
-## 重写
-
-
-
-1. 返回值类型、方法名、参数列表相同
-2. 抛出的异常<=父类异常，访问修饰符范围>=父类
-3. 如果父类方法访问修饰符为 `private/final/static` 则子类就不能重写该方法，但是被 static 修饰的方法能够被再次声明
-4. 构造方法无法被重写
-
-
-
-
-
-
-
-## 慎用重载
-
-
-
-```java
-String classify(Set<?> s) { return "Set"; }
-String classify(List<?> s) { return "List"; }
-String classify(Collection<?> s) { return "Collection"; }
-
-public void test() {
-  Collection<?>[] collections = {
-    new HashSet<>(),
-    new ArrayList<>(),
-    new HashMap<>().values()
-  };
-
-  for (Collection<?> c : collections) {
-    System.out.println(classify(c));	//输出Collection * 3
-  }
-}
-```
-
-
-
-==重载方法的类型在编译时决定,重写方法的类型在运行时决定== -> **重载方法的选择是静态的，被覆盖的方法的选择则是动态的**
-
-每次调用的对象类型不同,但这并不影响选择重载方法,因为对象在编译时的类型是确定的
-
-
-
-重写是标准规范,而重载机制是例外 -> 重写机制符合正常逻辑,在使用重载时可能引发无法理解的bug
-
-
-
-
-
-根本原因是重载入参的混淆性,父子类入参在重载时的调用不符合预期	一种方法是严格规定入参为绝不会混淆的类型
-
-**命名代替重载**
-
-[ObjectOutputStream.write](#ObjectOutputStream)对每种参数类型都有一种变形,但这些变形并不是重载 write，而是通过命名区分 writeBoolean()/writeInt()
-
-
-
-但构造器必定是重载的,无法命名,但可以通过静态工厂取代构造器
-
-
-
-自动拆箱装箱也会导致重载的混淆
-
-List.remove(Object)移除指定元素	List.remove(int)移除指定下标
-
-若为List<Integer>,删除时入参为int,以为会被自动装箱为Integer,实际调用的是List.remove(int),根据下标删除导致删除异常
-
-
-
-重载时需要留意:各个方法的逻辑大体一致,入参可以通过简单的类型转换就转发给不同的重载方法 -> 多种重载实际生效的只应该有一个
-
-
-
-
-
-
-
-
-
- 
-
-# 接口
-
-
-
-
-
-## ~~常量接口~~
-
-constant interface
-
-
-
-==接口只用于定义类型==,常量接口是对接口的不良使用
-
-类内部的常量属于实现细节,类中常量的命名也将被接口类常量占用
-
-
-
-## 标记接口
-
-不包含方法声明的接口,只代表一个类实现了具有某种属性的接口
-
-```java
-实现Serializable意味着对象可以被ObjectOutputStream.writeObject()
-```
-
-
-
-标记接口相较于标记注解,能够提供类型的限制 -> 编译时IDE的类型提示
-
-
-
-
-
-## default 1.8+
-
-
-
-~~public~~ default
-
-
-
-抽象类更多的是提供一个模板，子类间流程大致相同，仅仅是某个步骤可能不一样（模板方法设计模式），这个时候使用抽象类，该可变步骤定义为抽象方法
-
-default直接提供了方法的实现,不需要修改实现类
-
-
-
-**default缺点**
-
-并非每一个实现类都需要default方法,新增defalut会带来历史子类的测试,不适配的子类必须重写default方法
-
-新增default方法后,子类并不会出现编译时的报错,但运行时可能因为新增方法而异常
-
-尽管default能够为所有子类新增一个已实现的方法,但这很可能会带来难以测试的bug
-
-
-
-## 静态方法 1.8+
-
-
-
-不会被实现类所实现,**只用于内部调用**
-
-
-
-两个接口定义**相同静态方法**，实现类实现这两个接口，并不会产生错误，编译器通过**反射**区分是哪个接口下的方法
-
-两个接口定义**相同非静态方法**，实现类实现了这两个接口，必须在实现类中重写默认方法
-
-
-
-## 函数式接口
-
-
-
-**只有一个抽象方法**
-
-
-
-**@FunctionalInterface**
-
-只在编译期起作用。编译期会强制检查该接口是否符合函数式接口的条件，不符合则会报错。**即使不使用，只要满足定义也是函数式接口**。
-
-![image-20200826214004498](image.assets/image-20200826214004498.png)
-
-
-
-### Supplier
-
-
-
-T get()	获取一个泛型参数指定类型的对象数据	**生产一个数据**
-
-```java
-public void testGetUser() {
-  User user = getUser(User::new);}
-
-private User getUser(Supplier<User> supplier) {
-  return supplier.get();}
-```
-
- 
-
-Supplier求数组元素的最小值
-
-```java
-public void testGetMin(){
-  int[] arr={5,3,100,10};
-  int min = getMin(()->{
-    int minNum=arr[0];
-    for (int i : arr) {
-      if (i<minNum) minNum=i;}
-    return minNum;
-  });}
-
-private Integer getMin(Supplier<Integer> supplier) {
-  return supplier.get();
-}
-```
-
- 
-
-### Consumer
-
-**与Supplier接口相反**，消费一个数据
-
-
-
-**抽象方法：accept**，消费一个指定泛型的数据
-
-```java
-public void testConsumer() {
-  User user = new User();
-  setUserDefaultSex(u -> u.setSex("nan"), user);	//user的sex被改变
-}
-private void setUserDefaultSex(Consumer<User> consumer, User user) {
-  consumer.accept(user);
-}
-```
-
-
-
-**默认方法：andThen**
-
-**方法的参数和返回值全都是 Consumer 类型**，那么就可以实现效果：消费数据的时候，首先做一个操作，然后再做一个操作，实现组合
-
-要想实现组合，需要两个或多个Lambda表达式
-
-```java
-public void testConsumer2() {
-  User user = new User();
-  setUserNameAndSex(u -> u.setSex("nan"), u -> u.setName("aa"), user);
-  System.out.println(user.getSex() + user.getName());}
-
-private void setUserNameAndSex(Consumer<User> one, Consumer<User> two, User user) {
-  one.andThen(two).accept(user);
-}
-```
-
- 
-
-### BiConsumer
-
-
-
-```java
-void accept(T t, U u);	//接受2个入参的Consumer
-
-default BiConsumer<T, U> andThen(BiConsumer<? super T, ? super U> after) {
-  Objects.requireNonNull(after);
-
-  return (l, r) -> {
-    accept(l, r);
-    after.accept(l, r);
-  };
-}
-```
-
-
-
-
-
-### Predicate
-
-对某种类型的数据进行判断，**得到boolean**结果
-
-**抽象方法：test** 	用于条件判断
-
-```
-public void testPredicate() {
-        longThan(s -> s.length() > 5, "hello!!");}
-
-    private void longThan(Predicate<String> predicate, String str) {
-        boolean flag = predicate.test(str);}
-```
-
-
-
-**默认方法：and** 
-
-**默认方法：or** 
-
-```
-public void testSuccess() {
-    successMan(s -> s.contains("富"), s -> s.contains("帅"), "高富帅");}
-
-private void successMan(Predicate<String> one, Predicate<String> two, String str) {
-    boolean flag = one.or(two).test(str);}
-```
-
-**默认方法：negate** 	取反
-
-
-
-```java
-public interface Predicate<T> {
-
-  boolean test(T t);
-
-  default Predicate<T> and(Predicate<? super T> other) {	//与
-    Objects.requireNonNull(other);
-    return (t) -> test(t) && other.test(t);
-  }
-
-  default Predicate<T> negate() {	//非
-    return (t) -> !test(t);
-  }
-
-  default Predicate<T> or(Predicate<? super T> other) {	//或
-    Objects.requireNonNull(other);
-    return (t) -> test(t) || other.test(t);
-  }
-
-  static <T> Predicate<T> isEqual(Object targetRef) {
-    return (null == targetRef) ? Objects::isNull : object -> targetRef.equals(object);
-  }
-}
-```
-
-
-
-
-
-
-
-### Function
-
-
-
-**抽象方法：apply** 
-
-java.util.function.Function<T,R>根据 T类型的参数得到 R类型的返回值
-
-```
-public void testFunction() {
-        Integer value = parseInteger(Integer::parseInt, "10");}
-
-    private Integer parseInteger(Function<String, Integer> function, String str) {
-        return function.apply(str);}
-```
-
-**默认方法：andThen**
-
-
-
-静态方法 identity
-
-```java
-static <T> Function<T, T> identity() {
-  return t -> t;	//返回入参本身
-}
-```
-
-
-
-
-
-## Lambda
-
-
-
-函数式编程思想,只关注做什么,不关注怎么做
-
-编译器通过类型推断得到参数的类型
-
-
-
-(类型 参数1, 类型 参数2....) -> {代码}
-
-**参数没有则留空,有则必须是函数式接口@FunctionalInterface**
-
-
-
-* FunctionalInterface	起到注释作用,标明这是函数式接口,避免其他人写入方法
-  * **只有一个抽象方法**
-  * default属于默认实现，不属于抽象方法
-  * 接口重写了Object的公共方法也不算入内
-
-
-
-lambda无法单独出现，需要函数式接口来盛放，lambda方法体是函数接口的实现
-
-
-
-lambda表达式可以访问给它传递的变量，访问自己内外部的变量。但**只能访问外部final变量时**,即一旦定义后，在后面就不能再随意修改引用
-
-​	实例变量存在堆中，而局部变量存在栈，**lambda会在另一个线程中执行**。如果在线程中要直接访问一个局部变量，可能线程执行时该局部变量已经被销毁了，而 **final 类型的局部变量在 Lambda 表达式(匿名类) 中其实是局部变量的一个拷贝**
-
-[不可变则一定是线程安全的](#Immutable)
-
-
-
-==在lambda中，this不是指向lambda表达式产生的那个对象，而是声明它的外部对象==
-
-
-
-### 延迟执行
-
-
-
-先合并字符串,再判断level==1,决定要不要执行方法 
-
-```java
-public class Demo01Logger {
-    private static void log(int level, String msg) {
-        if (level == 1) {
-            System.out.println(msg);}}
-  
-    public static void main(String[] args) {
-        String msgA = "Hello";
-        String msgB = "World";
-        log(1, msgA + msgB);}}
-```
-
-
-
-优化后,先判断,后执行字符串合并
-
-```java
-@FunctionalInterface
-public interface MessageBuilder {
-    String buildMessage();
-}
-
-public class Demo02LoggerLambda {
-    private static void log(int level, MessageBuilder builder) {
-        if (level == 1) {
-            System.out.println(builder.buildMessage());}}
-
-    public static void main(String[] args) {
-        String msgA = "Hello";
-        String msgB = "World";
-        log(1, () -> msgA + msgB  );//避免字符串合并
-    }}
-```
-
-
-
-### 方法引用 ::
-
-如果Lambda要表达的函数方案已存在于某个方法的实现中，可以通过::来引用该方法
-
-* Lambda写法	 s -> System.out.println(s); 	拿到参数之后经Lambda之手，继而传递给 System.out.println 方法去处理
-
-* 方法引用写法	 System.out::println     直接让println 方法来取代Lambda
-
-* 对象名引用	user :: getName
-
-* 构造器引用	User::new
-
-* 类名引用		User::getName
-
-* super引用成员方法  super::sayHello
-
-  ```
-  public class Woman extends Human {
-      @Override
-      public void sayHello() {
-          System.out.println("大家好,我是Man!");}
-  
-      public void method(Greetable g) {
-          g.greet();}
-  
-      public void show() {
-          method(super::sayHello);}}
-  ```
-
-* this引用	this::buyHouse
-
-```
-public class Husband {
-    private void buyHouse() {
-        System.out.println("买套房子");}
-
-    private void marry(Richable lambda) {
-        lambda.buy();}
-
-    public void beHappy() {
-        marry(this::buyHouse);}}
-```
-
-
-
-### Comparator
-
-
-
-```java
-//res是二维数组,需求是根据res[]进行排序,不考虑第二个[]
-int[][] res = new int[n][2];
-Arrays.sort(res,new Comparator<int[]>(){
-            @Override
-            public int compare(int[] o1, int[] o2) {
-                return o1[0] - o2[0];         } });
-                
-//进一步简化	省略参数类型
- Arrays.sort(res, (o1, o2) -> o1[0] - o2[0]);
- 
-//Comparator类的内部实现，还有一个 comparing 方法
-Arrays.sort(res, Comparator.comparingInt(o -> o[0]));
-```
-
-
-
-
-
-
-
-## 接口 VS 抽象类的区别
-
-
-
-* 相同
-  * 抽象类和接口均包含抽象方法，类必须实现所有的抽象方法
-  * **都不能实例化**，位于继承树的顶端，用来被继承和实现
-  * 都不全为abstract,接口也可以有default
-
-* 不同
-  * 接口中只能定义全局静态常量，不能定义变量。抽象类中可以定义常量和变量
-  * **接口不能定义构造方法/成员变量**,抽象类中可以有构造方法，但不能用来实例化
-  * 单继承多接口
-  * 接口只能public,抽象可以自定义访问权限
-  * 接口是定义可选行为的最佳实践
-  * 接口可以在不通过增加层次结构的情况下拓展原有功能,结合装饰器模式,也能够安全地增强类的功能
-  * 在接口方法有了明显实现时,也可以用default完成实现
-
- 
-
-接口负责定义类型/缺省方法,然后继承接口,形成骨架实现类 -> ==模板方法模式==
-
-骨架实现类与抽象类不同点在于:骨架实现类是为了继承而设计的,并非完全都是抽象,已将大部分功能完成了实现,甚至可以直接上手;当然也支持拓展功能的子类 与 子类带来的多态
-
-
-
-
-
-接口可以继承接口
-
-==抽象类可以实现接口==，抽象类可以继承实体类,可以有main方法
-
-
-
-==最主要区别还是设计理念==
-
-*  接口  接口定义“做什么”，实现类负责“怎么做”，功能和实现分离。**has-a **
-
-*  抽象类体现继承关系，父类是实现部分功能的“中间产品”，子类是“最终产品”。**is-a**
-
-
-
-本质上，**抽象类保护一个类不被实例化，或者允许一个类包含未实现的抽象方法。而接口仅暴露了必要的method,适合多态**
-
-
-
-## 重写 VS 重载
-
-
-
-重写（Override）	访问权限<=父类方法,返回值相同,异常类型为父类异常或异常的子类
-
-重载（Overload）	参数类型、个数、顺序至少一个不同
-
-
-
-构造方法只能重载,不能重写
-
-
-
 # Stream
 
 
@@ -934,8 +156,6 @@ min 返回流中的最小值 无方法参数
 
 
 
-
-
 **归约**
 
 * count   统计个数
@@ -979,19 +199,9 @@ reduce ： 66
 
 
 
-## 使用原则
-
-
-
-* 低数据量场景（size<=1000），stream不如iterator，但是这些任务运行时间都低于毫秒，效率的差距不明显
-* 大数据量时（szie>10000），stream 的处理效率会高于 iterator，特别是使用了并行流，cpu恰好将线程分配到多个核心的条件下（parallel stream 底层使用的是 JVM 的 ForkJoinPool，分配线程很玄学,受引CPU环境影响，当没分配到多个cpu核心时，加上引用 forkJoinPool 的开销，运行效率可能还不如普通的 Stream）
-
-
-* ==含有装箱类型，先转成对应的数值流==，减少频繁的拆箱、装箱的性能损失
-
-
-
 ## parallel stream
+
+parallel stream 底层使用的是 JVM 的 ForkJoinPool，分配线程很玄学,受引CPU环境影响，当没分配到多个cpu核心时，加上引用 forkJoinPool 的开销，运行效率可能还不如普通的 Stream
 
 在 Stream 上通过并行获得的性能， 最好是通过 ArrayList 、 HashMap 、 HashSet和 ConcurrentHashMap 实例，数组， int 范围和 long 范围等
 
@@ -2085,12 +1295,39 @@ get/put等加了synchronized**锁住整个table**,导致性能低
 
 
 
+**基本类型不能做为键值**
+
+* 泛型约束为Object
+  * map.put(1, “Java”)，实际上是将1进行了自动装箱操作,变为了 Integer类型
+
+* 引用数据类型重写了HashCode()和 equals()两个方法，能==保证key的唯一==
+
+
+
 
 ```java
-HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {
+HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {}
 
 //AbstractMap已经实现Map接口，而HashMap又继承AbstractMap再实现了Map接口,是JDK中多此一举的失误
 AbstractMap<K,V> implements Map<K,V> {
+  static final int DEFAULT_INITIAL_CAPACITY = 1 << 4;//默认容量
+  static final int MAXIMUM_CAPACITY = 1 << 30;//最大容量
+
+  static final int TREEIFY_THRESHOLD = 8;
+  static final int MIN_TREEIFY_CAPACITY = 64;//树化时数组长度的阈值
+  static final int UNTREEIFY_THRESHOLD = 6;//树->链表阈值
+
+  transient Node<k,v>[] table;
+
+  transient Set<map.entry<k,v>> entrySet;// 存放具体元素的集
+
+  transient int size;
+  transient int modCount;// 更改map结构的计数器
+
+  static final float DEFAULT_LOAD_FACTOR = 0.75f;
+  final float loadFactor;//扩容因子,控制了数组存放数据的疏密程度,过大将导致查找元素效率↓
+  int threshold;	//扩容阈值 = capacity * loadFactor
+}
 ```
 
 
@@ -2117,27 +1354,7 @@ hash&(length-1)	==	hash%length
 
 
 
-#### 成员变量
 
-
-
-```java
-DEFAULT_INITIAL_CAPACITY = 1 << 4;	//默认初始容量
-MAXIMUM_CAPACITY = 1 << 30    //最大容量
-
-//红黑树长度小于6则会转回链表,红黑树的log(n)，log(8) = 3,log(6)≈ 2.6
-//链表平均查找长度是 log(n/2)，log(8) = 4，log(6)=3
-UNTREEIFY_THRESHOLD = 6    
-TREEIFY_THRESHOLD = 8;
-MIN_TREEIFY_CAPACITY = 64	//超过这个值，才能树化,否则只是扩容
-
-Node<K, V>[] table
-Set<Entry<K, V>> entrySet	存放缓存
-size	//kv数量
-int modCount	//修改次数
-int threshold		//扩容阈值（容量*负载因子)
-float loadFactor	//负载因子(太小导致数组的利用率低)
-```
 
 
 
@@ -2147,6 +1364,7 @@ float loadFactor	//负载因子(太小导致数组的利用率低)
 
 ```java
 public HashMap() {	this.loadFactor = DEFAULT_LOAD_FACTOR; }
+
 public HashMap(int initialCapacity) {   this(initialCapacity, DEFAULT_LOAD_FACTOR);}
 
 public HashMap(int initialCapacity, float loadFactor) {
@@ -2159,18 +1377,6 @@ public HashMap(int initialCapacity, float loadFactor) {
   this.threshold = tableSizeFor(initialCapacity);
 }
 
-//修正容量为2^n
-static final int tableSizeFor(int cap) {
-  //-1为了防止cap已经是2^n
-  int n = cap - 1;
-  n |= n >>> 1;
-  n |= n >>> 2;
-  n |= n >>> 4;
-  n |= n >>> 8;
-  n |= n >>> 16;
-  return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
-}
-
 //参数为Map的构造
 public HashMap(Map<? extends K, ? extends V> m) {
   this.loadFactor = DEFAULT_LOAD_FACTOR;
@@ -2178,12 +1384,12 @@ public HashMap(Map<? extends K, ? extends V> m) {
 }
 
 final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
-  int s = m.size();//获取map元素个数
+  int s = m.size();
   if (s > 0) {
     if (table == null) {
-      //+1.0F 让计算出的size向上取整,获得更大的容量,避免resize(可能刚创建,元素就均匀分布到每个数组,触发扩容)
+      //+1.0F 让计算出的size向上取整,获得更大的容量,避免刚创建时元素均匀分布到每个数组,触发扩容
       float ft = ((float)s / loadFactor) + 1.0F;
-      int t = ((ft < (float)MAXIMUM_CAPACITY) ?(int)ft : MAXIMUM_CAPACITY);
+      int t = ((ft < (float)MAXIMUM_CAPACITY) ? (int)ft : MAXIMUM_CAPACITY);
       //得到的t大于阈值->更新阈值
       if (t > threshold)   threshold = tableSizeFor(t);
     }
@@ -2196,6 +1402,25 @@ final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
       V value = e.getValue();
       putVal(hash(key), key, value, false, evict);
 ```
+
+
+
+#### tableSizeFor
+
+```java
+//修正容量为2^n
+static final int tableSizeFor(int cap) {
+  int n = cap - 1;	//-1防止cap已经是2^n
+  n |= n >>> 1;
+  n |= n >>> 2;
+  n |= n >>> 4;
+  n |= n >>> 8;
+  n |= n >>> 16;
+  return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+}
+```
+
+
 
 
 
@@ -2257,7 +1482,22 @@ static class Node<K,V> implements Map.Entry<K,V> {
 
 ```java
 static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
-}
+  TreeNode<K,V> parent;  // 父
+  TreeNode<K,V> left;    // 左
+  TreeNode<K,V> right;   // 右
+  TreeNode<K,V> prev;    // needed to unlink next upon deletion
+  boolean red;           // 判断颜色
+  TreeNode(int hash, K key, V val, Node<K,V> next) {
+    super(hash, key, val, next);
+  }
+  // 返回根节点
+  final TreeNode<K,V> root() {
+    for (TreeNode<K,V> r = this, p;;) {
+      if ((p = r.parent) == null)
+        return r;
+      r = p;
+    }
+  }
 ```
 
 
@@ -2277,20 +1517,19 @@ final Node<K,V> getNode(int hash, Object key) {
   Node<K,V>[] tab; Node<K,V> first, e; 
   int n; K k;
   //复制table到tab,判空
-  if ((tab = table) != null && (n = tab.length) > 0 &&(first = tab[(n - 1) & hash]) != null) {
+  if ((tab = table) != null && (n = tab.length) > 0 && 
+      (first = tab[(n - 1) & hash]) != null) {
 
-    //下标第一个元素的key就是要找的key
+    //桶的头结点就是目标节点,并且hash碰撞下标第一个元素的key就是要找的key
     if (first.hash == hash && ((k = first.key) == key || (key != null && key.equals(k))))
       return first;
 
-    //下标第一个元素不是,寻找下一个并赋值给e
     if ((e = first.next) != null) {
-      //红黑树的方法
-      if (first instanceof TreeNode)		 return ((TreeNode<K,V>)first).getTreeNode(hash, key);
-      //遍历链表,直到下个节点不存在  
+      if (first instanceof TreeNode) return ((TreeNode<K,V>)first).getTreeNode(hash, key);
       do {
         //寻找对应key的位置
-        if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))    return e;
+        if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
+          return e;
       } while ((e = e.next) != null);
     }
   }
@@ -2299,15 +1538,22 @@ final Node<K,V> getNode(int hash, Object key) {
 
 
 
-##### hash
+#### hash
 
 
 
 ```java
+//1.7	用了4次位运算,性能较差
+static int hash(int h) {
+  h ^= (h >>> 20) ^ (h >>> 12);
+  return h ^ (h >>> 7) ^ (h >>> 4);
+}
+
+//1.8
 static final int hash(Object key) {
   int h;
-  //null==key -> 返回0		null不能调用hashCode(),所以给了默认值0		->		hashMap支持Null的Key
-  //hashCode()与hashCode()右移16的异或运算(相同为0,否则1)	->	高16位与低16位都参与异或,减少碰撞概率
+  //null==key时,key不能调用hashCode(),给了默认值0	-> hashMap支持Null的Key
+  //右移16的异或运算	->	高/低16位都参与异或,减少碰撞概率
   //当length很小 -> 高位全0,低位不同	->	容易碰撞
   return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
 }
@@ -2349,12 +1595,10 @@ static final int hash(Object key) {
 
 * 先通过hash值计算出key映射到哪个桶
   * 桶上没有碰撞，直接插入
-  * 如果出现碰撞
-    * 用红黑树处理冲突，调用红黑树的方法插入数据
-    * 链式方法插入,插入后判断长度是否达到树化临界值
-    * 键重复，更新value
+  * 出现碰撞
+    * equals ? 键重复，更新value : 红黑树/链式插入
 
-* 插入后如果size大于阈值threshold，扩容
+* 插入后检查size > threshold ? 扩容 : void
 
 
 
@@ -2368,43 +1612,38 @@ static final int hash(Object key) {
 ```java
 public V put(K key, V value) {  return putVal(hash(key), key, value, false, true); }
 
-//onlyIfAbsent=true,不改变现有的值		evict=false,table为新建状态
+public V putIfAbsent(K key, V value) {
+  return putVal(hash(key), key, value, true, true);	//onlyIfAbsent:true	键值重复不覆盖
+}
+
+//evict=false : table为新建状态
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
   Node<K,V>[] tab; Node<K,V> p; 
-  //n数组长度		i key的hash值
-  int n, i;
+  int n, i;	//n数组长度		i key的hash值
 
-  //table为空/长度为0	->	resize()实例化一个数组,赋值给tab		tab.length赋值给n
-  if ((tab = table) == null || (n = tab.length) == 0)        n = (tab = resize()).length;
+  //table为空/长度为0,resize()实例化一个数组
+  if ((tab = table) == null || (n = tab.length) == 0)
+    n = (tab = resize()).length;
 
-  //hash&(length-1)计算当前key的下标		获取当前下标的Node,赋值给p
-  //p==null -> 当前数组下标位置没有存储值 -> 创建新Node,插入数组
-  if ((p = tab[i = (n - 1) & hash]) == null)       tab[i] = newNode(hash, key, value, null);
+  //hash&(length-1)计算当前key的下标	p==null -> 桶没有头结点
+  if ((p = tab[i = (n - 1) & hash]) == null)
+    tab[i] = newNode(hash, key, value, null);	//创建新Node,插入数组
   else {
     Node<K,V> e; K k;
-
-    //寻找键值对所在node的位置
-    //元素的hash==传入的hash,并且key相等			将node赋值给e(更新旧值)
-    if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))	  e = p;
-    else if (p instanceof TreeNode)   e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-
-    //key不相等,并且不是treeNode
+    if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+      e = p;	//hashcode和equals都相等
+    else if (p instanceof TreeNode)
+      e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
     else {
-      //binCount记录循环次数,判断是否需要树化
-      for (int binCount = 0; ; ++binCount) {
-
-        //到达链表末尾
-        if ((e = p.next) == null) {
-          //将数据插入表尾.next
+      for (int binCount = 0; ; ++binCount) {	//记录循环次数,判断是否需要树化
+        if ((e = p.next) == null) {	//到达链表末尾,将数据插入
           p.next = newNode(hash, key, value, null);
-
-          //循环次数>=树化边界值-1	->	树化
-          if (binCount >= TREEIFY_THRESHOLD - 1)  	treeifyBin(tab, hash);
+          if (binCount >= TREEIFY_THRESHOLD - 1)	//判断是否需要树化
+            treeifyBin(tab, hash);
           break;
         }
-
         //当前位置的key与要put的key相同,跳出循环
-        if (e.hash == hash &&((k = e.key) == key || (key != null && key.equals(k))))
+        if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k))))
           break;
         p = e;
       }
@@ -2413,18 +1652,17 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
     //e不为空,则之前找到了键值对的Node
     if (e != null) {
       V oldValue = e.value;
-
       //onlyIfAbsent=false,需要改变现有的值,将传入参数value赋值给e,返回e的旧值
-      if (!onlyIfAbsent || oldValue == null)       e.value = value;
-      afterNodeAccess(e);
+      if (!onlyIfAbsent || oldValue == null)
+        e.value = value;
+      afterNodeAccess(e);	//空方法,为LinkedHashMap铺路
       return oldValue;
     }
   }
-
-  //更新修改次数
-  ++modCount;
-  if (++size > threshold)     resize();
-  afterNodeInsertion(evict);
+  ++modCount;	//更新修改次数
+  if (++size > threshold)	//判断扩容
+    resize();
+  afterNodeInsertion(evict);	//空方法,为LinkedHashMap铺路
   return null;
 ```
 
@@ -2432,33 +1670,72 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
 
 ##### 7 死锁隐患
 
- 
-
 原先:	3->5->7
 
 多线程resize时,可能同时3->7	7->3,出现循环,查询3/7时出现死锁
 
-==可以通过一组HashCode相同的object实现dos(拒绝服务攻击)==,被存放在同一个桶中,HashMap退化为链表,查询复杂度O(n)
-
- 
-
-put时元素超过了容量*负载因子,触发resize()和rehash()，将原数组重新hash到新数组，在多线程的环境下，其他元素也在put，如果hash值相同，可能出现同时在同一数组下用链表表示，造成闭环，导致在get时会出现死循环
+==可以通过一组HashCode相同的object实现dos(拒绝服务)==,被存放在同一个桶中,退化为链表
 
 
 
 
 
-##### resize
+##### computeIfAbsent
 
 
 
-==链表长度>=8，数组长度<64,也会扩容==
+在map不含有k对应的value时,才进行value的计算，提高性能
+
+```java
+public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+  key不存在,计算得出value,插入并返回value (计算value时异常,不插入)
+  key存在 && value==null ? 计算得出value,插入并返回value : 不做任何操作,返回null
+  
+    计算过程中，无法修改map,否则ConcurrentModificationException
+}
+```
+
+
+
+
+
+##### merge
+
+
+
+三个参数，**key**：map中的键，**value**：使用者传入的值，**remappingFunction** 执行自定义功能并返回最终值
+
+
+
+* 不存在key，将传入的value作为key put(value,newValue)
+* key存在,执行remappingFunction计算key的旧值和传入的value,得到newValue，put(key,newValue)
 
 
 
 ```java
-Node<K,V> loHead = null, loTail = null;
+//BiFunction接口接收两个值，执行自定义功能并返回最终值
+default V merge(K key, V value,BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+  Objects.requireNonNull(remappingFunction);
+  Objects.requireNonNull(value);
+  V oldValue = get(key);
+  V newValue = (oldValue == null) ? value : remappingFunction.apply(oldValue, value);
+  if(newValue == null) {
+    remove(key);
+  } else {
+    put(key, newValue);
+  }
+  return newValue;
+}
+```
 
+
+
+#### resize
+
+==链表长度>=8，数组长度<64,也会扩容==
+
+```java
+Node<K,V> loHead = null, loTail = null;
 Node<K,V> hiHead = null, hiTail = null;
 ```
 
@@ -2480,103 +1757,61 @@ Node<K,V> hiHead = null, hiTail = null;
 
 ```java
 final Node<K, V>[] resize() {
-  // 先拿到旧的hash桶
   Node<K, V>[] oldTab = table;
-  // 获取未扩容前的数组容量
   int oldCap = (oldTab == null) ? 0 : oldTab.length;
-  // 旧的临界值
   int oldThr = threshold;
-  // 定义新的容量和临界值
   int newCap, newThr = 0;
-  // 旧容量大于0
+
   if (oldCap > 0) {
-    // 旧的容量如果超过了最大容量
-    if (oldCap >= MAXIMUM_CAPACITY) {
-      // 临界值就等于Integer类型最大值
+    if (oldCap >= MAXIMUM_CAPACITY) {	//旧容量超过最大容量,不扩容，直接返回原数组
       threshold = Integer.MAX_VALUE;
-      // 不扩容，直接返回就数组
       return oldTab;
     }
-    /*
-            没超过最大值，数组扩容为原来的2倍
-            1.(newCap = oldCap << 1) < MAXIMUM_CAPACITY 扩大到2倍之后赋值给newCap，判断newCap是否小于最大容量
-            2.oldCap >= DEFAULT_INITIAL_CAPACITY 原数组长度大于等于数组初始化长度
-         */
-    else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-             oldCap >= DEFAULT_INITIAL_CAPACITY) {
-      // 当前容量在默认值和最大值的一半之间
-      // 新的临界值为当前临界值的2倍
-      newThr = oldThr << 1; // double threshold
+    else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY && oldCap >= DEFAULT_INITIAL_CAPACITY) {
+      newThr = oldThr << 1; //两倍的扩容
     }
-  } else if (oldThr > 0) // initial capacity was placed in threshold
-  {
-    // 旧容量为0，当前临界值不为0，让新的临界值等于当前临界值
+  } else if (oldThr > 0) { //更新旧临界值
     newCap = oldThr;
-  } else {
-    // 当前容量和临界值都为0，让新的容量等于默认值，临界值=初始容量*加载因子
+  } else { //旧容量/临界值都=0时,让新的容量等于默认值，临界值=初始容量*加载因子
     newCap = DEFAULT_INITIAL_CAPACITY;
     newThr = (int) (DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
   }
-  // 经过上面对新临界值的计算后如果还是0
-  if (newThr == 0) {
-    // 计算临界值为新容量 * 加载因子
+ 
+  if (newThr == 0) {	 // 经过上面对新临界值的计算后如果还是0,计算临界值为新容量 * 加载因子
     float ft = (float) newCap * loadFactor;
-    // 判断新容量小于最大值，并且计算出的临界值也小于最大值
-    // 那么就把计算出的临界值赋值给新临界值。否则新临界值默认为Integer最大值
     newThr = (newCap < MAXIMUM_CAPACITY && ft < (float) MAXIMUM_CAPACITY ?
               (int) ft : Integer.MAX_VALUE);
-  }
-  // 临界值赋值
-  threshold = newThr;
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  // 使用新的容量创建新数组
+  }  
+  threshold = newThr; // 临界值赋值
+
+  // 用新容量创建新数组,赋值给hash桶
   Node<K, V>[] newTab = (Node<K, V>[]) new Node[newCap];
-  // 赋值给hash桶
   table = newTab;
-  // 下面一堆是复制值
-  // 如果旧的桶不为空
+
   if (oldTab != null) {
-    // 遍历旧桶，把旧桶中的元素重新计算下标位置，赋值给新桶
-    // j 表示数组下标位置
-    for (int j = 0; j < oldCap; ++j) {
+    for (int j = 0; j < oldCap; ++j) { //遍历旧桶元素重新计算下标,赋值给新桶
       Node<K, V> e;
-      /*
-               (e = oldTab[j]) != null 将旧桶的当前下标位置元素赋值给e，并且e不为null
-             */
       if ((e = oldTab[j]) != null) {
-        // 置空，置空之后原本的这个数据就可以被gc回收
-        oldTab[j] = null;
-        // 下一个节点如果为空
-        if (e.next == null) {
-          // 如果没有下一个节点，说明不是链表，当前桶上只有一个键值对，直接计算下标后插入
+        oldTab[j] = null; //help GC
+        if (e.next == null) { //不存在下一个节点,也就是没有链表
           newTab[e.hash & (newCap - 1)] = e;
-        } else if (e instanceof TreeNode) {
-          // 节点是红黑树，进行切割操作
+        } else if (e instanceof TreeNode) { //判断是否为树
           ((TreeNode<K, V>) e).split(this, newTab, j, oldCap);
-        } else { // preserve order
-          // 到这里说明该位置的元素是链表
-          /*
-                    loHead：链表头结点
-                    loTail：数据链表
-                    hiHead：新位置链表头结点
-                    hiTail：新位置数据链表
-                     */
+        } else { //是链表
           Node<K, V> loHead = null, loTail = null;
           Node<K, V> hiHead = null, hiTail = null;
           Node<K, V> next;
-          // 循环链表，直到链表末再无节点
+
           do {
-            // 获取下一个节点
             next = e.next;
-            // 如果这里为true，说明e这个节点在resize之后不需要移动位置
-            if ((e.hash & oldCap) == 0) {
+            if ((e.hash & oldCap) == 0) { //为true则节点在resize后不需要移动位置
               if (loTail != null) {
                 loTail.next = e;
               } else {
                 loHead = e;
               }
               loTail = e;
-            } else {
+            } else { //resize后需要移动到原下标+oldCap的位置
               if (hiTail == null) {
                 hiHead = e;
               } else {
@@ -2587,11 +1822,11 @@ final Node<K, V>[] resize() {
           } while ((e = next) != null);
           if (loTail != null) {
             loTail.next = null;
-            newTab[j] = loHead;
+            newTab[j] = loHead; 放在原位置
           }
           if (hiTail != null) {
             hiTail.next = null;
-            newTab[j + oldCap] = hiHead;
+            newTab[j + oldCap] = hiHead; //放到原下标+oldCap的位置
           }
         }
       }
@@ -2603,90 +1838,7 @@ final Node<K, V>[] resize() {
 
 
 
-
-
-
-
-
-
-##### putIfAbsent
-
-
-
-put()	如果key重复，会覆盖之前的数据,否则直接插入,返回null
-
-putIfAbsent()	如果key重复，不插入,返回null
-
-
-
-```java
-//onlyIfAbsent:true	不需要改变已存在的值
-public V putIfAbsent(K key, V value) {
-        return putVal(hash(key), key, value, true, true);
-}
-```
-
-
-
-
-
-##### computeIfAbsent
-
-
-
-在map不含有k对应的value时,才进行value的计算，提高性能
-
-
-
-* 查询key是否存在
-  * key不存在,计算得出value,插入并返回value (计算value时异常,不插入)
-  * key存在
-    * value==null,计算得出value,插入并返回value (计算value时异常,不插入)
-    * value!=null,不做任何操作,返回null
-
-
-
-在计算过程中，无法修改map,否则ConcurrentModificationException
-
-
-
-##### merge
-
-
-
-三个参数，**key**：map中的键，**value**：使用者传入的值，**remappingFunction** 执行自定义功能并返回最终值
-
-
-
-* 不存在key，将传入的value作为key put(value,newValue)
-* key存在
-  * 执行remappingFunction计算key的旧值和传入的value,得到newValue，put(key,newValue)
-
-
-
-```java
-//BiFunction接口接收两个值，执行自定义功能并返回最终值
-default V merge(K key, V value,BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
-        Objects.requireNonNull(remappingFunction);
-        Objects.requireNonNull(value);
-        V oldValue = get(key);
-        V newValue = (oldValue == null) ? value : remappingFunction.apply(oldValue, value);
-        if(newValue == null) {
-            remove(key);
-        } else {
-            put(key, newValue);
-        }
-        return newValue;
-    }
-```
-
-
-
-
-
 #### remove
-
-
 
 ```java
 //返回被删除key的value
@@ -2744,29 +1896,18 @@ final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValu
 
 #### treeifyBin
 
+树化条件 : 链表长度>阈值 && 数组长度>64
 
-
-
+在数组过小时,转换为红黑树后遍历的效率反而降低
 
 ```java
-//替换指定哈希表的所引出桶中的所有节点，除非表太小，否则将修改大小
 final void treeifyBin(Node<K, V>[] tab, int hash) {
   int n, index;
   Node<K, V> e;
-  /*
-        如果当前数组为空，或者数组长度小于进行树形化的阈值（64）就去扩容，而不是转换为红黑树。
-        目的：如果数组很小，那么转换为红黑树然后遍历效率要低一些，这时候进行扩容，那么重新计算哈希值
-        链表的长度就有可能变短了，数据会放到数组中，这样相对来说效率高一些
-     */
   if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY) {
     resize();
   } else if ((e = tab[index = (n - 1) & hash]) != null) {
-    /*
-            1.执行到这里说明哈希表中数组长度大于阈值64，开始进行树形化。
-            2.(e = tab[index = (n - 1) & hash]) != null 通过当前key的hash计算当前key所在的下标位置，取出来赋值给e，判断e不为空
-         */
-    // hd：红黑树的头结点。tl：红黑树的尾结点
-    TreeNode<K, V> hd = null, tl = null;
+    TreeNode<K, V> hd = null, tl = null;// hd：红黑树的头结点。tl：红黑树的尾结点
     do {
       // 重新创建一个树节点，内容和当前链表节点e一致
       TreeNode<K, V> p = replacementTreeNode(e, null);
@@ -2774,19 +1915,12 @@ final void treeifyBin(Node<K, V>[] tab, int hash) {
         // 将新创建的p节点赋值给红黑树的头结点
         hd = p;
       } else {
-        /*
-                p.prev = tl 将上一个节点p赋值给现在的p的前一个节点
-                tl.next = p 将现在的节点p作为树的为节点的下一个节点
-                 */
         p.prev = tl;
         tl.next = p;
       }
       tl = p;
     } while ((e = e.next) != null);
-    /*
-            让桶中第一个元素即数组中的元素指向新建的红黑树的节点，以后这个桶里的元素就是红黑树，而不是链表
-         */
-    if ((tab[index] = hd) != null) {
+    if ((tab[index] = hd) != null) {//让桶中第一个元素即数组中的元素指向新建的红黑树的节点，以后这个桶里的元素就是红黑树，而不是链表
       hd.treeify(tab);
     }
   }
@@ -2853,37 +1987,6 @@ final TreeNode<K, V> find(int h, Object k, Class<?> kc) {
     return null;
 }
 ```
-
-
-
-
-
-
-
-#### 遍历map
-
-
-
-==forEach是Map接口新增的default方法==
-
-```java
-map.forEach((key, value) -> {
-        System.out.println(key + ":" + value);
-    });
-```
-
-
-
-#### 基本类型不能做为键值
-
-
-
-* 泛型约束为Object类型
-  * map.put(1, “Java”)，实际上是将1进行了自动装箱操作,变为了 Integer类型
-
-* 引用数据类型重写了HashCode()和 equals()两个方法，能==保证key的唯一==
-
-
 
 
 
@@ -4319,6 +3422,29 @@ FD	文件描述符，指向该进程打开文件的记录表。当程序打开/�
 
 
 
+
+
+IO对应[计算机结构](软件设计师/计组原+操作系统.md/ "计算机结构")的输入输出设备,描述了计算机系统和外部设备间通信的过程
+
+为了保证系统稳定/安全性，进程的地址空间划分为 **用户空间（User space）** 和 **内核空间（Kernel space）**
+
+只有内核空间才能进行系统态级别的资源操作,IO也依赖内核空间的能力
+
+用户空间的程序不能直接访问内核空间,当想要执行 IO 操作时，只能发起系统调用来间接访问内核空间
+
+我们在平常开发过程中接触最多的就是 **磁盘 IO（读写文件）** 和 **网络 IO（网络请求和相应）**
+
+**应用程序实际上只是发起了 IO 操作的调用而已，具体 IO 的执行是由操作系统的内核来完成的**
+
+当应用程序发起 I/O 调用后，会经历两个步骤：
+
+1. 内核等待 I/O 设备准备好数据
+2. 内核将数据从内核空间拷贝到用户空间
+
+
+
+
+
 **流**
 
 文件由0/1组成,二进制串以流的形式在设备间传输
@@ -4383,9 +3509,7 @@ Java 的 I/O 大概可以分成以下几类：
 
 对节点流封装，使用外层处理流读写数据，本质上是利用节点流的功能，外层的处理流可以提供额外的功能。处理流的基类都是以 Filter 开头
 
-
-
-
+**处理流的构造器需要传入节点流的子类**
 
 
 
@@ -4409,8 +3533,6 @@ Java 的 I/O 大概可以分成以下几类：
 
 
 
-
-
 select，poll，epoll都是IO多路复用机制。I/O多路复用就通过监视多个描述符，一旦某个描述符读就/写就绪，能够通知程序进行相应的读写操作。
 
 **但select，poll，epoll本质上都是同步I/O，都需要在读写事件就绪后自己负责进行读写，读写过程阻塞**
@@ -4428,6 +3550,20 @@ select，poll，epoll都是IO多路复用机制。I/O多路复用就通过监视
 **应用进程阻塞**，直到数据从内核缓冲区复制到应用进程缓冲区中
 
 **被阻塞进程的cpu占用时间低** -> cpu利用率高
+
+
+
+面向流处理数据，字节传输单位 -> **流是单向的**,区分输入输出
+
+
+
+**连接:线程 = 1:1**,服务器:客户端 = 1:n
+
+应用程序发起 read 调用后，会一直阻塞，直到在内核把数据拷贝到用户空间，线程切换也会带来额外开销
+
+![](image.assets/6a9e704af49b4380bb686f0c96d33b81~tplv-k3u1fbpfcp-watermark.image)
+
+
 
 
 
@@ -4456,17 +3592,19 @@ ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
 
 
 
-![](image.assets/1492928416812_4.png)
-
-
-
 ### NIO:poll
 
-应用进程执行系统调用之后，内核返回错误码。应用进程继续执行，但需要==轮循polling==IO是否完成
+应用进程执行系统调用后，内核返回错误码。应用进程继续执行，但需要==轮循polling==IO是否完成
 
-本质上和select没有区别，将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态，如果设备就绪则在设备等待队列中加入一项并继续遍历，如果遍历完所有fd后没有发现就绪设备，则挂起当前进程，直到设备就绪或者主动超时
+本质上和select没有区别，将用户传入的数组拷贝到内核空间，然后查询每个fd对应的设备状态，如果设备就绪则在设备等待队列中加入一项并继续遍历，如果遍历完所有fd后没有发现就绪设备，则挂起当前进程，直到设备就绪或者超时
 
-轮循 -> **CPU 处理更多系统调用** -> CPU利用率↓
+轮循 -> **CPU 处理更多系统调用** -> **CPU利用率↓**
+
+
+
+![](image.assets/bb174e22dbe04bb79fe3fc126aed0c61~tplv-k3u1fbpfcp-watermark.image)
+
+
 
 
 
@@ -4506,7 +3644,22 @@ IO multiplexing多路复用		Event Driven事件驱动
 
 **没有描述符数量限制**
 
-用select/poll阻塞等待多个套接字其中一个变为可读,使得单进程具有处理多个 I/O 事件的能力，用 recvfrom 把数据从内核复制到进程
+
+
+线程首先发起 select 调用，询问内核数据是否准备就绪，等内核把数据准备好了，用户线程再发起 read 调用。read 调用的过程（数据从内核空间->用户空间）还是阻塞的
+
+> 目前支持 IO 多路复用的系统调用，有 select，epoll 等等。select 系统调用，是目前几乎在所有的操作系统上都有支持
+>
+> - **select 调用** ：内核提供的系统调用，它支持一次查询多个系统调用的可用状态。几乎所有的操作系统都支持。
+> - **epoll 调用** ：linux 2.6 内核，属于 select 调用的增强版本，优化了 IO 的执行效率。
+
+**IO 多路复用模型，通过减少无效的系统调用，减少了对 CPU 资源的消耗**
+
+**选择器 ( Selector )** ，也可以被称为 **多路复用器**。通过它，只需要一个线程便可以管理多个客户端连接。当客户端数据到了之后，才会为其服务
+
+
+
+![img](image.assets/88ff862764024c3b8567367df11df6ab~tplv-k3u1fbpfcp-watermark.image)
 
 
 
@@ -4597,66 +3750,6 @@ asynchronous IO
 
 
 ## BIO
-
-面向流处理数据，字节传输单位 -> **流是单向的**,区分输入输出
-
-
-
-**连接 : 线程 = 1:1**,服务器:客户端 = 1:n
-
-遇到 IO 阻塞时，线程将会被挂起直到 IO 完成，线程切换带来了额外开销
-
-根本原因在于阻塞
-
-```java
-ServerSocket server = new ServerSocket(9090);
-while (true) {
-  Socket client = server.accept();    //等待客户端连接时阻塞,占用时间片但不运行
-  new Thread(() -> {  //每个客户端连接都新开辟线程进行处理
-    InputStream in = client.getInputStream();
-    BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-    while (true) {
-      String s = reader.readLine();
-      if (null == s) {
-        client.close();
-        break;
-      }
-    }
-  });
-```
-
-
-
-**处理流的构造器需要传入节点流的子类**
-
-
-
-
-
-### 装饰器模式
-
-
-
-- InputStream 是抽象组件
-- FileInputStream 是 InputStream 的子类，属于具体组件，提供了字节流的输入操作
-- FilterInputStream 属于抽象装饰器。例如 BufferedInputStream 为 FileInputStream 提供缓存的功能
-
-
-
-![](image.assets/9709694b-db05-4cce-8d2f-1c8b09f4d921.png)
-
-
-
-
-
-实例化一个具有缓存功能的字节流对象时，只需要在 FileInputStream 对象上再套一层 BufferedInputStream 对象即可
-
-```java
-FileInputStream fileInputStream = new FileInputStream(filePath);
-BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
-```
-
-DataInputStream 装饰者提供了对更多数据类型进行输入的操作，比如 int、double 等基本类型
 
 
 
@@ -4752,6 +3845,20 @@ public int read(byte b[], int off, int len) throws IOException {
 
 
 
+
+
+
+
+#### FilterInputStream
+
+
+
+[装饰器模式](面向对象.md "装饰器")
+
+
+
+
+
 ### OutputStream
 
 OutputStream 所有输出字节流的抽象基类
@@ -4777,8 +3884,6 @@ OutputStream 所有输出字节流的抽象基类
 ##### readObject
 
 反序列化	二进制字节流转换成对象
-
-
 
 
 
@@ -5348,7 +4453,13 @@ public abstract class SelectionKey {
 
 ## AIO
 
-异步非阻塞 I/O
+异步非阻塞 I/O,也就是 NIO 2	1.7+
+
+异步 IO 是基于事件和回调机制实现的，也就是应用操作之后会直接返回，不会堵塞在那里，当后台处理完成，操作系统会通知相应的线程进行后续的操
+
+![](image.assets/3077e72a1af049559e81d18205b56fd7~tplv-k3u1fbpfcp-watermark.image)
+
+
 
 
 
@@ -5372,9 +4483,7 @@ public abstract class SelectionKey {
 
 **进程**：操作系统上独立运行的程序，**资源分配的基本单位**。运行程序 = 进程创建 -> 运行 -> 消亡 的过程
 
-**线程**：比进程更小的**执行单位**，也被称为轻量级进程
-
-**线程共享进程的堆和方法区**，但**每个线程有自己的程序计数器、虚拟机栈和本地方法栈**，所以系统在各个线程间上下文切换时，负担比进程小
+**线程**：比进程更小的**执行单位**，也被称为轻量级进程,**共享进程的堆和方法区**，但**有独立的程序计数器、虚拟机栈和本地方法栈**，所以线程间上下文切换负担比进程小
 
 
 
@@ -6028,13 +5137,10 @@ private void init(ThreadGroup g, Runnable target, String name,long stackSize,
 public enum State {
   NEW,	//新建
   RUNNABLE,
-  BLOCKED,	//等待阻塞：wait()进入等待队列		同步阻塞：获取对象的同步锁失败		其他阻塞：sleep()/join()/IO请求
+  BLOCKED,	//等待阻塞：wait进入等待队列	同步阻塞：获取对象的同步锁失败	其他阻塞：sleep/join/IO请求
   WAITING,
-  TIMED_WAITING,	//计时等待 设置了超时时间
+  TIMED_WAITING,	//计时等待
   TERMINATED;	//终止 无法再次start
-}
-public State getState() {
-  return sun.misc.VM.toThreadState(threadStatus);
 }
 ```
 
@@ -6048,6 +5154,10 @@ public State getState() {
 | 401    | WAITING       | **主动等待**                          | wait join park                      |
 | 417    | TIMED_WAITING | 限期主动等待                          | sleep wait join parkNanos parkUntil |
 | 1025   | BLOCKED       | 请求获取monitor lock失败,**被动阻塞** |                                     |
+
+
+
+![](image.assets/Java+线程状态变迁.png)
 
 
 
@@ -6672,17 +5782,21 @@ ReentrantLock,synchronized
 
 * 请求与保持	一个进程请求资源而阻塞,对已有的资源保持不释放
 
-* 不剥夺	进程已获得的资源在未使用完之前,不会被抢夺
+* 不剥夺	
 
 * 循环等待	若干个进程之间形成循环等待资源
 
 
 
+| 4个必要条件 |                                     |                                  |
+| ----------- | ----------------------------------- | -------------------------------- |
+| 互斥        | 资源同时被多个进程使用              |                                  |
+| 请求与保持  | 进程请求资源时不释放对已有资源      | 一次性申请所有资源               |
+| 不剥夺      | 已获得的资源在未使用完前,不会被抢夺 | 申请资源失败时主动释放占有的资源 |
+| 循环等待    | 若进程间形成循环等待资源            | 按一定顺序申请资源               |
 
 
-- **避免一个线程同时获取多个锁**
-- 对多个资源、数据库表、对象同时加锁时，保持一致的加锁顺序
-  - ==线程a需要对表A、B、C依次全部加锁后才可以进行更新操作，那么线程b的加锁顺序也必须是A、B、C==
+
 - **定时锁**
 
 * 无锁函数（cas）或 重入锁（ReentrantLock）
@@ -9575,354 +8689,11 @@ private V report(int s) throws ExecutionException {
 
 
 
-
-
-
-
-
-
-
-
-# 反射
-
-==通过堆中的class对象访问到方法区中class文件(反射)==
-
-**动态获取信息/调用对象方法**
-
-在运行时，对任意类，都能知道这个类的所有属性和方法,对于任意对象，都能够调用它的任意方法和属性
-
-**在运行过程中，操作对象**,提高程序扩展性和复用性，**解耦**
-
-
-
-适用场景
-
-* 在编译时不知道该对象或类可能属于哪些类，通过反射可以使程序代码访问装载到JVM中的类的内部信息
-* 反射提高了灵活性和扩展性，**低耦合**。允许**程序创建和控制任何类的对象，无需提前硬编码**目标类
-* 反射是**解释操作**，用于字段和方法接入时效率低
-* 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，带来维护问题
-
-
-
-
-
-## Class
-
-Class类是反射的入口，用于获取与类相关的各种信息和方法
-
-**每个类也可看做是对象**，有共同的Class来存放类的结构信息，能够通过相应方法取出相应信息：类名、属性、方法、构造方法、父类和接口
-
-
-
-| asSubclass(Class<U>  clazz)              | 把传递的类的对象转换成代表其子类的对象 |
-| ---------------------------------------- | -------------------------------------- |
-| getClassLoader()                         | 获得类的加载器                         |
-| getClasses()                             | 返回数组，包含公共类和接口类的对象     |
-| getDeclaredClasses()                     | 返回数组，包含类和接口类的对象         |
-| forName(String  className)               | 根据类名返回类的对象                   |
-| getName()                                | 获得类的完整路径名字                   |
-| newInstance()                            | 创建类的实例                           |
-| getPackage()                             | 获得类的包                             |
-| getSimpleName()                          | 获得类的名字                           |
-| getSuperclass()                          | 获得当前类继承的父类的名字             |
-| getInterfaces()                          | 获得当前类实现的类或是接口             |
-| .class                                   | 获取当前对象的类                       |
-|                                          |                                        |
-| isAnnotation()                           |                                        |
-| isArray()                                |                                        |
-| isEnum()                                 |                                        |
-| isInstance(Object obj)                   | 是该类的实例则返回true                 |
-| isInterface()                            |                                        |
-|                                          |                                        |
-| getAnnotation(Class<A>  annotationClass) | 获得与参数类型匹配的公有注解对象       |
-
-
-
-
-
-## Field
-
-
-
-代表类的成员变量。**成员变量（字段）!=成员属性**。User类中有name变量，则它有name字段。如果**没有get/setName，就没有name属性**。**如果有get/set,不管字段是否存在，都认为有这个属性**
-
-
-
-| getField(String name)          | 获得1个public字段  |
-| ------------------------------ | ------------------ |
-| getFields()                    | 获得所有public字段 |
-| getDeclaredField(String  name) | 获得某个字段       |
-| getDeclaredFields()            | 获得所有字段       |
-| setAccessible(true)            | 忽略访问权限修饰符 |
-
-
-
-getDeclaredField()访问非public字段时,会报错
-
-```
-can not access a member of class  with modifiers "private"
-```
-
-setAccessible(true)忽略访问修饰符
-
-
-
-```java
-@Test
-public void testSet() throws Exception {
-  User user = new User("张三", 23, "220202202002022222");
-  Class<? extends User> userClass = user.getClass();
-
-  Field idNumberField = userClass.getField("idNumber");
-  // set方法：给对象的字段设置值。需要传入当前被操作的user对象
-  idNumberField.set(user, "123456");
-}
-```
-
-
-
-
-
-## Method
-
-
-
-| **方法**                           | **用途**                                 |
-| ---------------------------------- | ---------------------------------------- |
-| invoke(Object obj, Object... args) | 传递object对象及参数调用该对象对应的方法 |
-| getName                            | 获取方法名                               |
-| SetAccessible(true)                | 暴力反射，忽略访问权限修饰符             |
-
- 
-
-Invoke方法的用处：SpringAOP在切面方法执行的前后进行某些操作，就是使用的invoke方法。
-
-| **方法**                                                    | **用途**               |
-| ----------------------------------------------------------- | ---------------------- |
-| getMethod(String name,  Class...<?> parameterTypes)         | 获得该类某个公有的方法 |
-| getMethods()                                                | 获得该类所有公有的方法 |
-| getDeclaredMethod(String name,  Class...<?> parameterTypes) | 获得该类某个方法       |
-| getDeclaredMethods()                                        | 获得该类所有方法       |
-
- 
-
-## ~~Constructor~~
-
- 
-
-| **方法**                                            | **用途**                                          |
-| --------------------------------------------------- | ------------------------------------------------- |
-| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法            |
-| getConstructors()                                   | 获得该类的所有公有构造方法                        |
-| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法                |
-| getDeclaredConstructors()                           | 获得该类所有构造方法                              |
-| ==newInstance(Object... initargs)==                 | 根据传递的参数创建类的对象(**弱引用,容易被回收**) |
-
-
-
-* Class类的newInstance()只能无参构造
-* Constructor的newInstance()能传递构造参数
-
-```java
-Class<Session> sessionClass = Session.class;
-Constructor<Session> declaredConstructor = sessionClass.getDeclaredConstructor();
-declaredConstructor.setAccessible(true);
-Session session2 = declaredConstructor.newInstance();
-```
-
-
-
-Constructor类违背了Java思想
-* 可以无视private的构造方法,强行创建对象
-* 破坏单例
-
- 
-
-
-
-## 注解
-
-注解本身并不起任何作用,只作为标识	通过反射来获取注解,再根据注解的参数执行业务
-
-
-
-* 作用分类：
-  * 编写文档：通过代码中标识的注解生成文档（Swagger）
-  * 代码分析：通过代码里的注解对代码进行分析（逻辑判断）
-  * 编译检查：通过代码里对应的注解让编译器实现基本的编译检查（Override，Deprecated，FunctionalInterface）
-
-* JDK中预定义的一些注解
-  * Override：检测该注解标识的方法是否继承自父类
-  * Deprecated：标识方法、类、字段等已经过时，后续的版本可能会将其移除
-  * SuppressWarnings：压制警告
-
-
-
-### 元注解
-
-
-
-==用于描述注解的适用范围==
-
-
-
-* @Target	作用范围
-
-* ```shell
-  Type：作用于类
-  METHOD：作用于方法
-  FIELD：作用于字段
-  PACKAGE
-  ElementType取值
-  PARAMETER
-  TYPE_PARAMETER  标注类型参数
-  CONSTRUCTOR
-  LOCAL_VARIABLE  局部变量
-  ANNOTATION_TYPE  注解类
-  TYPE_USE  所有类型
-  ```
-
-* @Retention：描述注解被保留的阶段
-
-  * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到	**默认**
-
-  * RetentionPolicy.SOURCE：注解只保留在源文件，当Java文件编译成class文件的时候，注解被遗弃
-
-  * RetentionPolicy.CLASS：注解被保留到class文件，但jvm加载class文件时候被遗弃
-
-    生命周期长度 SOURCE < CLASS < RUNTIME
-
-    需要在运行时动态获取注解信息，那只能用RUNTIME注解，比如@Deprecated使用RUNTIME注解
-     在编译时进行预处理操作，比如生成一些辅助代码（如 ButterKnife），就用 CLASS注解；
-     只是检查性的操作，比如 @Override 和 @SuppressWarnings，使用SOURCE 注解。
-
-* @Documented：描述注解是否被抽取到javadoc中
-
-* @Inherited：描述注解是否可以被继承
-
-* @Repeatable:指明注解为可重复注解，可以在同一个地方多次使用
-
-* @Scheduled
-
-  ```shell
-  #Cron 定时时间		允许正则表达式
-  @Scheduled(cron = "0 0 5 * * ?")      [秒] [分] [小时] [日] [月] [周] [年]
-  ?    不指定值
-  \-    区间
-  ,    指定多个值
-  /    递增触发。秒”5/15” 表示从5秒开始，每增15秒触发
-  L    最后。对于日字段，表示当月的最后一天.对于周字段上设置”6L”这样的格式,则表示“本月最后一个星期五”
-  W   离指定日期的最近的工作日(周一至周五). 例如在日字段上置”15W”，表示离每月15号最近的那个工作日触发。如果15号正好是周六，则找最近的周五(14号)触发, 如果15号是周未，则找最近的下周一(16号)触发.如果15号正好在工作日(周一至周五)，则就在该天触发。如果指定格式为 “1W”,它则表示每月1号往后最近的工作日触发。如果1号正是周六，则将在3号下周一触发。(注，”W”前只能设置具体的数字,不允许区间”-“)。
-  \#    序号(表示每月的第几个周几)，例如在周字段上设置”6#3”表示在每月的第三个周六.注意如果指定”#5”,正好第五周没有周六，则不会触发该配置
-  ’L’和‘W’组合使用。在日字段上设置”LW”,则表示在本月的最后一个工作日触发；周字段的设置，若使用英文字母是不区分大小写的，即MON与mon相同
-  
-  # zone时区.一般留空
-  fixedDelay上一次执行完毕后多长时间再执行
-  @Scheduled(fixedDelay = 5000) //上一次执行完毕时间点之后5秒再执行
-  
-  fixedDelayString 同上的字符串形式,支持占位符
-  @Scheduled(fixedDelayString = "5000") //上一次执行完毕时间点之后5秒再执行
-   fixedRate上一次开始执行后多长时间再执行
-  
-  @Scheduled(fixedRate = 5000) //上一次开始执行时间点之后5秒再执行
-  
-  fixedRateString同上的字符串形式。支持占位符
-  
-  initialDelay第一次延迟多长时间后再执行
-  
-  @Scheduled(initialDelay=1000, fixedRate=5000) //第一次延迟1秒后执行，之后按fixedRate的规则每5秒执行一次
-  
-  initialDelayString同上的字符串形式。支持占位符
-  ```
-
-
-
-
-
-
-
-
-
-
-
-### 自定义注解
-
-
-
-```java
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface MyAnnotation {
-    String name() default "lx";
-    int value();
-}
-```
-
-
-
-```
-@MyAnnotation(123)
-public class User{}
-```
-
-
-
-```java
-public void testAnnotation() {
-  Class<User> userClass = User.class;
-  // 获取注解
-  MyAnnotation myAnnotation = userClass.getAnnotation(MyAnnotation.class);
-  // 注解不为空的时候进行处理
-  if (myAnnotation != null) {
-    // 获取打在User类上的注解的两个属性
-    System.out.println(myAnnotation.name() + ":" + myAnnotation.value());
-  }
-}
-```
-
-
-
-==注解本质上是一个接口，默认继承自Annotation接口==
-
-* 如果定义了属性，在使用属性的时需要赋值
-
-* ==只有一个属性且名称value，则可以省略==
-
-* 数组赋值时用{}封装
-
-* ==属性中的返回值==类型有下列取值：
-  * 基本数据类型
-  * String
-  * 枚举
-  * 注解
-  * 以上类型的数组
-
-
-
-## 泛型擦除
-
-
-
-```java
-List<User> list= new ArrayList<>();
-Class<? extends List> listClass = list.getClass();
-Method add = listClass.getDeclaredMethod("add", Object.class);
-add.setAccessible(true);
-//通过invoke()避免了编译时的泛型检验
-add.invoke(list, 5);
-```
-
-
-
-
-
 # JVM
 
 
 
-JVM是运行 Java 字节码的虚拟机。针对不同系统的JVM特定实现（Windows，Linux，macOS），目的是使用相同的字节码，得到相同的结果。字节码和不同系统的 JVM 实现是 Java 语言“一次编译，随处可以运行”的关键所在
-
-
+JVM是运行字节码的虚拟机。针对不同系统的JVM特定实现（Windows，Linux，macOS），从而用相同的字节码得到相同的结果。字节码和不同系统的 JVM 实现是 Java 语言“一次编译，随处可以运行”的关键所在
 
 
 
@@ -9973,21 +8744,19 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
     * **局部变量不会被赋初值**,不像类变量在加载过程中有准备阶段
 
   * ==操作数栈==(工作空间)
-  
+
     * 方法执行过程中，各种字节码指令往操作数栈中读/写(出入栈)
   * Jvm的解释执行引擎就基于操作数栈
-  
-  * ==动态连接==
 
-    * 指向方法区中的方法表,从而支持方法调用的动态连接
+  * ==动态连接==,指向方法区中的方法表,从而支持方法调用的动态连接
   * class文件的常量池中有大量符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
-  
+
   * ==方法返回地址(出口)==
 
     * 正常出口：执行引擎遇到返回的字节码指令，将返回值传递给上层的方法调用者
   * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，调用者不会得到返回值
     * 方法退出: 当前栈帧出栈。恢复调用方的局部变量表和操作数栈，并把返回值压入调用方的操作数栈，调整PC计数器,执行下一条指令
-  
+
     一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
 
   * 线程私有，生命周期与线程相同,有专门寄存器存放栈的地址，压栈出栈有专门指令
@@ -10004,15 +8773,21 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 
 
+为了保证**线程中的局部变量不被别的线程访问**,栈线程私有
+
+
+
+
+
 ### 堆 heap
 
 -Xms -Xmx
 
 
 
-只有1个,被所有线程共享,虚拟机启动时创建,存储==对象和class对象==,是**gc主要区域**
+只有1个,所有线程共享,虚拟机启动时创建,存储==对象和class对象==,**gc主要区域**
 
-堆的申请和释放工作由程序员控制，容易**内存泄漏**(己动态分配的堆内存未释放或无法释放)
+堆申请和释放由程序员控制，容易OOM
 
 * 新生代   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
 * 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC，Eden和使用区里都存在需要回收的对象,导致碎片
@@ -10162,13 +8937,19 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 
 
-* **线程私有**
-  * 字节码解释器 通过改变计数器的值来确定下一条指令，从而实现代码的流程控制，如：顺序执行、选择、循环、异常处理
-* **为了线程切换能恢复到正确的位置，每条线程都需要一个独立的程序计数器**
-  * 执行的是 native的话，程序计数器记录的是 undefined 地址，只有执行的是 Java 代码时程序计数器记录的才是下一条指令的地址
-* **不会OutofMemoryError**
 
- 执行本地方法时计数器保存的地址为空
+
+**字节码解释器 通过改变计数器的值来依次读取指令**，从而实现代码的流程控制，如：顺序执行、选择、循环、异常处理
+
+**为了线程切换能恢复到正确的位置**，程序计数器为线程私有
+
+执行的是 native的话，程序计数器记录的是 undefined 地址，只有执行的是 Java 代码时程序计数器记录的才是下一条指令的地址
+
+
+
+**不会OOM**
+
+
 
 
 
@@ -11134,7 +9915,7 @@ loader1变量和obj变量 间接引用 代表Sample类的Class对象，而objCla
 
 
 
-## 8种基本类型
+## 基本类型
 
 
 
@@ -12421,8 +11202,6 @@ null -> Optional.empty()
 
 
 
-
-
 ### 使用场景
 
 1、实现事件监听器（比方说actionListener 。。。采用内部类很容易实现）；
@@ -12448,412 +11227,6 @@ null -> Optional.empty()
 1) 静态内部类：不依赖于外部类的实例，直接实例化内部类对象
 
 2) 非静态内部类：通过外部类的对象实例生成内部类对象
-
-
-
-
-
-
-
-# 异常
-
-
-
-![](image.assets/Java异常类层次结构图2.png)
-
-
-
-
-
-Exception能被程序本身处理，Error无法try-catch
-
-| Checked Exception                           | Unchecked Exception                   | Error              |
-| ------------------------------------------- | ------------------------------------- | ------------------ |
-| 强制调用方对该异常进行处理,否则不能编译通过 | **Runtime都为Unchecked**,编译器不检查 | 程序无法处理的错误 |
-
-
-
-## try/catch
-
-
-
-不管有没有异常，finally都会执行,哪怕在catch中return
-
-
-
-避免对异常捕获但不作任何处理,只在能处理异常时才进行捕获,否则延迟
-
-对catch的异常不作处理的话,注释写明不处理原因的
-
-当catch的异常被命名为expected, 此异常是被期望的且类型正确，此时可以在不作注释的情况下不处理异常
-
-
-
-## try-with-resources
-
-
-
-1. **适用范围**任何实现 `AutoCloseable`/`Closeable` 的对象
-2. **关闭资源和 finally 块的执行顺序：**在 `try-with-resources` 语句中，任何 catch 或 finally 块在声明的资源关闭后运行
-
-
-
-面对必须要关闭的资源，应优先使用 `try-with-resources`
-
-```java
-//try-catch
-Scanner scanner = null;
-try {
-  scanner = new Scanner(new File("D://read.txt"));
-  while (scanner.hasNext()) {
-    System.out.println(scanner.nextLine());
-  }
-} catch (FileNotFoundException e) {
-  e.printStackTrace();
-} finally {
-  if (scanner != null) {
-    scanner.close();
-  }
-}
-
-//用try-with-resources改造
-try (Scanner scanner = new Scanner(new File("test.txt"))) {
-  while (scanner.hasNext()) {
-    System.out.println(scanner.nextLine());
-  }
-} catch (FileNotFoundException fnfe) {
-  fnfe.printStackTrace();
-}
-```
-
-
-
-通过使用;分隔，可以在`try-with-resources`块中声明多个资源
-
-```java
-try (BufferedInputStream bin = new BufferedInputStream(new FileInputStream(new File("test.txt")));
-     BufferedOutputStream bout = new BufferedOutputStream(new FileOutputStream(new File("out.txt")))) {
-  int b;
-  while ((b = bin.read()) != -1) {
-    bout.write(b);
-  }
-}
-catch (IOException e) {
-  e.printStackTrace();
-}
-```
-
-
-
-
-
-
-
-
-
-## CheckedException
-
-
-
-在编写代码时无法确定调用方的文件是否存在,此类CheckedException应用在运行时无法避免,只能通过强制软件开发人员在编写代码的时候就考虑对这些无法避免的情况的处理
-
-
-
-```java
-public FileReader(String fileName) throws FileNotFoundException {
-  super(new FileInputStream(fileName));
-}
-```
-
-
-
-缺点
-* 将Checked Exception向上传递throws ,将导致异常不断地向上传递,降低代码质量,在异常向上传递的同时也会模糊异常原本的含义,让上层调用者无法得知异常的原因与处理方式,要**避免二次throw异常**
-* 对于频繁被调用的API,每处调用都需要用 try catch 截获该异常 ,会污染代码
-
-
-
-
-
-Checked Exception只在异常情况对于API以及API的使用者都无法避免的情况下被使用 ,这也是API设计中的一部分。在调用的时候，必须处理此异常 
-
-例如在打开一个文件的时候，API以及API的使用者都没有办法保证该文件一定存在。反过来，在通过索引访问数据的时候，如果API的使用者对参数index传入的是-1，那么这就是一个代码上的错误，是完全可以避免的。因此对于index参数值不对的情况，我们应该使用Unchecked Exception 
-
-Checked Exception不应该被广泛调用的API所抛出。这一方面是基于代码整洁性的考虑，另一方面则是因为Checked Exception本身的实际意义是API以及API的使用者都无法避免的情况。如果一个应用有太多处这种“无法避免的异常”，那么这个程序是否拥有足够的质量也是一个很值得考虑的问题。而就API提供者而言，在一个主要的被广泛使用的功能上抛出这种异常，也是对其自身API的一种否定。
-
-Checked Exception应该有明确的意义。这种明确意义的标准则是需要让API使用者能够看到这个Checked Exception所对应的异常类，该异常类所包含的各个域，并阅读相应的API文档以后就能够了解到底哪里出现了问题，进而向用户提供准确的有关该异常的解释
-
-
-
-## 内存溢出/泄漏
-
-
-
-* 内存泄露(OOM)：对象不被GC回收，始终占用内存。==分配的对象可达但已无用==
-  * 内存泄露是内存溢出的一种诱因，不是唯一因素
-
-* 内存溢出：**无法满足内存分配需求**
-  * 栈溢出(SOF)：递归太深而发生堆栈溢出
-  * **静态的集合类过多**
-  * 数据库、网络、输入输出流，没有显式关闭
-    * GC只负责回收，无法判断对象是否正在使用资源
-  * ==单例对象中拥有另一个对象的引用的话，这个被引用的对象就不能被及时回收==
-    * 解决办法是单例对象中持有的其他对象使用弱引用，其占用的内存会被回收
-
-
-
-除了程序计数器外，虚拟机内存的其他几个运行时区域都有OOM可能
-
-
-
-* Heap堆溢出：
-  * 通过内存映像分析工具对dump出来的堆转存快照进行分析，重点是确认内存中的对象是否是必要的，**先分清是因为泄漏还是溢出**
-    * **内存泄漏,对象不需要了，内存和引用没被回收**，通过工具查看泄漏对象到GCRoots的引用链。找到泄漏对象是通过怎样的路径与GC Roots关联并导致垃圾收集器无法自动回收
-    * 内存溢出，检查虚拟机的参数(-Xmx与-Xms)的设置是否适当
-
-* 栈溢出
-  * 线程请求的栈深度大于虚拟机所允许的最大深度，StackOverflowError
-  * JVM在扩展栈时无法申请到足够空间，OutOfMemoryError
-  * 递归调用，大量循环或死循环，全局变量过多，数组、List、map数据过大
-  * 栈一般1-2MB
-  
-* 常量池溢出
-  * 异常信息：OutOfMemoryError:PermGenspace
-  * [intern](#intern)
-  * 常量池分配在方法区内，可以通过-XX:PermSize和-XX:MaxPermSize限制方法区的大小，从而间接限制其中常量池的容量
-
-* 方法区溢出
-  * 异常信息：OutOfMemoryError:PermGenspace
-  * 存放Class的相关信息，如类名、访问修饰符、常量池、字段描述、方法描述
-  * 类如果要被垃圾收集器回收，条件很苛刻。在经常动态生成大量Class的应用中，要特别注意这点
-
-
-
-## 避免泄露/溢出
-
-
-
-1、尽早释放无用对象的引用
-
-3、尽量少用静态变量，因为静态变量存放在方法区，基本不参与垃圾回收
-
-4、避免循环创建对象
-
-5、大概计算一下数据量的最大值，设定所需内存空间值
-
-
-
-
-
-
-
-
-
-# 关键字
-
-
-
- 
-
-
-
-## 访问权限
-
-
-
-![img](image.assets/wps3-1603184298721.jpg)
-
-对于顶层的类/接口,应当设置 包级私有/公有
-
-private	声明该类成员的顶层类内部
-
-default	包内部的任何类
-
-protected	声明该类的子类可访问
-
-public	任何地方
-
-
-
-public类的非final实例域决不能是公有的,这将放弃在这个域中存储的能力限制,任何地方都可以修改域中的值
-
-
-
-
-
-
-
-### 继承的访问权限
-
-==重写的访问修饰符只能比父类大==
-
-Public继承	    不改变父类的访问权限
-
-protected          private不变,其余都变为protected
-
-private            都改成private
-
-
-
-### 子类成员在外部的访问权限
-
-**父类的private     只有父类能访问**
-
-private方式继承的非private成员    只有子类的成员函数能访问,子类的子类/外部不能访问
-
-protected方式继承的非private成员 	只有子类及子类的子类(非private继承) 能访问
-
-
-
-
-
-
-
-## final
-
-
-
-* 不能修饰构造方法
-* **修饰的类不能被继承，方法不能被重写**
-* 修饰基本类型，值不能改变,**修饰引用类型，引用不能改变**
-* 天生的==线程安全==
-
-```java
- final Dog dog = new Dog("aa");
- dog.name = "bb";//正确
- dog = new Dog("cc");//错误
-```
-
-
-
-
-
-## static
-
-一般在需要实现以下两个功能时使用静态变量：
-
-1.在对象之间共享值时
-
-2.方便访问变量时
-
-
-
-* 生命周期不同
-  * 成员变量随对象的创建而存在，随着对象的被回收而释放
-  * 静态变量随类的加载而存在，随着类的消失而消失
-
-* 调用方式不同
-  * 成员变量只能被对象调用
-  * 静态变量可以被对象调用，还可以被类名调用
-
-* 数据存储位置不同
-  * 成员变量在堆
-  * **静态变量在方法区的静态区**
-
-* 内存拷贝不同
-  * 成员变量可以在内存有多个拷贝
-  * 静态变量只能1个
-
-静态方法在类加载的时候就存在了，不依赖于任何实例,所以必须有实现
-
-
-
-static不代表不可修改,它是能够时刻保持最新的值的静态变量
-
-==静态是指不会随着函数的调用/退出发生变化==。下次调用时，这个值与上次调用一致
-
-==static final全局常量才不能修改==
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## native
-
-
-
-```
-@Documented
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.SOURCE)
-public @interface Native {}
-```
-
-native是**java调用非java代码的接口**,定义Native Method时,**并不需要提供实现**
-
-调用者不知道它所调用的是一个本地方法。JVM将控制调用本地方法的所有细节
-
-子类可以继承本地方法并用java重写	**本地方法被fianl标识，继承后不能被重写**
-
-
-
-==native可以与所有修饰符连用，除abstract==,与abstract的无实现相违背
-
-==native method可以返回任何java类型，包括非基本类型==，可以进行异常控制。这些方法的实现体可以制一个异常并且将其抛出。当native method接收到非基本类型,可以访问非基本类型的内部，**但这将使native method依赖于所访问的java类的实现**
-
-
-
-==JVM怎样使Native Method跑起来==
-当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存储地址，参数，修饰符等
-native修饰符将有指向该方法实现的指针。这些实现在一些DLL文件内，会被操作系统加载到java程序的地址空间。当带有本地方法的类被加载时，其相关的DLL并未被加载，因此指向方法实现的指针并不会被设置。**当本地方法被调用之前，这些DLL才会被加载**，通过调用java.system.loadLibrary()实现
-
-
-
-
-
-## Switch
-
-
-
-1.5前，只能是byte，short，char，int类型(或其包装类)的常量表达式
-
-1.5后，引入枚举enum
-
-1.7后，exper还可以是String类型。
-
-**long在所有版本都不行**
-
-
-
-1.7通过hashCode(),将string转换为int,switch(String)只是语法糖,在相应位置插入了强制转换代码，底层并没有修改
-
-==Switch中的String必须先判空==
-
-```java
-//在编译后的class中
-String string = "Hello";
-            String s;
-            switch ((s = string).hashCode()){
-            case 2301506: 
-                //用equals进行安全检查（避免hash相同值不同）
-                if (!s.equals("Java"))
-```
-
-
-
-每个case要么通过continue/break/return等来终止，要么注释说明程序将继续执行到哪一个case为止
-
-
-
-==对于case不需要break时,必须写注释,解释为何不需要break==
-
-必须包含一个default语句并且放在最后
-
-
-
-
 
 
 
