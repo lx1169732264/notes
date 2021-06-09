@@ -1048,11 +1048,7 @@ public static <T> int binarySearch(List<? extends Comparable<? super T>> list, T
 
 
 
-**适合读多写少**,比如黑白名单，商品类目的访问
-
-
-
-**读写分离**,提高并发能力
+**适合读多写少**,并且由于副本的存在,==读不加锁,写不阻塞读==
 
 ==使用批量添加==,减少添加次数,添加时的复制损耗性能
 
@@ -1073,22 +1069,22 @@ public class CopyOnWriteArrayList<E> implements List<E>, RandomAccess, Cloneable
 
 #### add
 
-需要加锁，否则会Copy出N个副本
+**加锁，否则会Copy出N个副本**
 
 ```java
 public boolean add(E e) {
-    final ReentrantLock lock = this.lock;
-    lock.lock();
-    try {
-        Object[] elements = getArray();
-        int len = elements.length;
-        Object[] newElements = Arrays.copyOf(elements, len + 1);
-        newElements[len] = e;
-        setArray(newElements);
-        return true;
-    } finally {
-        lock.unlock();
-    }
+  final ReentrantLock lock = this.lock;
+  lock.lock(); //锁
+  try {
+    Object[] elements = getArray();
+    int len = elements.length;
+    Object[] newElements = Arrays.copyOf(elements, len + 1);
+    newElements[len] = e;
+    setArray(newElements);
+    return true;
+  } finally {
+    lock.unlock();
+  }
 }
 ```
 
@@ -1096,13 +1092,11 @@ public boolean add(E e) {
 
 #### get
 
-
-
-读的时候不需要加锁
+**读不加锁**
 
 ```java
 public E get(int index) {
-    return get(getArray(), index);
+  return get(getArray(), index);
 }
 ```
 
@@ -4629,17 +4623,21 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 ## AQS
 
-
-
 ==非阻塞数据结构 + 原子变量类==
 
 AbstractQueuedSynchronizer 抽象队列式同步器,**无锁**
 
-除synchronized之外的锁,都基于AQS
-
-
+除synchronized之外的锁都基于AQS
 
 ![](image.assets/AQS结构.png)
+
+核心思想:
+
+如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效，并且将共享资源设置为锁定状态。
+
+如果被请求的共享资源占用，则执行线程阻塞等待以及被唤醒时锁分配的机制，这个机制由CLH 队列锁实现，即将暂时获取不到锁的线程加入到队列中
+
+
 
 CLH队列	Craig,Landin,and Hagersten
 
@@ -4702,29 +4700,15 @@ AQS基于==模板方法==
 
 在自定义AQS同步器时,需要重写:
 
-独占模式的acquire()和release()
+```java
+acquire() / release() //独占
+acquireShared() / releaseShared() //共享
+acquireInterruptibly() / acquireSharedInterruptibly() //响应中断
+isHeldExclusively() //该线程是否正在独占资源。只有用到condition才需要去实现
 
-共享模式的acquireShared()和releaseShared()
-
-响应中断的acquireInterruptibly()/acquireSharedInterruptibly()
-
-
-
-
-
-ReentrantLock为例：
-
-state初始化0，表示未锁定
-
-A线程lock()时，会调用tryAcquire() -> state+1
-
-之后其他线程tryAcquire时就失败，直到A线程unlock（）-> state=0，其他线程才有机会获取该锁
-
-**A释放锁之前，自己也是可以重复获取此锁（state累加），这就是可重入的概念**
-
-==获取多少次锁就要释放多少次锁，保证state能回到0==
-
-
+//AQS中的其他方法都是 final,只有这几个方法可以被其他类重写
+//一般来说，自定义同步器要么是独占方法，要么是共享方式，只需实现`tryAcquire-tryRelease`、`tryAcquireShared-tryReleaseShared`中的一种即可。但 AQS 也支持自定义同步器同时实现独占和共享两种方式，如`ReentrantReadWriteLock`
+```
 
 
 
@@ -5055,26 +5039,38 @@ arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
 
 ### Semaphore 信号量
 
+**`synchronized` / `ReentrantLock` 同时只允许一个线程访问某资源，`Semaphore`(信号量)可以指定线程数同时访问**
+
+它将构造 AQS 的 state 为 `permits`。当执行任务的线程数量超出 `permits`，那么多余的线程将会被放入阻塞队列 Park,并自旋判断 state 是否大于 0。只有当 state 大于 0 的时候，阻塞的线程才能继续执行,此时先前执行任务的线程继续执行 `release()` 方法，`release()` 方法使得 state 的变量会加 1，那么自旋的线程便会判断成功。
+如此，每次只有最多不超过 `permits` 数量的线程能自旋成功，便限制了执行任务线程的数量
 
 
-限制对共享资源进行访问的线程数量
 
 访问资源前，线程必须得到信号量的许可(permits-—)
 
 完成访问后，线程必须向信号量归还许可（permits++）
-
-
 
 **适用场景**:	限流,多个共享资源的互斥使用 / 并发线程数的控制
 
 
 
 ```java
-acquire（获取） 成功获取时信号量–-	信号量为0时,获取失败,
+public Semaphore(int permits) { //默认非公平
+  sync = new NonfairSync(permits); //同时执行的线程数量
+}
 
+public Semaphore(int permits, boolean fair) { //也支持公平
+  sync = fair ? new FairSync(permits) : new NonfairSync(permits);
+}
+```
+
+
+
+
+
+```java
+acquire（获取） 成功获取时信号量–-	信号量为0时,获取失败,
 release（释放）信号量++，唤醒等待的线程,必须放在finally
-  
-new Semaphore(int permits);	同时执行的线程数量
 ```
 
 
@@ -5149,6 +5145,15 @@ AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Lo
 
 
 
+| 基本类型      | 数组类型             | 引用类型                                            | 对象的属性修改类型          |
+| ------------- | -------------------- | --------------------------------------------------- | --------------------------- |
+| AtomicInteger | AtomicIntegerArray   | AtomicReference                                     | AtomicIntegerFieldUpdater   |
+| AtomicLong    | AtomicLongArray      | AtomicMarkableReference 原子更新带有标记的引用类型  | AtomicLongFieldUpdater      |
+| AtomicBoolean | AtomicReferenceArray | AtomicStampedReference 原子更新带有版本号的引用类型 | AtomicReferenceFieldUpdater |
+|               |                      | 基本类型只能更新一个变量,引用类型一次更新多个变量   |                             |
+
+
+
 
 
 #### AtomicInteger
@@ -5172,6 +5177,247 @@ public class AtomicInteger extends Number implements java.io.Serializable {
   }
 }
 ```
+
+
+
+#### AtomicIntegerArray
+
+```java
+public final int get(int i) //获取 index=i 位置元素的值
+public final int getAndSet(int i, int newValue)//返回 index=i 位置的当前的值，并将其设置为新值：newValue
+public final int getAndIncrement(int i)//获取 index=i 位置元素的值，并让该位置的元素自增
+public final int getAndDecrement(int i) //获取 index=i 位置元素的值，并让该位置的元素自减
+public final int getAndAdd(int i, int delta) //获取 index=i 位置元素的值，并加上预期的值
+boolean compareAndSet(int i, int expect, int update) //如果输入的数值等于预期值，则以原子方式将 index=i 位置的元素值设置为输入值（update）
+public final void lazySet(int i, int newValue)//最终 将index=i 位置的元素设置为newValue,使用 lazySet 设置之后可能导致其他线程在之后的一小段时间内还是可以读到旧的值。
+```
+
+
+
+#### AtomicReference 类使用示例
+
+```java
+import java.util.concurrent.atomic.AtomicReference;
+
+public class AtomicReferenceTest {
+
+	public static void main(String[] args) {
+		AtomicReference<Person> ar = new AtomicReference<Person>();
+		Person person = new Person("SnailClimb", 22);
+		ar.set(person);
+		Person updatePerson = new Person("Daisy", 20);
+		ar.compareAndSet(person, updatePerson);
+
+		System.out.println(ar.get().getName());
+		System.out.println(ar.get().getAge());
+	}
+}
+
+class Person {
+	private String name;
+	private int age;
+
+	public Person(String name, int age) {
+		super();
+		this.name = name;
+		this.age = age;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public int getAge() {
+		return age;
+	}
+
+	public void setAge(int age) {
+		this.age = age;
+	}
+
+}
+```
+
+
+
+
+
+
+
+#### AtomicStampedReference
+
+```java
+import java.util.concurrent.atomic.AtomicStampedReference;
+
+public class AtomicStampedReferenceDemo {
+  public static void main(String[] args) {
+    // 实例化、取当前值和 stamp 值
+    final Integer initialRef = 0, initialStamp = 0;
+    final AtomicStampedReference<Integer> asr = new AtomicStampedReference<>(initialRef, initialStamp);
+    System.out.println("currentValue=" + asr.getReference() + ", currentStamp=" + asr.getStamp());
+
+    // compare and set
+    final Integer newReference = 666, newStamp = 999;
+    final boolean casResult = asr.compareAndSet(initialRef, newReference, initialStamp, newStamp);
+    System.out.println("currentValue=" + asr.getReference()
+                       + ", currentStamp=" + asr.getStamp()
+                       + ", casResult=" + casResult);
+
+    // 获取当前的值和当前的 stamp 值
+    int[] arr = new int[1];
+    final Integer currentValue = asr.get(arr);
+    final int currentStamp = arr[0];
+    System.out.println("currentValue=" + currentValue + ", currentStamp=" + currentStamp);
+
+    // 单独设置 stamp 值
+    final boolean attemptStampResult = asr.attemptStamp(newReference, 88);
+    System.out.println("currentValue=" + asr.getReference()
+                       + ", currentStamp=" + asr.getStamp()
+                       + ", attemptStampResult=" + attemptStampResult);
+
+    // 重新设置当前值和 stamp 值
+    asr.set(initialRef, initialStamp);
+    System.out.println("currentValue=" + asr.getReference() + ", currentStamp=" + asr.getStamp());
+
+    // [不推荐使用，除非搞清楚注释的意思了] weak compare and set
+    // 困惑！weakCompareAndSet 这个方法最终还是调用 compareAndSet 方法。[版本: jdk-8u191]
+    // 但是注释上写着 "May fail spuriously and does not provide ordering guarantees,
+    // so is only rarely an appropriate alternative to compareAndSet."
+    // todo 感觉有可能是 jvm 通过方法名在 native 方法里面做了转发
+    final boolean wCasResult = asr.weakCompareAndSet(initialRef, newReference, initialStamp, newStamp);
+    System.out.println("currentValue=" + asr.getReference()
+                       + ", currentStamp=" + asr.getStamp()
+                       + ", wCasResult=" + wCasResult);
+  }
+}
+```
+
+输出结果如下：
+
+```
+currentValue=0, currentStamp=0
+currentValue=666, currentStamp=999, casResult=true
+currentValue=666, currentStamp=999
+currentValue=666, currentStamp=88, attemptStampResult=true
+currentValue=0, currentStamp=0
+currentValue=666, currentStamp=999, wCasResult=true
+```
+
+#### AtomicMarkableReference
+
+``` java
+import java.util.concurrent.atomic.AtomicMarkableReference;
+
+public class AtomicMarkableReferenceDemo {
+    public static void main(String[] args) {
+        // 实例化、取当前值和 mark 值
+        final Boolean initialRef = null, initialMark = false;
+        final AtomicMarkableReference<Boolean> amr = new AtomicMarkableReference<>(initialRef, initialMark);
+        System.out.println("currentValue=" + amr.getReference() + ", currentMark=" + amr.isMarked());
+
+        // compare and set
+        final Boolean newReference1 = true, newMark1 = true;
+        final boolean casResult = amr.compareAndSet(initialRef, newReference1, initialMark, newMark1);
+        System.out.println("currentValue=" + amr.getReference()
+                + ", currentMark=" + amr.isMarked()
+                + ", casResult=" + casResult);
+
+        // 获取当前的值和当前的 mark 值
+        boolean[] arr = new boolean[1];
+        final Boolean currentValue = amr.get(arr);
+        final boolean currentMark = arr[0];
+        System.out.println("currentValue=" + currentValue + ", currentMark=" + currentMark);
+
+        // 单独设置 mark 值
+        final boolean attemptMarkResult = amr.attemptMark(newReference1, false);
+        System.out.println("currentValue=" + amr.getReference()
+                + ", currentMark=" + amr.isMarked()
+                + ", attemptMarkResult=" + attemptMarkResult);
+
+        // 重新设置当前值和 mark 值
+        amr.set(initialRef, initialMark);
+        System.out.println("currentValue=" + amr.getReference() + ", currentMark=" + amr.isMarked());
+
+        // [不推荐使用，除非搞清楚注释的意思了] weak compare and set
+        // 困惑！weakCompareAndSet 这个方法最终还是调用 compareAndSet 方法。[版本: jdk-8u191]
+        // 但是注释上写着 "May fail spuriously and does not provide ordering guarantees,
+        // so is only rarely an appropriate alternative to compareAndSet."
+        // todo 感觉有可能是 jvm 通过方法名在 native 方法里面做了转发
+        final boolean wCasResult = amr.weakCompareAndSet(initialRef, newReference1, initialMark, newMark1);
+        System.out.println("currentValue=" + amr.getReference()
+                + ", currentMark=" + amr.isMarked()
+                + ", wCasResult=" + wCasResult);
+    }
+}
+```
+
+输出结果如下：
+
+```
+currentValue=null, currentMark=false
+currentValue=true, currentMark=true, casResult=true
+currentValue=true, currentMark=true
+currentValue=true, currentMark=false, attemptMarkResult=true
+currentValue=null, currentMark=false
+currentValue=true, currentMark=true, wCasResult=true
+```
+
+
+
+#### AtomicIntegerFieldUpdater
+
+```java
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+public class AtomicIntegerFieldUpdaterTest {
+  public static void main(String[] args) {
+    AtomicIntegerFieldUpdater<User> a = AtomicIntegerFieldUpdater.newUpdater(User.class, "age");
+
+    User user = new User("Java", 22);
+    System.out.println(a.getAndIncrement(user));// 22
+    System.out.println(a.get(user));// 23
+  }
+}
+
+class User {
+  private String name;
+  public volatile int age;
+
+  public User(String name, int age) {
+    super();
+    this.name = name;
+    this.age = age;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public int getAge() {
+    return age;
+  }
+
+  public void setAge(int age) {
+    this.age = age;
+  }
+}
+```
+
+
+
+
+
+
+
+
 
 
 
@@ -5631,7 +5877,7 @@ private native boolean isInterrupted(boolean ClearInterrupted);
 
 ## ThreadLocal
 
-==线程隔离==	创建只能被自己读写的变量,线程间无法互相访问ThreadLocal -> 不能解决多线程并发问题,因为**不存在竞争**
+==线程隔离==	创建线程内私有的变量,线程间无法互相访问ThreadLocal -> 不解决并发问题,因为**不存在竞争**
 
 **保存资源副本,而不是共享资源**。隔离线程存取数据的行为，给线程特定空间来保管独享资源
 
@@ -5680,9 +5926,11 @@ try {
 ```java
 public void set(T value) {
   Thread t = Thread.currentThread();
-  ThreadLocalMap map = getMap(t);	//获取当前线程的ThreadLocalMap
-  if (map != null)	map.set(this, value);	//以 (thread,value) 的键值对存储
-  else createMap(t, value);
+  ThreadLocalMap map = getMap(t);
+  if (map != null)
+    map.set(this, value);	//以 (threadLocal,value) 的键值对存储
+  else
+    createMap(t, value);
 }
 
 void createMap(Thread t, T firstValue) {
@@ -5718,23 +5966,46 @@ public T get() {
 
 
 
-### 内存泄漏
+### hash冲突
+
+`ThreadLocalMap`中并没有链表结构,无法使用HashMap的方法解决hash冲突
+
+```java
+private static final int HASH_INCREMENT = 0x61c88647;	//斐波那契数的黄金分割数,让hashCode均匀分布在2^n的数组中
+private static AtomicInteger nextHashCode = new AtomicInteger();
+
+private static int nextHashCode() {
+  return nextHashCode.getAndAdd(HASH_INCREMENT);
+}
+
+private final int threadLocalHashCode = nextHashCode(); //每次创建一个threadLocal对象,这个值就自增HASH_INCREMENT
+```
 
 
 
-Entry[]被Thread.threadLocals强引用 -> Entry[]的生命周期和thread一致 -> 即使ThreadLocal对象被GC，Entry[]也不一定被GC -> 内存泄漏
 
 
 
-[Entry弱引用的补救](#Entry弱引用)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 ### ThreadLocalMap
 
+ThreadLocal内部类
 
-
-ThreadLocal内部类，存储(线程,变量)的键值对，只有指定线程可以得到存储数据
+存储(WeakReference<ThreadLocal<?>>,变量)的键值对，只有指定线程可以得到存储数据,相较于HashMap,并没有链表的概念
 
 ```java
 static class ThreadLocalMap {
@@ -5763,16 +6034,24 @@ static class ThreadLocalMap {
 
 
 
+#### 内存泄漏
+
+ThreadLocalMap.table被Thread.threadLocals强引用 -> Entry[]的生命周期和thread一致 -> 即使ThreadLocal对象被GC，Entry[]也不一定被GC -> 内存泄漏
+
+[Entry弱引用的补救](#Entry弱引用)
+
+
+
 #### <a name="Entry弱引用">Entry</a>
 
 ThreadLocalMap静态内部类
 
-Entry为[弱引用ThreadLocal,V]，ThreadLocal很容易被回收导致[null,V]
+Entry为[弱引用ThreadLocal,V]，**ThreadLocal很容易被回收导致[null,V]**
 
 ==在get/set/remove时自动清理key为null的Entry==
 
 ```java
-static class Entry extends WeakReference<ThreadLocal<?>> {
+static class Entry extends WeakReference<ThreadLocal<?>> { //弱引用
   Object value;
   Entry(ThreadLocal<?> k, Object v) {
     super(k);
@@ -5780,6 +6059,8 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
   }
 }
 ```
+
+
 
 
 
@@ -5791,25 +6072,27 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 private void set(ThreadLocal<?> key, Object value) {
   Entry[] tab = table;
   int len = tab.length;
-  int i = key.threadLocalHashCode & (len-1);
-
-  for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {	//线性探测法查找元素,tab[i]!= null -> hash冲突 -> 向后查找
+  int i = key.threadLocalHashCode & (len-1); //hash
+  
+  //线性探测法查找元素	tab[i]!= null -> hash冲突时不断向后查找
+  for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
     ThreadLocal<?> k = e.get();
 
-    if (k == key) {
+    if (k == key) { //hash一致,替换
       e.value = value;
       return;
     }
 
-    if (k == null) {	//key==null -> 旧threadLocal对象已被回收
-      replaceStaleEntry(key, value, i);	//替换旧元素
+    if (k == null) { //旧threadLocal已被回收/未使用的Entry
+      replaceStaleEntry(key, value, i); //替换,并向后进行探测式数据清理
       return;
     }
   }
 
   tab[i] = new Entry(key, value);
   int sz = ++size;
-  if (!cleanSomeSlots(i, sz) && sz >= threshold)	rehash();	//cleanSomeSlots清理脏数据
+  if (!cleanSomeSlots(i, sz) && sz >= threshold) //cleanSomeSlots清理脏数据
+    rehash();
 }
 
 private static int nextIndex(int i, int len) {
@@ -5831,7 +6114,62 @@ private boolean cleanSomeSlots(int i, int n) {
   } while ( (n >>>= 1) != 0);
   return removed;
 }
+```
 
+
+
+table[i]!=null,说明hash冲突,向后环形查找，查找过程中遇到脏entry就replaceStaleEntry
+
+table[i]==null,新的entry直接插入，插入后调用cleanSomeSlots()检测并清除脏entry
+
+
+
+#### replaceStaleEntry
+
+```java
+private void replaceStaleEntry(ThreadLocal<?> key, Object value, int staleSlot) {
+  Entry[] tab = table;
+  int len = tab.length;
+  Entry e;
+  int slotToExpunge = staleSlot; //扫描起始位置
+  for (int i = prevIndex(staleSlot, len); (e = tab[i]) != null; i = prevIndex(i, len))
+    if (e.get() == null)
+      slotToExpunge = i;
+
+  for (int i = nextIndex(staleSlot, len); (e = tab[i]) != null; i = nextIndex(i, len)) {
+    ThreadLocal<?> k = e.get();
+
+    if (k == key) {
+      e.value = value;
+
+      tab[i] = tab[staleSlot];
+      tab[staleSlot] = e;
+
+      if (slotToExpunge == staleSlot)
+        slotToExpunge = i;
+      cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+      return;
+    }
+
+    if (k == null && slotToExpunge == staleSlot)
+      slotToExpunge = i;
+  }
+
+  tab[staleSlot].value = null;
+  tab[staleSlot] = new Entry(key, value);
+
+  if (slotToExpunge != staleSlot)
+    cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+}
+```
+
+
+
+
+
+#### expungeStaleEntry
+
+```java
 private int expungeStaleEntry(int staleSlot) {
   Entry[] tab = table;
   int len = tab.length;
@@ -5868,9 +6206,9 @@ private int expungeStaleEntry(int staleSlot) {
 
 
 
-如果当前table[i]！=null的话说明hash冲突就需要向后环形查找，若在查找过程中遇到脏entry就通过replaceStaleEntry进行处理；
 
-如果当前table[i]==null的话说明新的entry可以直接插入，但是插入后会调用cleanSomeSlots方法检测并清除脏entry
+
+
 
 
 
@@ -5890,20 +6228,6 @@ private Entry getEntry(ThreadLocal<?> key) {
 ```
 
 
-
-#### 解决hash冲突
-
-
-
-```java
-private static final int HASH_INCREMENT = 0x61c88647;	//斐波那契数列相关,能够让hashCode均匀地分布在2^n的数组中
-private static AtomicInteger nextHashCode = new AtomicInteger();
-private final int threadLocalHashCode = nextHashCode();
-
-private static int nextHashCode() {
-    return nextHashCode.getAndAdd(HASH_INCREMENT);	// 每次获取值时，把当前值加上HASH_INCREMENT并返回
-}
-```
 
 
 
@@ -6296,11 +6620,11 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 
 **悲观+不公平+可重入	无锁/自旋/互斥信号量**
 
-让没有得到锁的线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，==退出或异常时自动释放锁==
+线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，==退出或异常时自动释放锁==
 
 
 
-synchronized无法禁止[指令重排](#指令重排),需要依赖volatile保证有序
+synchronized无法禁止[指令重排](#指令重排),不保证一个线程写入数据对其他线程可见,需要依赖volatile保证有序
 
 
 
@@ -6323,6 +6647,49 @@ public synchronized static void fun() {}	//锁class对象
 public synchronized void func () {}	//锁类的实例对象
 synchronized (xxx) {}	//锁实例对象
 ```
+
+
+
+
+
+
+
+```java
+private static boolean stopRequested;
+
+public static void main(String[] args) throws InterruptedException {
+  new Thread(() -> {
+    int i = 0;
+    while (!stopRequested) { //仿佛这个线程将在1s后被停止?实际上他停不下来了
+      System.out.println(i++);
+    }
+  }).start();
+  TimeUnit.SECONDS.sleep(1);
+  stopRequested = true; //主线程对变量的改动不会被上一条线程得知
+}
+```
+
+
+
+```java
+//将被优化为
+if (!stopRequested) { //尽管主线程将stopRequested的值变更,但工作线程并无感知
+  while (true) {
+    i++;
+  }
+}
+//这被称为提升hoisting,但却得到了一个活性失败liveness failure
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6632,14 +6999,11 @@ final ConditionObject newCondition() {
 
 ```java
 static final class NonfairSync extends Sync {
-
   final void lock() {
     if (compareAndSetState(0, 1))	//直接尝试获取锁，无视同步队列
       setExclusiveOwnerThread(Thread.currentThread());
-    else
-      acquire(1);	//直接获取失败时,才进入同步队列
+    else acquire(1);	//直接获取失败时,才进入同步队列
   }
-
 
   protected final boolean tryAcquire(int acquires) {
     return nonfairTryAcquire(acquires);
@@ -6650,7 +7014,7 @@ static final class NonfairSync extends Sync {
 
     int c = getState();
     if (c == 0) {
-      //没有hasQueuedPredecessors(),不需要判断当前线程是否为head.next，也不需要判断当前线程是否在同步队列中              
+      //没有hasQueuedPredecessors(),不判断当前线程是否为head.next，也不判断当前线程是否在同步队列中     
       if (compareAndSetState(0, acquires)) {
         setExclusiveOwnerThread(current);
         return true;
@@ -6668,22 +7032,18 @@ static final class NonfairSync extends Sync {
 
 
 
-
-
 #### FairSync
 
 ```java
 static final class FairSync extends Sync {
-
-  final void lock() {  acquire(1);  }
+  final void lock() { acquire(1); }
 
   protected final boolean tryAcquire(int acquires) {
     final Thread current = Thread.currentThread();
-
     int c = getState();
     if (c == 0) {
-      //队列里面没有线程在等待,才CAS改变volitale state值(公平的体现)
-      if (!hasQueuedPredecessors() && compareAndSetState(0, acquires)) {
+      if (!hasQueuedPredecessors() //队列里面没有线程在等待,才CAS改变state
+          && compareAndSetState(0, acquires)) {
         setExclusiveOwnerThread(current);
         return true;
       }
@@ -6700,7 +7060,14 @@ static final class FairSync extends Sync {
 
 
 
+#### Fair VS NotFair
 
+1. 非公平锁在调用 lock 后，首先会调用 CAS抢锁，成功则直接获取到锁返回
+2. 非公平锁在 CAS 失败后，和公平锁一样都会进入到 `tryAcquire` 方法，在 `tryAcquire` 方法中，如果发现锁这个时候被释放了（state == 0），非公平锁会直接 CAS抢锁，但公平锁会判断等待队列是否有线程等待
+
+3. 如果这两次 CAS 都失败，非公平锁也和公平锁一样进入到阻塞队列等待唤醒
+
+相对来说，非公平锁会有更好的性能，因为它的吞吐量比较大。当然，非公平锁让获取锁的时间变得更加不确定，可能会导致在阻塞队列中的线程长期处于饥饿状态
 
 
 
@@ -7498,14 +7865,14 @@ CachedThreadPool,核心线程数量0,不会有核心线程存活阻止线程池�
 
 ### 线程池参数
 
-| corePoolSize    | 核心数量            | 同时运行的最小线程数量                                       |
-| --------------- | ------------------- | ------------------------------------------------------------ |
-| maximumPoolSize | 最大数量            |                                                              |
-| keepAliveTime   | 存活时间            | 线程数量上限 && 存活时间 > keepAliveTime，销毁线程           |
-| unit            | keepAliveTime的单位 |                                                              |
-| workQueue       | 任务队列            | 每次加入任务都判断池内正在运行的线程数量                     |
-| threadFactory   | 线程工厂            |                                                              |
-| handler         | 拒绝策略            | 默认AbortPolicy（抛出异常），CallerRunsPolicy(只用调用者所在线程来运行任务)、DiscardOldestPolicy(丢弃队列里最近的一个任务，再执行当前任务)、DiscardPolicy(不处理) |
+| corePoolSize        | 核心数量            | 同时运行的最小线程数量                                       |
+| ------------------- | ------------------- | ------------------------------------------------------------ |
+| **maximumPoolSize** | 最大数量            |                                                              |
+| keepAliveTime       | 存活时间            | 线程数量上限 && 存活时间 > keepAliveTime，销毁线程           |
+| unit                | keepAliveTime的单位 |                                                              |
+| **workQueue**       | 任务队列            | 每次加入任务都判断池内正在运行的线程数量                     |
+| threadFactory       | 线程工厂            |                                                              |
+| handler             | 拒绝策略            | 默认AbortPolicy（抛出异常），CallerRunsPolicy(只用调用者所在线程来运行任务)、DiscardOldestPolicy(丢弃队列里最近的一个任务，再执行当前任务)、DiscardPolicy(不处理) |
 
 
 
@@ -7520,10 +7887,24 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
+
+
 #### 线程数的设置
 
 - **CPU 密集型任务(N+1)：**这种任务主要消耗CPU资源，N+1是为了防止线程偶发的缺页中断，或者其它原因导致的任务暂停而带来的影响,多出来的一个线程可以充分利用 CPU 的空闲时间
 - **I/O 密集型任务(2N)：**系统会用大部分的时间来处理I/O，而线程在处理I/O时不占用CPU时间片，这时就可以将 CPU 交给其它线程使用
+
+
+
+> **线程池的参数不好配置的原因**
+>
+> 线程池的运行机制不好理解，配置合理需要强依赖开发人员的个人经验和知识；
+>
+> 线程池执行的情况和任务类型相关性较大，IO/CPU密集型的任务运行起来的情况差异非常大
+
+
+
+
 
 
 
@@ -7651,6 +8032,8 @@ static final class RunnableAdapter<T> implements Callable<T> {
 
 ### Executor
 
+<img src="image.assets/任务的执行相关接口.png" style="zoom: 80%;" />
+
 
 
 #### execute
@@ -7675,7 +8058,18 @@ Executor框架的三大组成
 
 
 
-![](image.assets/任务的执行相关接口.png)
+![](image.assets/Executor框架的使用示意图.png)
+
+1. **主线程首先创建实现 `Runnable`/`Callable` 接口的任务对象**
+2. **把任务对象直接交给 `ExecutorService` 执行**: `execute`/`submit`
+3. **`ExecutorService.submit`将返回实现`Future`接口的对象**
+4. **主线程可以执行 `FutureTask.get()`方法来等待任务执行完成。 `FutureTask.cancel`取消执行**
+
+
+
+
+
+
 
 ### ExecutorService
 
@@ -7814,18 +8208,20 @@ public abstract class AbstractExecutorService implements ExecutorService {}
 public class ThreadPoolExecutor extends AbstractExecutorService {
   //32位,高3位表示runState运行状态,低29位表示workerCount工作线程数量
   private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+  private static int ctlOf(int rs, int wc) { return rs | wc; }	//合并rs,wc->ctl
+  
   private static final int COUNT_BITS = Integer.SIZE - 3;	//29位
-  private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//用于位运算
-
   private static final int RUNNING    = -1 << COUNT_BITS;	//运行态
-  private static final int SHUTDOWN   =  0 << COUNT_BITS;	//关闭态，不接受新任务，但处理队列中的任务
-  private static final int STOP       =  1 << COUNT_BITS;	//停止态，不接受新任务，不处理队列中任务，且打断运行中任务
+  private static final int SHUTDOWN   =  0 << COUNT_BITS;	//关闭态，不接受新任务，处理队列任务
+  private static final int STOP       =  1 << COUNT_BITS;	//停止态，不接受新任务，不处理队列任务，打断运行中任务
   private static final int TIDYING    =  2 << COUNT_BITS;	//整理态，所有任务已结束 && workerCount=0，执行terminated()后进入结束态
   private static final int TERMINATED =  3 << COUNT_BITS;	//结束态
 
+  
+  private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//用于位运算
   private static int runStateOf(int c)     { return c & ~CAPACITY; }	//获取运行状态	容量取反->29个0	与运算获得高3位的状态
   private static int workerCountOf(int c)  { return c & CAPACITY; }
-  private static int ctlOf(int rs, int wc) { return rs | wc; }	//合并rs,wc->ctl
+  
 
   private final BlockingQueue<Runnable> workQueue;
   
@@ -7835,6 +8231,30 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
   private final Condition termination = mainLock.newCondition();
 }
 ```
+
+
+
+#### 可变参数的线程池
+
+[setCorePoolSize](#setCorePoolSize)提供了改变工作线程数的接口,无法添加大于任务队列大小的工作线程
+
+ThreadPoolExecutor也没有提供改变任务队列大小的接口
+
+
+
+美团技术团队的思路是主要对线程池的核心参数实现自定义可配置。这三个核心参数是：
+
+- **`corePoolSize` :** 核心线程数线程数定义了最小可以同时运行的线程数量。
+- **`maximumPoolSize` :** 当队列中存放的任务达到队列容量的时候，当前可以同时运行的线程数量变为最大线程数。
+- **`workQueue`:** 当新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，信任就会被存放在队列中。
+
+自定义了一个叫做 `ResizableCapacityLinkedBlockIngQueue` 的队列（主要就是把`LinkedBlockingQueue`的capacity 字段的final关键字修饰给去掉了，让它变为可变的）。
+
+
+
+
+
+
 
 
 
@@ -8002,7 +8422,7 @@ final void runWorker(Worker w) {
 
 
 
-#### getTask()
+#### getTask
 
 ```java
 /**
@@ -8175,6 +8595,33 @@ private void interruptWorkers() {
 
 
 
+#### setCorePoolSize
+
+```java
+public void setCorePoolSize(int corePoolSize) {
+  if (corePoolSize < 0) throw new IllegalArgumentException();
+  int delta = corePoolSize - this.corePoolSize;
+  this.corePoolSize = corePoolSize;
+  if (workerCountOf(ctl.get()) > corePoolSize)
+    interruptIdleWorkers();
+  else if (delta > 0) { //需要添加工作线程时
+    int k = Math.min(delta, workQueue.size()); //首先,不需要比队列还长的工作线程数
+    while (k-- > 0 && addWorker(null, true)) { //尝试循环添加工作线程
+      if (workQueue.isEmpty()) //当任务队列为空则立即停止
+        break;
+    }
+  }
+}
+```
+
+
+
+
+
+
+
+
+
 #### Worker
 
 
@@ -8287,6 +8734,40 @@ public class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements S
   }
 }
 ```
+
+
+
+
+
+#### 运行机制
+
+
+
+![](image.assets/ScheduledThreadPoolExecutor机制.png)
+
+**`ScheduledThreadPoolExecutor` 的执行主要分为两大部分：**
+
+1. 当调用 `ScheduledThreadPoolExecutor` 的 **`scheduleAtFixedRate()`** /**`scheduleWithFixedDelay()`** 方法时，会向 `ScheduledThreadPoolExecutor` 的 **`DelayQueue`** 添加一个实现了 **`RunnableScheduledFuture`** 接口的 **`ScheduledFutureTask`** 。
+2. 线程池中的线程从 `DelayQueue` 中获取 `ScheduledFutureTask`，然后执行任务。
+
+**`ScheduledThreadPoolExecutor` 为了实现周期性的执行任务，对 `ThreadPoolExecutor`做了如下修改：**
+
+- 使用 **`DelayQueue`** 作为任务队列；
+- 获取任务的方不同
+- 执行周期任务后，增加了额外的处理
+
+
+
+
+
+![](image.assets/ScheduledThreadPoolExecutor执行周期任务步骤.png)
+
+1. 线程 1 从 `DelayQueue` 中获取已到期的 `ScheduledFutureTask（DelayQueue.take()）`。到期任务是指 `ScheduledFutureTask`的 time 大于等于当前系统的时间；
+2. 线程 1 执行这个 `ScheduledFutureTask`；
+3. 线程 1 修改 `ScheduledFutureTask` 的 time 变量为下次将要被执行的时间；
+4. 线程 1 把这个修改 time 之后的 `ScheduledFutureTask` 放回 `DelayQueue` 中（`DelayQueue.add()`)。
+
+
 
 
 
@@ -9308,6 +9789,30 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 
 
 
+## JNI
+
+
+
+JNI的实现大多为C/C++代码,但对于新版的JDK来说,不需要依赖于其他语言的实现来加快运行速度
+
+
+
+依赖于JNI进行编程将导致:
+
+依赖的类不能被及时更新,其他语言并不会及时地去更新JNI的实现
+
+JNI具有不安全性,会受到内存损坏错误的影响
+
+难以调试
+
+GC无法追踪本机内存的使用情况,导致无法自动GC
+
+
+
+
+
+
+
 
 
 
@@ -10283,7 +10788,19 @@ String str4 = str1 + str2;//堆中创建新对象
 
 这两种不同的创建方法是有差别的。
 
-![2019-3String-Pool-Java1-450x249](image.assets/2019-3String-Pool-Java1-450x249.png)
+![](image.assets/2019-3String-Pool-Java1-450x249.png)
+
+
+
+字符串在进行 +运算 时,双方的内容都需要被拷贝,这将引发性能问题
+
+
+
+
+
+
+
+
 
 
 
