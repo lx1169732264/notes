@@ -4712,6 +4712,20 @@ isHeldExclusively() //该线程是否正在独占资源。只有用到condition�
 
 
 
+### acquireSharedInterruptibly
+
+```java
+public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
+    if (Thread.interrupted()) throw new InterruptedException();
+    if (tryAcquireShared(arg) < 0)
+        doAcquireSharedInterruptibly(arg);
+}
+```
+
+
+
+
+
 ### addWaiter
 
 ```java
@@ -4892,7 +4906,7 @@ private Node addConditionWaiter() {
 
 
 
-### CountDownLatch 闭锁
+### CountDownLatch
 
 
 
@@ -4914,11 +4928,83 @@ private Node addConditionWaiter() {
 
 
 
+**缺点**
+
+属于==一次性==的计数器,没提供让计数器自增的方法
+
+
+
 **适用场景**:
 
 1.多个线程await,一个线程countDown通知并发运行
 
 2.一个线程await,多个线程countDown
+
+
+
+```java
+public class CountDownLatch {
+    private final CountDownLatch.Sync sync;
+}
+```
+
+
+
+#### Sync
+
+```java
+private static final class Sync extends AbstractQueuedSynchronizer {
+
+  protected int tryAcquireShared(int var1) {
+    return this.getState() == 0 ? 1 : -1; //state为0才算await的获取锁成功
+  }
+
+  protected boolean tryReleaseShared(int var1) {
+    int var2;
+    int var3;
+    do {
+      var2 = this.getState();
+      if (var2 == 0) {
+        return false;
+      }
+
+      var3 = var2 - 1;
+    } while(!this.compareAndSetState(var2, var3));
+
+    return var3 == 0;
+  }
+}
+```
+
+
+
+#### await
+
+```java
+public void await() throws InterruptedException {
+  this.sync.acquireSharedInterruptibly(1);
+}
+```
+
+await的调用链
+
+![](image.assets/616953-20160420173519335-325433593.png)
+
+
+
+#### countDown
+
+```java
+public void countDown() {
+    this.sync.releaseShared(1);
+}
+```
+
+countDown的调用链
+
+![](image.assets/616953-20160420172401757-1374685850.png)
+
+
 
 
 
@@ -4948,26 +5034,135 @@ countDownLatch.countDown();
 
 
 
-可循环(Cyclic)使用的屏障(barrier)
+可循环(Cyclic)屏障(barrier)
+
+基于`ReentrantLock`(AQS)+`Condition`
 
 让一组线程到达屏障时被阻塞,直到**所有线程到达屏障时才唤醒所有被拦截的线程**
 
 ```java
 public class CyclicBarrier {
-  public CyclicBarrier(int parties, Runnable barrierAction) {
-    if (parties <= 0) throw new IllegalArgumentException();
-    this.parties = parties;
-    this.count = parties;
-    this.barrierCommand = barrierAction;
-  }
 
-  public CyclicBarrier(int parties) {
-    this(parties, null);
+  private final ReentrantLock lock = new ReentrantLock();
+  private final Condition trip = lock.newCondition();
+
+  private final int parties; //拦截线程的数量
+  private int count; //计数,为0打破屏障
+
+  private final Runnable barrierCommand; //解除屏障后优先执行的任务
+
+  private Generation generation = new Generation();
+
+  public class CyclicBarrier {
+    public CyclicBarrier(int parties, Runnable barrierAction) {
+      if (parties <= 0) throw new IllegalArgumentException();
+      this.parties = parties;
+      this.count = parties;
+      this.barrierCommand = barrierAction;
+    }
+
+    public CyclicBarrier(int parties) {
+      this(parties, null);
+    }
   }
 }
 ```
 
 
+
+#### nextGeneration
+
+```java
+private void nextGeneration() {
+  trip.signalAll();
+  count = parties;
+  generation = new Generation(); //重置Generation.broken属性
+}
+```
+
+
+
+#### breakBarrier
+
+```java
+private void breakBarrier() {
+  generation.broken = true;
+  count = parties; //可循环使用的阻塞线程个数
+  trip.signalAll();  //唤醒
+}
+```
+
+
+
+#### await
+
+```java
+public int await() throws InterruptedException, BrokenBarrierException {
+  return dowait(false, 0L);
+}
+
+private int dowait(boolean timed, long nanos) throws InterruptedException, BrokenBarrierException, TimeoutException {
+  final ReentrantLock lock = this.lock;
+  lock.lock();
+  try {
+    final Generation g = generation;
+    if (g.broken) throw new BrokenBarrierException(); //判断屏障是否已被打破
+
+    if (Thread.interrupted()) {
+      breakBarrier();
+      throw new InterruptedException();
+    }
+
+    int index = --count;
+    if (index == 0) {
+      boolean ranAction = false;
+      try {
+        final Runnable command = barrierCommand;
+        if (command != null)
+          command.run(); //优先执行的指令,在构造方法传入
+        ranAction = true;
+        nextGeneration(); //初始化下一个屏障
+        return 0;
+      } finally {
+        if (!ranAction)
+          breakBarrier();
+      }
+    }
+
+    for (;;) {
+      try {
+        if (!timed)
+          trip.await();
+        else if (nanos > 0L)
+          nanos = trip.awaitNanos(nanos);
+      } catch (InterruptedException ie) {
+        if (g == generation && ! g.broken) {
+          breakBarrier();
+          throw ie;
+        } else {
+          // We're about to finish waiting even if we had not
+          // been interrupted, so this interrupt is deemed to
+          // "belong" to subsequent execution.
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      if (g.broken)
+        throw new BrokenBarrierException();
+
+      if (g != generation)
+        return index;
+
+      if (timed && nanos <= 0L) {
+        breakBarrier();
+        throw new TimeoutException();
+      }
+    }
+  } finally {
+    lock.unlock();
+  }
+}
+```
 
 
 
@@ -5003,9 +5198,17 @@ for (int i = 1; i <= 7; i++) {
 
 
 
+#### CyclicBarrier VS CountDownLatch
+
+| CountDownLatch                   | CyclicBarrier                |
+| -------------------------------- | ---------------------------- |
+| 一次性的计数                     | 通过reset()重复使用          |
+| 同时支持1运行n等待 和 1等待n运行 | 只支持n等待时再运行,灵活度低 |
+|                                  |                              |
+
+
+
 ### Phaser
-
-
 
 强调阶段,类似于分阶段的内存屏障
 
@@ -5013,7 +5216,7 @@ for (int i = 1; i <= 7; i++) {
 
 
 
-```
+```java
 bulkRegister()	指定屏障拦截的线程数量
 
 onAdvance()	需重写方法,自定义各个阶段的业务,以int表示阶段
@@ -5021,8 +5224,6 @@ onAdvance()	需重写方法,自定义各个阶段的业务,以int表示阶段
 arriveAndAwaitAdvance()	线程到达,并参与后续阶段
 
 arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
-
-
 ```
 
 
@@ -5037,12 +5238,18 @@ arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
 
 
 
-### Semaphore 信号量
+### Semaphore
+
+信号量
 
 **`synchronized` / `ReentrantLock` 同时只允许一个线程访问某资源，`Semaphore`(信号量)可以指定线程数同时访问**
 
-它将构造 AQS 的 state 为 `permits`。当执行任务的线程数量超出 `permits`，那么多余的线程将会被放入阻塞队列 Park,并自旋判断 state 是否大于 0。只有当 state 大于 0 的时候，阻塞的线程才能继续执行,此时先前执行任务的线程继续执行 `release()` 方法，`release()` 方法使得 state 的变量会加 1，那么自旋的线程便会判断成功。
+将构造 AQS 的 state 为 `permits`。当执行任务的线程数量超出 `permits`，那么多余的线程将会被放入阻塞队列 Park,并自旋判断 state 是否大于 0。只有当 state 大于 0 的时候，阻塞的线程才能继续执行,此时先前执行任务的线程继续执行 `release()` 方法，`release()` 方法使得 state 的变量会加 1，那么自旋的线程便会判断成功。
 如此，每次只有最多不超过 `permits` 数量的线程能自旋成功，便限制了执行任务线程的数量
+
+![](image.assets/16317a4db0f8406b)
+
+
 
 
 
@@ -5055,12 +5262,32 @@ arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
 
 
 ```java
-public Semaphore(int permits) { //默认非公平
-  sync = new NonfairSync(permits); //同时执行的线程数量
-}
+public class Semaphore implements Serializable {
+  private final Semaphore.Sync sync; //Semaphore的内部类
+  
+  public Semaphore(int permits) { //默认非公平
+    sync = new NonfairSync(permits); //同时执行的线程数量
+  }
 
-public Semaphore(int permits, boolean fair) { //也支持公平
-  sync = fair ? new FairSync(permits) : new NonfairSync(permits);
+  public Semaphore(int permits, boolean fair) { //也支持公平
+    sync = fair ? new FairSync(permits) : new NonfairSync(permits);
+  }
+}
+```
+
+
+
+#### Sync
+
+Semaphore的内部类
+
+```java
+abstract static class Sync extends AbstractQueuedSynchronizer {
+  private static final long serialVersionUID = 1192457210091910933L;
+
+  Sync(int var1) {
+    this.setState(var1); //将AQS的state置为最大同时运行线程数
+  }
 }
 ```
 
@@ -5472,10 +5699,6 @@ public final class Unsafe {
 
 
 
-
-
-
-
 有以下阻塞队列的实现：
 
 -   **FIFO 队列**：LinkedBlockingQueue、ArrayBlockingQueue（固定长度）
@@ -5491,22 +5714,6 @@ public interface BlockingQueue<E> extends Queue<E> {
   E take() throws InterruptedException;
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -7661,17 +7868,13 @@ private final boolean parkAndCheckInterrupt() {
 
 ### LockSupport
 
-
-
 线程阻塞工具类，**都是静态方法**，让线程在任意位置阻塞/唤醒
 
 
 
 **Permit许可**
 
-每个线程都有许可(permit)
-
-可以把许可看成是一种(0,1)信号量，默认0，但**与Semaphore不同的是，permit不能累加**
+每个线程都有许可(permit),可视为(0,1)信号量，默认0，但**与Semaphore不同的是，permit不能累加**
 
 
 
@@ -7696,6 +7899,18 @@ public static void parkNanos(Object blocker, long nanos) {
 public static void unpark(Thread thread) {
   if (thread != null)
     UNSAFE.unpark(thread);
+}
+```
+
+
+
+#### setBlocker
+
+blocker记录线程被谁阻塞,用于线程监控和分析
+
+```java
+private static void setBlocker(Thread t, Object arg) {
+  UNSAFE.putObject(t, parkBlockerOffset, arg);
 }
 ```
 
@@ -9209,9 +9424,9 @@ private V report(int s) throws ExecutionException {
 
 # JVM
 
+JVM是运行字节码的虚拟机。针对不同系统的有不同的特定实现，从而相同字节码得到相同结果。字节码和不同系统的 JVM 实现是 Java “一次编译，随处可以运行”的关键所在
 
-
-JVM是运行字节码的虚拟机。针对不同系统的JVM特定实现（Windows，Linux，macOS），从而用相同的字节码得到相同的结果。字节码和不同系统的 JVM 实现是 Java 语言“一次编译，随处可以运行”的关键所在
+JVM与操作系统交互,操作系统与硬件交互
 
 
 
@@ -9263,50 +9478,67 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 虚拟机和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
 
+为了保证**线程中的局部变量不被别的线程访问**,栈线程私有
+
+**栈管运行，堆管存储**
+
 ![img](image.assets/8442519f-0b4d-48f4-8229-56f984363c69.png)
 
 
 
-* 虚拟机栈==大小在编译时确定==,由一个个栈帧组成,
+#### 虚拟机栈
 
-  * ==基本类型,对象引用和局部变量表==(JOL的类型指针/实例数据)
+==大小在编译时确定==,由若干栈帧组成
 
-    * **局部变量不会被赋初值**,不像类变量在加载过程中有准备阶段
-    * 局部变量表存放了编译器可知的基本类型,对象引用(不同于对象本身,可能是一个指向对象起始地址的指针,可也能是指向代表对象的句柄 或 其他与此对象相关的位置)
+基本类型变量 / 对象的引用变量 / 实例方法 都在栈分配内存
 
-  * ==操作数栈==(工作空间)
+生命周期与线程相同 -> 不存在GC,只要线程死亡,栈空间将自动释放
 
-    * 方法执行过程中，各种字节码指令往操作数栈中读/写(出入栈) -> 方法的执行等同于出入栈
-  * Jvm的解释执行引擎就基于操作数栈
+线程私有,有专门寄存器存放栈的地址，压栈出栈有专门指令
 
-  * ==动态链接==,指向方法区中的方法表,从而支持方法调用的动态链接
-  * .class文件的常量池中有大量符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
+* ==基本类型,对象引用和局部变量表==(JOL的类型指针/实例数据)
 
-  * ==方法出口信息==
+  * **局部变量不会被赋初值**,不像类变量在加载过程中有准备阶段
+  * 局部变量表存放 方法参数 / 方法内定义的局部变量 / 对象引用(不同于对象本身,可能是指向对象起始地址的指针,可也能是指向代表对象的句柄 或 其他与此对象相关的位置)
+  * 局部变量表的容量以Slot为最小单位，一个slot存放2^32^,JVM通过索引定位使用局部变量表。为了节省栈帧空间，**slot是可以复用的,不可达的变量可以被直接覆盖，所以栈中的变量不会被GC**
 
-    * 正常出口：执行引擎遇到返回的字节码指令，将返回值传递给上层的方法调用者,**栈帧被弹出**
-    * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，调用者不会得到返回值,**栈帧被弹出**
-    * 不管是正常/异常方法退出,栈帧都会出栈。恢复调用方的局部变量表和操作数栈，并把返回值压入调用方的操作数栈，调整PC计数器,执行下一条指令
-    
-    一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为栈帧信息
-    
-  * 线程私有，生命周期与线程相同,有专门寄存器存放栈的地址，压栈出栈有专门指令
+* ==操作数栈==(工作空间)
 
-  * 按定义顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
+  * 方法执行过程中，各种字节码指令往操作数栈中读/写(出入栈) -> 方法的执行等同于出入栈
+  * Jvm的解释执行引擎基于操作数栈
+  
+* ==动态链接==,指向方法区中的方法表,从而支持方法调用的动态链接
+  
+* .class文件的常量池中有大量符号引用，字节码中的方法调用以常量池指向的方法的符号引用作为参数,这些符号引用一部分会在类加载阶段（解析）或首次使用的时转化为直接引用，这种转化成为静态解析，另一部分成为动态连接
+  
+* ==方法出口信息==
 
-  * **线程请求的栈深度大于虚拟机所允许的深度，StackOverflowError**
+  * 正常出口：执行引擎遇到返回的字节码指令，将返回值传递给上层的方法调用者,**栈帧被弹出**
+  * 异常出口：遇到未处理的异常(本地异常表没有匹配的异常处理器),执行引擎不会读取方法返回地址，调用者不会得到返回值,**栈帧被弹出**
+  * 不管是正常/异常方法退出,栈帧都会出栈。恢复调用方的局部变量表和操作数栈，并把返回值压入调用方的操作数栈，调整PC计数器,执行下一条指令
+  
+  一般把动态连接、方法返回地址和其他附加信息全部归为一类，成为**栈帧**信息,栈帧其实就是方法,存储方法和运行时的数据集
+  
+* 按定义顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
 
-* 本地方法栈
+* **线程请求的栈深度大于虚拟机所允许的深度StackOverflowError**,通常由递归引起
 
-  * 提供本地方法服务（native）
-  * 本地方法被执行时,在本地方法栈也会创建一个栈帧,用于存放该本地方法的局部变量表、操作数栈、动态链接、出口信息
-  * 方法结束后也会进行类似虚拟机栈的出栈和释放空间,也会出现 `StackOverFlowError` 和 `OutOfMemoryError` 两种错误
+* 虚拟机栈的动态拓展会不断地申请内存,当无法申请到足够的内存时,OOM
+
+
+
+#### 本地方法栈
+
+* 本地方法被执行时,在本地方法栈也会创建一个栈帧,用于存放该本地方法的局部变量表、操作数栈、动态链接、出口信息
+* 方法结束后也会进行类似虚拟机栈的出栈和释放空间,也会出现 `StackOverFlowError` 和 `OutOfMemoryError` 两种错误
 
 ==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
 
 
 
-为了保证**线程中的局部变量不被别的线程访问**,栈线程私有
+
+
+
 
 
 
@@ -9421,12 +9653,16 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 ![](image.assets/image-20201024224300360.png)
 
-> 《Java 虚拟机规范》只规定了有方法区这么个概念和它的作用，并没有规定如何去实现它。**方法区和永久代的关系类似接口和类的关系，永久代就是 HotSpot对虚拟机规范中方法区的一种实现方式。** 也就是说，方法区是 Java 虚拟机规范中的定义,永久代是 HotSpot对方法区的实现，其他虚拟机实现并没有永久代
+> 《Java虚拟机规范》只规定方法区的概念和作用，并没有规定如何实现。**方法区和永久代的关系类似接口和类，永久代是HotSpot对方法区的一种实现方式**,其他JVM实现并没有永久代
 
 
 
-* 只有1个,共享
-* ==已被虚拟机加载的class信息 : 类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
+只有1个,共享,会在无法满足内存分配时报错
+
+==已被JVM加载的class信息 : 类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
+
+
+
 * 方法表
   * 实现动态调用的核心,存放在方法区中的类型信息中
   * 方法区的类型信息指向方法表，方法表指向具体方法,这些方法中包括从父类继承/自身重写
@@ -9498,15 +9734,15 @@ class对象没有在任何地方被引用，无法在任何地方通过反射访
 
 ### 程序计数器
 
-**字节码解释器 通过改变计数器的值来依次读取指令**，从而实现代码的流程控制：顺序执行、选择、循环、异常处理
+**字节码解释器通过改变计数器的值来依次读取指令**，从而实现流程控制：顺序执行、选择、循环、异常处理
 
-**为了线程切换能恢复到正确的位置**，程序计数器为线程私有
+**为了线程切换能恢复到正确的位置**，程序计数器线程私有
 
-执行的是 native的话，程序计数器记录的是 undefined 地址，只有执行的是 Java 代码时程序计数器记录的才是下一条指令的地址
+执行native时记录undefined，执行Java代码时记录下一条指令的地址
 
 
 
-**不会OOM**,生命周期随着线程的创建而创建，随着线程的结束而死亡
+**不会OOM**,生命周期随线程的创建而创建，随着线程的结束而死亡
 
 
 
@@ -10283,20 +10519,22 @@ G1 把堆划分成多个大小相等的独立区域（Region），新生代和�
 
 每个类加载器都有独立的类名称空间,==类相同前提是被同一个类加载器加载==,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
 
-
-
-1. 启动类加载器 Bootstrap ClassLoader	负责JACA_HOME\lib 核心类加载 该加载器无法直接获取
-
-2. 扩展类加载器 Extension ClassLoader	负责JRE的扩展目录\lib\ext加载
-
-3. 应用程序类加载器 Application ClassLoader  加载ClassPath中的类库
-4. 自定义类加载器 User ClassLoader  通过继承ClassLoader实现，加载自定义类以及导入的jar包
+Class Loader只负责.class文件的加载,能否运行由执行引擎决定
 
 
 
-##### 双亲委派模型
+1. 启动类加载器 Bootstrap ClassLoader	rt.jar 核心类加载 该加载器无法直接获取
 
-**所有的加载请求委托到启动类加载器**，当父加载器无法完成加载（没找到所需的类）,子加载器尝试自己加载
+2. 扩展类加载器 Extension ClassLoader	JRE扩展目录\lib\ext
+
+3. 应用程序类加载器 Application ClassLoader  加载ClassPath下的jar
+4. 自定义类加载器 Custom ClassLoader  继承ClassLoader，加载自定义类/导入的jar包
+
+
+
+#### 双亲委派模型
+
+**所有加载请求委托到启动类加载器**，当父加载器无法完成加载（没找到所需的类）,子加载器尝试自己加载
 
 自底向上再自顶向下,**保证类只被加载一次**
 
@@ -10324,17 +10562,13 @@ G1 把堆划分成多个大小相等的独立区域（Region），新生代和�
 
 
 
-
-
 #### 加载
 
-1. 通过类完全限定名(com.xxx.class)获取类的二进制字节流,将.class读入内存得到成员变量/方法,构造方法
-2. 将字节流代表的静态存储结构转化为方法区的运行时数据结构 (封装类在方法区内的数据结构)
-3. 在堆中生成class对象, 作为方法区数据的访问入口
+1. 通过类完全限定名(com.xxx.class)获取**类的二进制字节流**,将.class文件读入内存
+2. 将字节流代表的**静态存储结构转化为方法区的运行时数据结构** (封装类在方法区内的数据结构)
+3. **在堆中生成class对象**, 作为方法区数据的访问入口
 
-可以通过自定义类加载器参与加载,这也是**类加载唯一能控制的部分**,其余动作完全由JVM控制
-
-
+可以通过自定义类加载器参与加载,这也是**类加载唯一能控制的部分**
 
 ==数组类型通过JVM直接创建,不通过类加载器==
 
@@ -10353,7 +10587,7 @@ G1 把堆划分成多个大小相等的独立区域（Region），新生代和�
 
 #### 验证
 
-检查.class正确性
+检查.class文件的正确性,保证被校验类的方法在运行时不会做出危害JVM
 
 | 文件格式检验 | 字节流是否符合.class格式的规范, 并能被当前版本JVM处理        |
 | ------------ | ------------------------------------------------------------ |
@@ -10376,7 +10610,7 @@ public static final int value = 123;	//在准备阶段被赋值123而不是0
 
 #### 解析
 
-将常量池中**符号引用转为直接引用**,也就是得到类或者字段、方法在内存中的指针或者偏移量
+将常量池中**符号引用转为直接引用**,也就是得到类或者字段、方法在内存中的偏移量
 
 比如说类中方法中的运算, 运算中符号a=1 去掉a直接变成1, 节约资源
 
@@ -10388,22 +10622,28 @@ public static final int value = 123;	//在准备阶段被赋值123而不是0
 
 #### 初始化
 
-是执行构造方法的过程,类加载的最后一步
+是执行`<clinit>()`的过程,也是类加载的最后一步
 
-JVM保证`<clinit> ()`的加锁调用 -> 构造方法在多线程时被正确的加锁/同步，同时只有一个线程去执行构造器
+JVM保证`<clinit>()`的加锁调用 -> 同时只有一个线程执行构造/类变量依序赋值
 
-对类变量依序赋值
+
+
+非静态资源初始化`<init>`
+
+静态资源初始化`<clinit>`
+
+类构造器方法`<clinit>()`
 
 
 
 **初始化时机：**
 
-1. new/getstatic/putstatic/invokestatic四条字节码指令
+1. 四条字节码指令 new/getstatic/putstatic/invokestatic
 2. 反射调用
 3. 类初始化时，父类未初始化
-4. JVM启动时，先初始化main()的主类
+4. JVM启动初始化main()的主类
 5. MethodHandle 和 VarHandle 可以看作是轻量级的反射调用机制，而要想使用这 2 个调用，
-   就必须先使用 findStaticVarHandle 来初始化要调用的类。
+   就必须先使用 findStaticVarHandle 来初始化要调用的类
 6. ==接口中定义了default方法,接口的实现类初始化前要把接口初始化==
 
 
