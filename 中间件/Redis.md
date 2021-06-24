@@ -34,47 +34,41 @@
 
 
 
-
-
-
-
 ### Read/Write Through Pattern（读写穿透）
 
-Read/Write Through Pattern 中服务端把 cache 视为主要数据存储，从中读取数据并将数据写入其中。cache 服务负责将此数据读取和写入 DB，从而减轻了应用程序的职责。
+cache 作为主要数据存储，**在cache进行数据修改。cache服务器 负责将修改后的数据写入 DB**，从而减轻了DB压力
 
-这种缓存读写策略小伙伴们应该也发现了在平时在开发过程中非常少见。抛去性能方面的影响，大概率是因为我们经常使用的分布式缓存 Redis 并没有提供 cache 将数据写入DB的功能。
+但Redis 并没有提供 cache 将数据写入DB的功能,所以这个不常用
 
 **写（Write Through）：**
 
 - 先查 cache，cache 中不存在，直接更新 DB。
-- cache 中存在，则先更新 cache，然后 cache 服务自己更新 DB（**同步更新 cache 和 DB**）。
+- cache 中存在，则先更新 cache，然后 cache 服务自己更新 DB（**同步更新 cache 和 DB**）
 
-简单画了一张图帮助大家理解写的步骤。
 
-![](image.assets/20210201100340808.png)
 
 **读(Read Through)：** 
 
-- 从 cache 中读取数据，读取到就直接返回 。
-- 读取不到的话，先从 DB 加载，写入到 cache 后返回响应。
+- 从 cache 中读取数据，读取到就直接返回
+- 读取不到的话，先从 DB 加载，写入到 cache 后返回响应
 
-简单画了一张图帮助大家理解读的步骤。
 
-![](image.assets/9ada757c78614934aca11306f334638d.png)
 
-Read-Through Pattern 实际只是在 Cache-Aside Pattern 之上进行了封装。在 Cache-Aside Pattern 下，发生读请求的时候，如果 cache 中不存在对应的数据，是由客户端自己负责把数据写入 cache，而 Read Through Pattern 则是 cache 服务自己来写入缓存的，这对客户端是透明的。
+Read-Through Pattern 实际只是在 Cache-Aside Pattern 之上进行了封装。在 Cache-Aside Pattern 下，发生读请求的时候，如果 cache 中不存在对应的数据，是由客户端自己负责把数据写入 cache，而 Read Through Pattern 则是 cache 服务自己来写入缓存的，对客户端透明
 
-和 Cache Aside Pattern 一样， Read-Through Pattern 也有首次请求数据一定不再 cache 的问题，对于热点数据可以提前放入缓存中。
+和 Cache Aside Pattern 一样， Read-Through Pattern 也有首次请求数据一定不再 cache 的问题，对于热点数据可以提前放入缓存中
+
+
 
 ### Write Behind Pattern（异步缓存写入）
 
-Write Behind Pattern 和 Read/Write Through Pattern 很相似，两者都是由 cache 服务来负责 cache 和 DB 的读写。
+Write Behind Pattern 和 Read/Write Through Pattern 很相似，两者都是由 cache 服务来负责 cache 和 DB 的读写
 
-但是，两个又有很大的不同：**Read/Write Through 是同步更新 cache 和 DB，而 Write Behind Caching 则是只更新缓存，不直接更新 DB，而是改为异步批量的方式来更新 DB。**
+但**Write Behind Caching 只更新缓存，异步批量更新 DB**
 
-很明显，这种方式对数据一致性带来了更大的挑战，比如cache数据可能还没异步更新DB的话，cache服务可能就就挂掉了。
+这种方式对数据一致性带来了更大的挑战，比如cache数据可能还没异步更新DB的话，cache服务可能就就挂掉了
 
-这种策略在我们平时开发过程中也非常非常少见，但是不代表它的应用场景少，比如消息队列中消息的异步写入磁盘、MySQL 的 InnoDB Buffer Pool 机制都用到了这种策略。
+这种策略适合消息队列中消息的异步写入磁盘、InnoDB Buffer Pool 机制也用到了这种策略
 
 Write Behind Pattern 下 DB 的写性能非常高，非常适合一些数据经常变化又对数据一致性要求没那么高的场景，比如浏览量、点赞量
 

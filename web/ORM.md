@@ -306,3 +306,36 @@ ListenableFuture<User> findOneByLastname(String lastname);	//org.springframework
 
 **当对查询结果进行操作时,提示用户可能为Null**,只辅助代码提示,不对查询结果是否可以为Null作限制
 
+
+
+
+
+## 非持久化一个字段
+
+
+
+```java
+static String transient1;
+
+final String transient2 = “Satish”;
+
+transient String transient3;
+
+@Transient
+String transient4; //注解形式的瞬态
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

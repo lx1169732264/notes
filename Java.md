@@ -1,3 +1,11 @@
+一个技术点，面试官常见的三连问：
+
+1. xxx是什么？
+2. xxx优缺点是什么？
+3. xxx应用及使用场景是什么？
+
+
+
 # 暂定
 
 #### JDK 和 JRE
@@ -38,7 +46,7 @@ Java的解释	[JIT](#JIT)
 
 静态方法属于类,在[加载](加载)时根据.class在堆中创建class对象 -> 支持通过类名直接访问
 
-非静态成员属于实例,此时内存中还不存在实例,也不存在实例的方法,所以无法被静态地访问
+非静态成员属于实例,此时内存中还不存在实例,也不存在实例的方法,所以无法被静态访问
 
 
 
@@ -226,6 +234,10 @@ parallel stream 底层使用的是 JVM 的 ForkJoinPool，分配线程很玄学,
 
 
 
+集合中存放对象的引用，实际内容都在堆/方法区里，但是基本数据类型是在栈上分配空间的。随时就被收回。通过自动包装类把基本类型转为对象类型,从而支持map.put(1)
+
+
+
 | List                       | Set                     | Map                 |
 | -------------------------- | ----------------------- | ------------------- |
 | 单列                       | 单列                    | 双列                |
@@ -248,26 +260,7 @@ parallel stream 底层使用的是 JVM 的 ForkJoinPool，分配线程很玄学,
 
 
 
-## Collection
-
-
-
 ## Collections
-
-
-
-### 排序
-
-```java
-void reverse(List list)//反转
-void shuffle(List list)//随机排序
-void sort(List list)//按自然排序的升序排序
-void sort(List list, Comparator c)//定制排序，由Comparator控制排序逻辑
-void swap(List list, int i , int j)//交换两个索引位置的元素
-void rotate(List list, int distance)//旋转。当distance为正数时，将list后distance个元素整体移到前面。当distance为负数时，将 list的前distance个元素整体移到后面
-```
-
-
 
 
 
@@ -279,127 +272,9 @@ int max(Collection coll)//根据元素的自然顺序，返回最大的元素。
 int max(Collection coll, Comparator c)//根据定制排序，返回最大元素，排序规则由Comparatator类控制。类比int min(Collection coll, Comparator c)
 void fill(List list, Object obj)//用指定的元素代替指定list中的所有元素。
 int frequency(Collection c, Object o)//统计元素出现次数
-int indexOfSubList(List list, List target)//统计target在list中第一次出现的索引，找不到则返回-1，类比int lastIndexOfSubList(List source, list target).
-boolean replaceAll(List list, Object oldVal, Object newVal), 用新元素替换旧元素
+int indexOfSubList(List list, List target)//统计target在list中第一次出现的索引，找不到则返回-1
+boolean replaceAll(List list, Object oldVal, Object newVal)//用新元素替换旧元素
 ```
-
-
-
-### ~~同步集合~~
-
-转换成线程安全的集合（==装潢模式==，将已有对象传入另一个类的构造器中,创建新对象来增加新功能）
-
-**最好不要用这些方法，效率低，需要线程安全的集合类型时请考虑使用 JUC 包下的并发集合**
-
-```java
-synchronizedCollection(Collection<T>  c)
-synchronizedList(List<T> list)
-synchronizedMap(Map<K,V> m) //返回由指定映射支持的同步（线程安全的）Map。
-synchronizedSet(Set<T> s) //返回指定 set 支持的同步（线程安全的）set。
-```
-
-
-
-
-
-### toArray
-
-
-
-toArray的空参方法返回的是Object[]
-
-可以调用有参构造,传入有类型的初始数组作为参数,因为参数只起到声明类型的作用,参数数组的长度可以为0
-
-```java
-public <T> T[] toArray(T[] a) {
-  if (a.length < size)
-    // 调用Arrays.copyOf(),传入了参数的class属性,利用反射
-    return (T[]) Arrays.copyOf(elementData, size, a.getClass());
-  System.arraycopy(elementData, 0, a, 0, size);
-  if (a.length > size)    a[size] = null;
-  return a;
-}
-```
-
-
-
-### unmodifiableList
-
-
-
-==装饰器模式==
-
-传入一个List实例la，返回这个list的只读视图，类型依然是List
-
-之后对视图进行add、remove等改变其内容的操作,直接抛出异常UnsupportedOperationException
-
-```java
-static class UnmodifiableList<E> extends UnmodifiableCollection<E> implements List<E> {
-
-  final List<? extends E> list;
-
-  UnmodifiableList(List<? extends E> list) {
-    super(list);
-    this.list = list;
-  }
-
-  public boolean equals(Object o) {return o == this || list.equals(o);}
-  public int hashCode()           {return list.hashCode();}
-
-  public E get(int index) {return list.get(index);}
-  public E set(int index, E element) {
-    throw new UnsupportedOperationException();
-  }
-  public void add(int index, E element) {    throw new UnsupportedOperationException();}
-  public E remove(int index) {   throw new UnsupportedOperationException(); }
-  public int indexOf(Object o)            {return list.indexOf(o);}
-  public int lastIndexOf(Object o)        {return list.lastIndexOf(o);}
-  public boolean addAll(int index, Collection<? extends E> c) {    throw new UnsupportedOperationException();}
-
-  @Override
-  public void replaceAll(UnaryOperator<E> operator) {   
-    throw new UnsupportedOperationException();
-  }
-  @Override
-  public void sort(Comparator<? super E> c) {  
-    throw new UnsupportedOperationException();
-  }
-```
-
-
-
-### <a name="Collections.sort">sort</a>
-
-```java
-public static <T> void sort(List<T> list, Comparator<? super T> c) {
-  list.sort(c);
-}
-```
-
-
-
-
-
-
-
-### toArray
-
-为泛型方法,无入参则返回`Object`类型数组
-
-入参数组只需定义类型 && 长度为0即可,节省空间,只起到声明返回值类型的作用
-
-```java
-<T> T[] toArray(T[] a);
-
-String [] s= new String[]{
-  "dog", "lazy", "a", "over", "jumps", "fox", "brown", "quick", "A"
-};
-List<String> list = Arrays.asList(s);
-Collections.reverse(list);
-s=list.toArray(new String[0]);//没有指定类型的话会报错
-```
-
-
 
 
 
@@ -449,45 +324,6 @@ public interface Comparator<T> {
 
 
 
-### HashSet
-
-==基于HashMap实现==,这也使得HashSet的源码非常非常少，除了clone()、writeObject()、readObject()是HashSet自己不得不实现之外，其他方法都是直接调用HashMap的方法
-
-
-
-```java
-public class HashSet<E> extends AbstractSet<E> implements Set<E>, Cloneable, Serializable{
-  private transient HashMap<E,Object> map;
-  private static final Object PRESENT = new Object();
-  public HashSet() {
-    map = new HashMap<>();
-  }
-  public HashSet(Collection<? extends E> c) {
-    map = new HashMap<>(Math.max((int) (c.size()/.75f) + 1, 16));
-    addAll(c);
-  }
-```
-
-
-
-#### add
-
-
-
-* 计算hashCode得到位置
-  * 该位置没有对象，直接插入
-  * 有对象，equals() ? 元素重复,不插入 : ==重新散列并插入==
-
-**hashCode决定存储位置，equals判断重复**
-
-
-
-
-
-
-
-
-
 ### TreeSet
 
 
@@ -500,37 +336,7 @@ public class HashSet<E> extends AbstractSet<E> implements Set<E>, Cloneable, Ser
 
 
 
-```java
-public class TreeMap<K,V> extends AbstractMap<K,V> implements NavigableMap<K,V>, Cloneable, Serializable{
-  private final Comparator<? super K> comparator;
-  private transient Entry<K,V> root;
-  private transient int size = 0;
-  private transient int modCount = 0;
-
-  public TreeMap() {
-    comparator = null;
-  }
-  public TreeMap(Comparator<? super K> comparator) {
-    this.comparator = comparator;
-  }
-}
-```
-
-
-
 ## List
-
-
-
-==List的多态==
-
-List list = new ArrayList() 与 ArrayList list = new ArrayList()
-
-List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变一行    
-
-这就是面向接口编程,LinkedList和ArrayList都实现了List接口,在List list时,并不知道实例化了Linked还是Array,但list都是要去add()
-
-这也是多态的体现,父类引用指向子类对象
 
 
 
@@ -545,90 +351,22 @@ List接口有多个实现类，从ArrayList换成LinkedList/Vector只需改变�
 
 
 
-| ArrayList                      | LinkedList | Vector                          |
-| ------------------------------ | ---------- | ------------------------------- |
-| Object[]                       | Object[]   | Node的双向链表                  |
-| 线程不安全                     | 不安全     | 安全                            |
-| 指定位置插入O(n) copy数组耗时  |            | 指定位置插入O(n) 额外的查找耗时 |
-| 支持RandomAccess(快速随机访问) |            |                                 |
-| 扩容的额外预留空间             |            | 存储前后节点的额外空间          |
-|                                |            |                                 |
-|                                |            |                                 |
+| ArrayList                       | LinkedList                | Vector                          |
+| ------------------------------- | ------------------------- | ------------------------------- |
+| Object[]                        | Object[]                  | Node的双向链表                  |
+| 线程不安全                      | 不安全                    | 安全                            |
+| 指定位置插入O(n) copy数组耗时   |                           | 指定位置插入O(n) 额外的查找耗时 |
+| 得益于数组结构,支持RandomAccess | 双向链表不支持RandomAcess |                                 |
+| 扩容的额外预留空间              |                           | 存储前后节点的额外空间          |
+| 1.5倍扩容                       | 链表天生不需要扩容        | 2倍扩容                         |
+|                                 |                           |                                 |
 
 
 
-
-
-### AbstractList
-
-
-
-==AbstractList实现List接口==
-
-接口中全都是抽象的方法，而抽象类中可以有抽象方法，还可以有具体的实现方法
-
-让AbstractList实现List接口中一些通用的方法，而具体的子类去继承AbstractList类，拿到一些通用的方法再实现一些特有的方法
-
-提前实现了顶级父类中的通用方法，减少重复代码
-
-
-
-```java
-public abstract class AbstractList<E> extends AbstractCollection<E> implements List<E> {
-  	//都是直接抛出异常
-		public E set(int index, E element) {  throw new UnsupportedOperationException();}
-    public void add(int index, E element) {   throw new UnsupportedOperationException();}
-    public E remove(int index) {    throw new UnsupportedOperationException();}
-}
-```
-
-
-
-#### SubList
-
-
-
-```java
-//ArrayList
-public List<E> subList(int fromIndex, int toIndex) {
-    subListRangeCheck(fromIndex, toIndex, size);
-    return new SubList(this, 0, fromIndex, toIndex);
-}
-
-    static void subListRangeCheck(int fromIndex, int toIndex, int size) {
-        if (fromIndex < 0)    throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
-        if (toIndex > size)    throw new IndexOutOfBoundsException("toIndex = " + toIndex);
-        if (fromIndex > toIndex)  throw new IllegalArgumentException("fromIndex(" + fromIndex +") > toIndex(" + toIndex + ")");
-    }
-```
-
-
-
-
-
-```java
-//AbstractList的内部类SubList,与ArrayList没有继承关系，无法强转
-class SubList<E> extends AbstractList<E> {
-    private final AbstractList<E> l;
-    private final int offset;
-    private int size;
-
-  	//把原列表的部分属性赋值给SubList
-  	//SubList并没有重新创建一个List，而是直接引用了原有的List（父类的视图）
-    SubList(AbstractList<E> list, int fromIndex, int toIndex) {
-        if (fromIndex < 0)   throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
-        if (toIndex > list.size())   throw new IndexOutOfBoundsException("toIndex = " + toIndex);
-        if (fromIndex > toIndex)     throw new IllegalArgumentException("fromIndex("+fromIndex +")>toIndex("+toIndex+")");
-        l = list;
-        offset = fromIndex;
-        size = toIndex - fromIndex;
-        this.modCount = l.modCount;	//重点
-//对父/子List做的非结构性修改（non-structural changes），都会影响到彼此
-//对子List做结构性修改，操作同样会反映到父List上
-//对父List做结构性修改，会抛出异常ConcurrentModificationException
-      
-//如果需要对subList作修改，又不想动原list。那么可以创建subList的深度拷贝
-```
+| CopyOnWriteArrayList               | Vector               |      |
+| ---------------------------------- | -------------------- | ---- |
+| **读不加锁,增删改加锁**,加强读性能 | CRUD都加synchronized |      |
+|                                    |                      |      |
 
 
 
@@ -638,123 +376,9 @@ class SubList<E> extends AbstractList<E> {
 
 
 
-少量数据时效率高
-
-初始大小10,扩容为1.5倍
 
 
 
-```java
-//RandomAccess快速随机存取的标记性接口，实现了该接口时普通的for循环性能更高，没有实现该接口则Iterator性能高
-public class ArrayList<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
-
-  private static final int DEFAULT_CAPACITY = 10;	//初始大小10
-  private static final Object[] EMPTY_ELEMENTDATA = {};//单例的空集合
-  private static final Object[] DEFAULTCAPACITY_EMPTY_ELEMENTDATA = {};
-  transient Object[] elementData;
-  private int size;
-  private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
-
-  public ArrayList() {　　//无参构造时容量0,第一次add时分配DEFAULT_CAPACITY的容量
-    super();
-    this.elementData = EMPTY_ELEMENTDATA;
-  }
-
-  public ArrayList(int initialCapacity) {
-    super();
-    if (initialCapacity < 0)
-      throw new IllegalArgumentException("Illegal Capacity: "+initialCapacity);
-    this.elementData = new Object[initialCapacity];
-  }
-
-  public ArrayList(Collection<? extends E> c) {
-    elementData = c.toArray();	//集合的入参也是先转成数组
-    if ((size = elementData.length) != 0) {
-      //集合的toarray()的实现不同，如果不是Object[].class，就使用ArrayList中的方法改造一下
-      if (elementData.getClass() != Object[].class)
-        elementData = Arrays.copyOf(elementData, size, Object[].class);
-    } else {
-      this.elementData = EMPTY_ELEMENTDATA;
-    }
-  }
-}
-```
-
-
-
-elementData被[transient](#transient)修饰,因为这个数组是动态扩展的，并不是所有的空间都被使用，不需要所有内容都被序列化。通过重写序列化和反序列化方法，使得可以只序列化数组中有内容的那部分数据
-
-
-
-#### add
-
-
-
-原数组是空的，add时数组容量变为10
-
-原数组不为空，扩容1.5倍
-
-```java
-public boolean add(E e) {    
-  ensureCapacityInternal(size + 1);	//决定是否需要扩容
-  elementData[size++] = e;	//插入，并size++
-  return true;
-}
-
-private void ensureCapacityInternal(int minCapacity) {//数组容量检查
-  ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
-}
-
-private static int calculateCapacity(Object[] elementData, int minCapacity) {
-  // 刚初始化时，容量设置为max[10,minCapacity]
-  if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
-    return Math.max(DEFAULT_CAPACITY, minCapacity);
-  }
-  return minCapacity;
-}
-
-private void ensureExplicitCapacity(int minCapacity) {
-  modCount++;
-  if (minCapacity - elementData.length > 0)	//最小容量>数组缓冲区当前长度
-    grow(minCapacity);//扩容
-}
-
-private void grow(int minCapacity) {
-  int oldCapacity = elementData.length;
-  int newCapacity = oldCapacity + (oldCapacity >> 1);	// 1.5倍扩容
-
-  //扩容后的容量 < 想要的最小容量		再次扩容为想要的最小容量
-  if (newCapacity - minCapacity < 0)   newCapacity = minCapacity;
-  //扩容后大于临界值，进行大容量分配
-  if (newCapacity - MAX_ARRAY_SIZE > 0)    newCapacity = hugeCapacity(minCapacity);
-
-  elementData = Arrays.copyOf(elementData, newCapacity);
-}
-
-//大容量分配
-private static int hugeCapacity(int minCapacity) {
-  //如果minCapacity<0，抛出异常
-  if (minCapacity < 0)   throw new OutOfMemoryError();
-  //扩容后的容量 > 分配给ArrayList的容量，判断需要的容量是否比分派的容量大，是就把Integer.MAX_VALUE:2147483647赋值给minCapacity，否就用MAX_ARRAY_SIZE：2147483639
-  return (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE :MAX_ARRAY_SIZE;
-}
-```
-
-
-
-```java
-public void add(int index, E element) {
-  rangeCheckForAdd(index);
-  ensureCapacityInternal(size + 1);
-  System.arraycopy(elementData, index, elementData, index + 1,size - index);
-  elementData[index] = element;
-  size++;
-}
-
-private void rangeCheckForAdd(int index) {
-  if (index > size || index < 0)   throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
-}
-```
 
 
 
@@ -769,118 +393,6 @@ private void rangeCheckForAdd(int index) {
 5. 移动元素（复制数组）
 6. 将 —-size上的位置赋值为null，help gc
 7. 返回被删除的元素
-
-
-
-根据下标删除
-
-```java
-public E remove(int index) {
-  rangeCheck(index);
-  modCount++;
-  //记录索引处的元素
-  E oldValue = elementData(index);
-  // 删除指定元素后，需要左移的元素个数
-  int numMoved = size - index - 1;
-  //如果有需要左移的元素，就移动（原地复制）
-  if (numMoved > 0)  System.arraycopy(elementData, index+1, elementData, index,numMoved);
-  // size-1处的元素置为null,help GC
-  elementData[--size] = null;
-  return oldValue;
-}
-```
-
-
-
-根据对象删除
-
-```java
-//根据参数删除索引最低的元素
-public boolean remove(Object o) {
-  if (o == null) {
-    for (int index = 0; index < size; index++)
-      if (elementData[index] == null) {
-        fastRemove(index);
-        return true;
-      }
-  } else {
-    for (int index = 0; index < size; index++)
-      if (o.equals(elementData[index])) {
-        fastRemove(index);
-        return true;
-      }
-  }
-  return false;
-}
-
-//快速删除，省去了边界检查，并且不返回已删除的值
-private void fastRemove(int index) {
-  modCount++;
-  int numMoved = size - index - 1;
-  if (numMoved > 0)   System.arraycopy(elementData, index+1, elementData, index,numMoved);
-  elementData[--size] = null; // help GC
-}
-```
-
-
-
-范围删除	[fromIndex,toIndex)	不包含右边界
-
-```java
-protected void removeRange(int fromIndex, int toIndex) {
-  modCount++;
-  int numMoved = size - toIndex;//被删除的索引后面的个数
-  System.arraycopy(elementData, toIndex, elementData, fromIndex,numMoved);
-
-  int newSize = size - (toIndex-fromIndex);
-  for (int i = newSize; i < size; i++) {
-    elementData[i] = null;
-  }
-  size = newSize;
-}
-```
-
-
-
-#### toArray
-
-
-
-```java
-public Object[] toArray() {
-  return Arrays.copyOf(elementData, size);
-}
-
-public <T> T[] toArray(T[] a) {
-  if (a.length < size)
-    return (T[]) Arrays.copyOf(elementData, size, a.getClass());
-  System.arraycopy(elementData, 0, a, 0, size);
-  if (a.length > size)
-    a[size] = null;
-  return a;
-}
-```
-
-
-
-#### ensureCapacity
-
-内部未使用这个方法,public修饰转为外部使用
-
-在需要大量插入元素时,提前分配足额空间
-
-```java
-public void ensureCapacity(int minCapacity) {
-  int minExpand = (elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
-    ? 0 : DEFAULT_CAPACITY;
-
-  if (minCapacity > minExpand) {
-    ensureExplicitCapacity(minCapacity);
-  }
-}
-```
-
-
 
 
 
@@ -930,120 +442,6 @@ boolean batchRemove(Collection<?> c, boolean complement, final int from, final i
 
 
 
-
-
-#### indexOf()/lastIndexOf()
-
-
-
-不存在时返回-1
-
-```java
-public int indexOf(Object o) {
-  if (o == null) {
-    for (int i = 0; i < size; i++)
-      if (elementData[i]==null)   return i;
-  // 查找的元素不为空
-  } else {
-    for (int i = 0; i < size; i++)
-      if (o.equals(elementData[i])) return i;
-  }
-  return -1;
-}
-public int lastIndexOf(Object o) {
-  if (o == null) {
-    for (int i = size-1; i >= 0; i--)
-      if (elementData[i]==null)    return i;
-  } else {
-    for (int i = size-1; i >= 0; i--)
-      if (o.equals(elementData[i]))  return i;
-  }
-  return -1;
-}
-```
-
-
-
-#### clear
-
-
-
-```java
-public void clear() {
-  modCount++;
-  for (int i = 0; i < size; i++)
-    elementData[i] = null;	//help GC
-  size = 0;		//重置size
-}
-```
-
-
-
-
-
-#### trimToSize
-
-取消将扩容预留的空间,最小化所占的存储空间
-
-```java
-public void trimToSize() {
-  modCount++;
-  if (size < elementData.length) {
-    elementData = (size == 0) ? EMPTY_ELEMENTDATA : Arrays.copyOf(elementData, size);
-  }
-}
-```
-
-
-
-
-
-#### clone
-
-
-
-```java
-public Object clone() {
-  ArrayList<?> v = (ArrayList<?>) super.clone();
-  v.elementData = Arrays.copyOf(elementData, size);
-  v.modCount = 0;
-  return v;
-}
-```
-
-
-
-
-
-
-
-#### 支持RandomAccess
-
-不定义方法,只标识实现这个接口的类具有随机访问功能
-
-```java
-public interface RandomAccess {}
-```
-
-
-
-`binarySearch（)`中要判断传入的 list 是否 `RamdomAccess` 的实例，如果是，调用`indexedBinarySearch()`方法，如果不是，那么调用`iteratorBinarySearch()`方法
-
-```java
-public static <T> int binarySearch(List<? extends Comparable<? super T>> list, T key) {
-  if (list instanceof RandomAccess || list.size()<BINARYSEARCH_THRESHOLD)
-    return Collections.indexedBinarySearch(list, key);
-  else
-    return Collections.iteratorBinarySearch(list, key);
-}
-```
-
-`ArrayList` 实现了 `RandomAccess` 接口， 而 `LinkedList` 没有实现。为什么呢？我觉得还是和底层数据结构有关！`ArrayList` 底层是数组，而 `LinkedList` 底层是链表。数组天然支持随机访问，时间复杂度为 O(1)，所以称为快速随机访问。链表需要遍历到特定位置才能访问特定位置的元素，时间复杂度为 O(n)，所以不支持快速随机访问。，`ArrayList` 实现了 `RandomAccess` 接口，就表明了他具有快速随机访问功能。 `RandomAccess` 接口只是标识，并不是说 `ArrayList` 实现 `RandomAccess` 接口才具有快速随机访问功能的！
-
-
-
-
-
 ### CopyOnWriteArrayList
 
 
@@ -1055,194 +453,6 @@ public static <T> int binarySearch(List<? extends Comparable<? super T>> list, T
 **内存占用问题**。在写操作时，内存里同时存在新旧两个对象，可能造成频繁GC
 
 **数据一致性问题**。CopyOnWrite容器**只保证最终一致性**，读操作无法读取实时性的数据
-
-
-
-```java
-public class CopyOnWriteArrayList<E> implements List<E>, RandomAccess, Cloneable, java.io.Serializable {
-
-  final transient ReentrantLock lock = new ReentrantLock();
-  private transient volatile Object[] array;
-```
-
-
-
-#### add
-
-**加锁，否则会Copy出N个副本**
-
-```java
-public boolean add(E e) {
-  final ReentrantLock lock = this.lock;
-  lock.lock(); //锁
-  try {
-    Object[] elements = getArray();
-    int len = elements.length;
-    Object[] newElements = Arrays.copyOf(elements, len + 1);
-    newElements[len] = e;
-    setArray(newElements);
-    return true;
-  } finally {
-    lock.unlock();
-  }
-}
-```
-
-
-
-#### get
-
-**读不加锁**
-
-```java
-public E get(int index) {
-  return get(getArray(), index);
-}
-```
-
-
-
-#### CopyOnWriteArrayList VS Vector
-
-
-
-Vector是增删改查方法都加了synchronized，保证同步，但是每个方法执行的时候都要去获得锁，性能低
-
-CopyOnWriteArrayList 只是在增删改上加锁，但是读不加锁，在读方面的性能就好于Vector，CopyOnWriteArrayList支持读多写少的并发情况
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### LinkedList
-
-
-
-```java
-public class LinkedList<E> extends AbstractSequentialList<E> implements List<E>, Deque<E>, Cloneable, Serializable{
-  transient int size = 0;
-  transient Node<E> first;
-  transient Node<E> last;
-
-  public LinkedList() {
-  }
-
-  public LinkedList(Collection<? extends E> c) {
-    this();
-    addAll(c);
-  }
-```
-
-
-
-#### Node
-
-基于双向链表实现
-
-```java
-private static class Node<E> {
-  E item;
-  Node<E> next;
-  Node<E> prev;
-
-  Node(Node<E> prev, E element, Node<E> next) {
-    this.item = element;
-    this.next = next;
-    this.prev = prev;
-  }
-}
-```
-
-
-
-#### add
-
-
-
-```java
-public boolean add(E e) {
-  linkLast(e);
-  return true;
-}
-
-void linkLast(E e) {
-  final Node<E> l = last;
-  final Node<E> newNode = new Node<>(l, e, null);
-  last = newNode;
-  if (l == null) first = newNode;
-  else l.next = newNode;
-  size++;
-  modCount++;
-}
-```
-
-
-
-
-
-
-
-### Vector
-
-
-
-内部实现与ArrayList一致
-
-**在方法中进行了同步,线程安全**
-
-**2倍扩容**,适合数据量大的存储
-
-```java
-public class Vector<E> extends AbstractList<E> implements List<E>, RandomAccess, Cloneable, Serializable{
-  protected Object[] elementData;
-  protected int elementCount;
-  protected int capacityIncrement;
-}
-```
-
-
-
-
-
-
-
-```java
-public synchronized boolean add(E e) {
-  modCount++;
-  ensureCapacityHelper(elementCount + 1);
-  elementData[elementCount++] = e;
-  return true;
-}
-
-public synchronized E get(int index) {
-  if (index >= elementCount)	throw new ArrayIndexOutOfBoundsException(index);
-  return elementData(index);
-}
-```
-
-
-
-
-
-
-
-
 
 
 
@@ -1298,34 +508,6 @@ get/put等加了synchronized**锁住整个table**,导致性能低
 
 
 
-
-```java
-HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {}
-
-//AbstractMap已经实现Map接口，而HashMap又继承AbstractMap再实现了Map接口,是JDK中多此一举的失误
-AbstractMap<K,V> implements Map<K,V> {
-  static final int DEFAULT_INITIAL_CAPACITY = 1 << 4;//默认容量
-  static final int MAXIMUM_CAPACITY = 1 << 30;//最大容量
-
-  static final int TREEIFY_THRESHOLD = 8;
-  static final int MIN_TREEIFY_CAPACITY = 64;//树化时数组长度的阈值
-  static final int UNTREEIFY_THRESHOLD = 6;//树->链表阈值
-
-  transient Node<k,v>[] table;
-
-  transient Set<map.entry<k,v>> entrySet;// 存放具体元素的集
-
-  transient int size;
-  transient int modCount;// 更改map结构的计数器
-
-  static final float DEFAULT_LOAD_FACTOR = 0.75f;
-  final float loadFactor;//扩容因子,控制了数组存放数据的疏密程度,过大将导致查找元素效率↓
-  int threshold;	//扩容阈值 = capacity * loadFactor
-}
-```
-
-
-
 #### 按位与2次幂容量
 
 
@@ -1348,124 +530,6 @@ hash&(length-1)	==	hash%length
 
 
 
-
-
-
-
-#### 构造
-
-
-
-```java
-public HashMap() {	this.loadFactor = DEFAULT_LOAD_FACTOR; }
-
-public HashMap(int initialCapacity) {   this(initialCapacity, DEFAULT_LOAD_FACTOR);}
-
-public HashMap(int initialCapacity, float loadFactor) {
-  if (initialCapacity < 0)   throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
-  if (initialCapacity > MAXIMUM_CAPACITY)  initialCapacity = MAXIMUM_CAPACITY;
-  //Float.isNaN()判断非法值,经过多次运算后float可能会出现非法情况，如除数为0.0,在Float中NaN是引用类型，每个NaN都是不同对象
-  if (loadFactor <= 0 || Float.isNaN(loadFactor)) throw new IllegalArgumentException("Illegal load factor:" +loadFactor);
-  this.loadFactor = loadFactor;
-  //tableSizeFor()判断initialCapacity是否为2^n,不是则扩大initialCapacity
-  this.threshold = tableSizeFor(initialCapacity);
-}
-
-//参数为Map的构造
-public HashMap(Map<? extends K, ? extends V> m) {
-  this.loadFactor = DEFAULT_LOAD_FACTOR;
-  putMapEntries(m, false);
-}
-
-final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
-  int s = m.size();
-  if (s > 0) {
-    if (table == null) {
-      //+1.0F 让计算出的size向上取整,获得更大的容量,避免刚创建时元素均匀分布到每个数组,触发扩容
-      float ft = ((float)s / loadFactor) + 1.0F;
-      int t = ((ft < (float)MAXIMUM_CAPACITY) ? (int)ft : MAXIMUM_CAPACITY);
-      //得到的t大于阈值->更新阈值
-      if (t > threshold)   threshold = tableSizeFor(t);
-    }
-    //已初始化,元素个数>阈值 -> 扩容
-    else if (s > threshold)    resize();
-
-    //遍历放入新map
-    for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
-      K key = e.getKey();
-      V value = e.getValue();
-      putVal(hash(key), key, value, false, evict);
-```
-
-
-
-#### tableSizeFor
-
-```java
-//修正容量为2^n
-static final int tableSizeFor(int cap) {
-  int n = cap - 1;	//-1防止cap已经是2^n
-  n |= n >>> 1;
-  n |= n >>> 2;
-  n |= n >>> 4;
-  n |= n >>> 8;
-  n |= n >>> 16;
-  return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
-}
-```
-
-
-
-
-
-#### <a name="HashMap.Node">Node</a>
-
-
-
-```java
-static class Node<K,V> implements Map.Entry<K,V> {
-  final int hash;
-  final K key;
-  V value;
-  Node<K,V> next;
-
-  Node(int hash, K key, V value, Node<K,V> next) {
-    this.hash = hash;
-    this.key = key;
-    this.value = value;
-    this.next = next;
-  }
-
-  public final K getKey()        { return key; }
-  public final V getValue()      { return value; }
-  public final String toString() { return key + "=" + value; }
-
-  public final int hashCode() {
-    return Objects.hashCode(key) ^ Objects.hashCode(value);
-  }
-
-  public final V setValue(V newValue) {
-    V oldValue = value;
-    value = newValue;
-    return oldValue;
-  }
-
-  public final boolean equals(Object o) {
-    if (o == this)
-      return true;
-    if (o instanceof Map.Entry) {
-      Map.Entry<?,?> e = (Map.Entry<?,?>)o;
-      if (Objects.equals(key, e.getKey()) &&
-          Objects.equals(value, e.getValue()))
-        return true;
-    }
-    return false;
-  }
-}
-```
-
-
-
 #### TreeNode
 
 ==HashMap.TreeNode 不继承自己的内部类 Node，却继承 LinkedHashMap.Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力(多态)==
@@ -1474,39 +538,12 @@ static class Node<K,V> implements Map.Entry<K,V> {
 
 ==TreeNode的大小约是Node的2倍==，仅在桶中包含足够多的节点时才被使用。当桶中的节点数量变少时，TreeNode被转成 Node,当hashCode具有良好分布性时,不会转为红黑树，TreeNode将很少被使用
 
-```java
-static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
-  TreeNode<K,V> parent;  // 父
-  TreeNode<K,V> left;    // 左
-  TreeNode<K,V> right;   // 右
-  TreeNode<K,V> prev;    // needed to unlink next upon deletion
-  boolean red;           // 判断颜色
-  TreeNode(int hash, K key, V val, Node<K,V> next) {
-    super(hash, key, val, next);
-  }
-  // 返回根节点
-  final TreeNode<K,V> root() {
-    for (TreeNode<K,V> r = this, p;;) {
-      if ((p = r.parent) == null)
-        return r;
-      r = p;
-    }
-  }
-```
-
 
 
 #### get
 
-
-
 ```java
-public V get(Object key) {
-  Node<K,V> e;
-  return (e = getNode(hash(key), key)) == null ? null : e.value;
-}
-
-final Node<K,V> getNode(int hash, Object key) {
+ Node<K,V> getNode(int hash, Object key) {
   //first存放对应下标链表的第一个元素
   Node<K,V>[] tab; Node<K,V> first, e; 
   int n; K k;
@@ -1533,27 +570,6 @@ final Node<K,V> getNode(int hash, Object key) {
 
 
 #### hash
-
-
-
-```java
-//1.7	用了4次位运算,性能较差
-static int hash(int h) {
-  h ^= (h >>> 20) ^ (h >>> 12);
-  return h ^ (h >>> 7) ^ (h >>> 4);
-}
-
-//1.8
-static final int hash(Object key) {
-  int h;
-  //null==key时,key不能调用hashCode(),给了默认值0	-> hashMap支持Null的Key
-  //右移16的异或运算	->	高/低16位都参与异或,减少碰撞概率
-  //当length很小 -> 高位全0,低位不同	->	容易碰撞
-  return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
-}
-```
-
-
 
 ```shell
 #按位异或,计算hash
@@ -1610,7 +626,6 @@ public V putIfAbsent(K key, V value) {
   return putVal(hash(key), key, value, true, true);	//onlyIfAbsent:true	键值重复不覆盖
 }
 
-//evict=false : table为新建状态
 final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
   Node<K,V>[] tab; Node<K,V> p; 
   int n, i;	//n数组长度		i key的hash值
@@ -1672,8 +687,6 @@ final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
 
 
 
-
-
 ##### computeIfAbsent
 
 
@@ -1691,11 +704,7 @@ public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction
 
 
 
-
-
 ##### merge
-
-
 
 三个参数，**key**：map中的键，**value**：使用者传入的值，**remappingFunction** 执行自定义功能并返回最终值
 
@@ -1837,53 +846,53 @@ final Node<K, V>[] resize() {
 ```java
 //返回被删除key的value
 public V remove(Object key) {
-        Node<K,V> e;
-        return (e = removeNode(hash(key), key, null, false, true)) == null ? null : e.value;
-    }
+  Node<K,V> e;
+  return (e = removeNode(hash(key), key, null, false, true)) == null ? null : e.value;
+}
 
 //matchValue=true	仅当值相同时移除		movable=true	移除时移动其他节点
 final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable) {
-        Node<K,V>[] tab; Node<K,V> p; 
-  			int n, index;
+  Node<K,V>[] tab; Node<K,V> p; 
+  int n, index;
   // (tab = table) != null  把hash桶赋值给tab，并且判断tab是否为nul
   // (n = tab.length) > 0 获取tab的长度，赋值给n，判断n是否大于0
   // (p = tab[index = (n - 1) & hash]) != null 根据hash计算索引位置，赋值给index, 并从tab中取出该位置的元素，赋值给p，并判断p!=nul
-        if ((tab = table) != null && (n = tab.length) > 0 &&(p = tab[index = (n - 1) & hash]) != null) {
-            
-          	//进到这里,说明table不为空,并且key对应table下标的链表不为空
-          	Node<K,V> node = null, e; K k; V v;
-          
-          	//链表表头就是待删除元素
-            if (p.hash == hash &&((k = p.key) == key || (key != null && key.equals(k))))	  node = p;
-            
-          	//遍历链表
-          	else if ((e = p.next) != null) {
-                if (p instanceof TreeNode)   node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
-                else {
-                    do {
-                        if (e.hash == hash && ((k = e.key) == key ||(key != null && key.equals(k)))) {
-                            node = e;
-                            break;
-                        }
-                        p = e;
-                    } while ((e = e.next) != null);
-                }
-            }
-          
-            if (node != null && (!matchValue || (v = node.value) == value ||(value != null && value.equals(v)))) {
-                if (node instanceof TreeNode)
-                    ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
-                
-              	//node == p	->	说明node是第一个节点,将下一个节点赋值给当前下标(删除)
-              	else if (node == p)    tab[index] = node.next;
-                else    p.next = node.next;
-                ++modCount;
-                --size;
-                afterNodeRemoval(node);
-                return node;
-            }
-        }
-        return null;
+  if ((tab = table) != null && (n = tab.length) > 0 &&(p = tab[index = (n - 1) & hash]) != null) {
+
+    //进到这里,说明table不为空,并且key对应table下标的链表不为空
+    Node<K,V> node = null, e; K k; V v;
+
+    //链表表头就是待删除元素
+    if (p.hash == hash &&((k = p.key) == key || (key != null && key.equals(k))))	  node = p;
+
+    //遍历链表
+    else if ((e = p.next) != null) {
+      if (p instanceof TreeNode)   node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
+      else {
+        do {
+          if (e.hash == hash && ((k = e.key) == key ||(key != null && key.equals(k)))) {
+            node = e;
+            break;
+          }
+          p = e;
+        } while ((e = e.next) != null);
+      }
+    }
+
+    if (node != null && (!matchValue || (v = node.value) == value ||(value != null && value.equals(v)))) {
+      if (node instanceof TreeNode)
+        ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
+
+      //node == p	->	说明node是第一个节点,将下一个节点赋值给当前下标(删除)
+      else if (node == p)    tab[index] = node.next;
+      else    p.next = node.next;
+      ++modCount;
+      --size;
+      afterNodeRemoval(node);
+      return node;
+    }
+  }
+  return null;
 ```
 
 
@@ -2265,8 +1274,6 @@ static final int spread(int h) {
 
 
 #### get
-
-
 
 ```java
 public V get(Object key) {
@@ -2740,56 +1747,9 @@ private final void tryPresize(int size) {
 
 ### LinkedHashMap
 
-
-
-==有序==,用HashMap操作数据结构，用LinkedList维护顺序
-
-accessOrder:true LRU访问顺序排序	false 插入顺序排序
-
-```java
-LinkedHashMap<K,V> extends HashMap<K,V>  implements Map<K,V>{
-  transient LinkedHashMap.Entry<K,V> head;	//最久访问或最先插入的节点
-  transient LinkedHashMap.Entry<K,V> tail;	//最近访问的或最近插入的节点
-  final boolean accessOrder;	//默认false插入顺序存储		true查询顺序存储
-
-  public LinkedHashMap() {
-    super();	//调用hashmap的构造
-    accessOrder = false;	//默认插入顺序排序
-  }
-
-  public LinkedHashMap(Map<? extends K, ? extends V> m) {
-    super();
-    accessOrder = false;
-    putMapEntries(m, false);
-  }
-}
-```
-
-
-
-
-
 #### Entry
 
 <img src="image.assets/image-20201113235444857.png"  />
-
-```java
-static class Entry<K,V> extends HashMap.Node<K,V> {
-  Entry<K,V> before, after;	//维护顺序
-  //k,v,next,hash都继承自HashMap
-  Entry(int hash, K key, V value, Node<K,V> next) { 
-    super(hash, key, value, next);    
-  }
-}
-```
-
-
-
-LinkedHashMap.Entry 继承自 [HashMap.Node](#HashMap.Node)，并新增了before/after用于维护双向链表
-
-
-
-
 
 
 
@@ -2809,109 +1769,13 @@ LinkedHashMap没有覆写父类的 put 方法，而是直接使用了父类的�
 
 再put之后,调用linkNodeLast()更新链表的tail
 
-```java
-    private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
-        LinkedHashMap.Entry<K,V> last = tail;
-        tail = p;
-        if (last == null)
-            head = p;
-        else {
-            p.before = last;
-            last.after = p;   }   }
-```
-
-
-
-删除元素
-
-没有重写hashMap的删除
-
-```java
-HashMap:
-	//remove()调用了removeNode()
-    public V remove(Object key) {
-        Node<K,V> e;
-        return (e = removeNode(hash(key), key, null, false, true)) == null ?null : e.value;
-    }
-//removeNode()执行完HashMap所需的删除逻辑时,回调了afterNodeRemoval(),HashMap中的afterNodeRemoval()为抽象方法
-final Node<K,V> removeNode() {
-        ...
-afterNodeRemoval(node);}
-
-// LinkedHashMap 中覆写
-void afterNodeRemoval(Node<K,V> e) { // unlink
-    LinkedHashMap.Entry<K,V> p =
-        (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
-    // 将 p 节点的前驱后后继引用置空
-    p.before = p.after = null;
-    // b 为 null，表明 p 是头节点
-    if (b == null)   head = a;
-    else    b.after = a;
-    // a 为 null，表明 p 是尾节点
-    if (a == null)   tail = b;
-    else   a.before = b;
-//删除逻辑
-1.根据 hash 定位到桶位置
-2.遍历链表
-3.从链表中移除要删除的节点
-```
-
-
-
-#### get
-
-```
-get/getOrDefault/replace	3种改变顺序的方法
-```
-
-
-
-
-```java
-// LinkedHashMap 中覆写
-public V get(Object key) {
-  Node<K,V> e;
-  if ((e = getNode(hash(key), key)) == null)
-    return null;
-  //accessOrder==true，按访问顺序排序
-  if (accessOrder)
-    afterNodeAccess(e);
-  return e.value;
-}
-```
-
 
 
 #### afterNodeAccess
 
 accessOrder=true时，在访问节点后将节点移到链表尾部，使得链表首部就是最久未使用的节点
 
-```java
-void afterNodeAccess(Node<K,V> e) {
-  LinkedHashMap.Entry<K,V> last;
-  if (accessOrder && (last = tail) != e) {
-    LinkedHashMap.Entry<K,V> p =
-      (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
-    p.after = null;
-    if (b == null)
-      head = a;
-    else
-      b.after = a;
-    if (a != null)
-      a.before = b;
-    else
-      last = b;
-    if (last == null)
-      head = p;
-    else {
-      p.before = last;
-      last.after = p;
-    }
-    tail = p;
-    ++modCount;   
-  }
-}
-```
+
 
 
 
@@ -3098,8 +1962,6 @@ remove()	删除当前元素//唯一能安全地在迭代过程中修改集合的
 
 
 
-
-
 ### ListIterator
 
 
@@ -3154,37 +2016,6 @@ foreach是通过iterator实现的遍历
 **单线程违反了规则，也会抛出该异常**
 
 迭代器的快速失败行为无法得到保证，不能保证一定会出现该错误，但会尽最大努力抛出ConcurrentModificationException异常
-
-
-
-ArrayList内部类Itr
-
-```java
-public E next() {    
-  checkForComodification();	//检查modCount是否被改变
-  ......
-}
-
-
-public void remove() {
-  checkForComodification();
-  ......
-}
-
-final void checkForComodification() {
-  if (modCount != expectedModCount)	throw new ConcurrentModificationException();
-}
-```
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -4473,6 +3304,16 @@ public abstract class SelectionKey {
 
 # 多线程
 
+1. 早期的计算机不包含操作系统,从头到尾只执行一个程序,并且这个程序能访问计算机中的所有资源.这种裸机环境使得编程困难,并且每次只能运行一个程序
+
+2. 操作系统的出现使计算机每次能运行多个程序,并带来了进程的概念,不同程序在单独的进程中运行.操作系统为进程分配各种资源,不同进程通过粗粒度的通信机制交换数据(套接字/信号处理器/共享内存)
+
+
+
+
+
+
+
 
 
 **进程**：操作系统上独立运行的程序，**资源分配的基本单位**。运行程序 = 进程创建 -> 运行 -> 消亡 的过程
@@ -4896,7 +3737,7 @@ private Node addConditionWaiter() {
 
 
 
-**JUC的容器都是安全失**败的,可以在多线程下并发使用,并发修改
+**JUC的容器都是安全失**败的,可在多线程下并发使用,并发修改
 
 在迭代时对原集合的拷贝进行遍历，**遍历过程中对原集合所作的修改不能被迭代器检测到，不会触发Concurrent Modification Exception**
 
@@ -4944,37 +3785,11 @@ private Node addConditionWaiter() {
 
 ```java
 public class CountDownLatch {
-    private final CountDownLatch.Sync sync;
+    private final Sync sync;
 }
 ```
 
 
-
-#### Sync
-
-```java
-private static final class Sync extends AbstractQueuedSynchronizer {
-
-  protected int tryAcquireShared(int var1) {
-    return this.getState() == 0 ? 1 : -1; //state为0才算await的获取锁成功
-  }
-
-  protected boolean tryReleaseShared(int var1) {
-    int var2;
-    int var3;
-    do {
-      var2 = this.getState();
-      if (var2 == 0) {
-        return false;
-      }
-
-      var3 = var2 - 1;
-    } while(!this.compareAndSetState(var2, var3));
-
-    return var3 == 0;
-  }
-}
-```
 
 
 
@@ -5786,53 +4601,6 @@ public class Thread implements Runnable {
 
 
 
-### 构造
-
-
-
-```java
-public Thread() {
-  init(null, null, "Thread-" + nextThreadNum(), 0);	//通过threadInitNumber为匿名线程命名
-}
-
-public Thread(Runnable target) {
-  init(null, target, "Thread-" + nextThreadNum(), 0);
-}
-
-private void init(ThreadGroup g, Runnable target, String name,long stackSize) {
-  init(g, target, name, stackSize, null, true);
-}
-
-private void init(ThreadGroup g, Runnable target, String name,long stackSize,
-                  AccessControlContext acc,boolean inheritThreadLocals //是否继承父线程的ThreadLocal
-                 ) {
-  if (name == null)	throw new NullPointerException("name cannot be null");	//名称不为空
-  this.name = name;
-  Thread parent = currentThread();
-  ......
-    this.group = g;
-  this.daemon = parent.isDaemon();	
-  this.priority = parent.getPriority();
-  if (security == null || isCCLOverridden(parent.getClass()))
-    this.contextClassLoader = parent.getContextClassLoader();
-  else
-    this.contextClassLoader = parent.contextClassLoader;
-  this.inheritedAccessControlContext =
-    acc != null ? acc : AccessController.getContext();
-  this.target = target;
-  setPriority(priority);
-  if (inheritThreadLocals && parent.inheritableThreadLocals != null)
-    this.inheritableThreadLocals =
-    ThreadLocal.createInheritedMap(parent.inheritableThreadLocals);
-  this.stackSize = stackSize;
-  tid = nextThreadID();	//自动设置tid
-}
-```
-
-
-
-
-
 ### 线程6个状态
 
 
@@ -5841,11 +4609,11 @@ private void init(ThreadGroup g, Runnable target, String name,long stackSize,
 
 ```java
 public enum State {
-  NEW,	//新建
+  NEW,
   RUNNABLE,
   BLOCKED,	//等待阻塞：wait进入等待队列	同步阻塞：获取对象的同步锁失败	其他阻塞：sleep/join/IO请求
   WAITING,
-  TIMED_WAITING,	//计时等待
+  TIMED_WAITING,//计时等待
   TERMINATED;	//终止 无法再次start
 }
 ```
@@ -5978,47 +4746,7 @@ main(){
 
 
 
-### exit
-
-
-
-```java
-private void exit() {
-  if (group != null) {
-    group.threadTerminated(this);
-    group = null;
-  }
-  target = null;
-  threadLocals = null;	//GC threadLocalMap
-  inheritableThreadLocals = null;
-  inheritedAccessControlContext = null;
-  blocker = null;
-  uncaughtExceptionHandler = null;
-}
-
-//通知线程组,线程已终止
-void threadTerminated(Thread t) {
-  synchronized (this) {
-    remove(t);	//从线程组中删除此线程
-    if (nthreads == 0)	notifyAll();	//当线程组中线程数为0时,notifyAll
-    if (daemon && (nthreads == 0) && (nUnstartedThreads == 0) && (ngroups == 0)){
-      destroy();
-    }
-  }
-}
-```
-
-
-
-
-
-
-
 ### interrupt
-
-
-
-其余的可:
 
 [Future.cancel也可以实现中断](Future)
 
@@ -6173,35 +4901,6 @@ public T get() {
 
 
 
-### hash冲突
-
-`ThreadLocalMap`中并没有链表结构,无法使用HashMap的方法解决hash冲突
-
-```java
-private static final int HASH_INCREMENT = 0x61c88647;	//斐波那契数的黄金分割数,让hashCode均匀分布在2^n的数组中
-private static AtomicInteger nextHashCode = new AtomicInteger();
-
-private static int nextHashCode() {
-  return nextHashCode.getAndAdd(HASH_INCREMENT);
-}
-
-private final int threadLocalHashCode = nextHashCode(); //每次创建一个threadLocal对象,这个值就自增HASH_INCREMENT
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -6296,7 +4995,7 @@ private void set(ThreadLocal<?> key, Object value) {
     }
   }
 
-  tab[i] = new Entry(key, value);
+  tab[i] = new En try(key, value);
   int sz = ++size;
   if (!cleanSomeSlots(i, sz) && sz >= threshold) //cleanSomeSlots清理脏数据
     rehash();
@@ -6325,50 +5024,9 @@ private boolean cleanSomeSlots(int i, int n) {
 
 
 
-table[i]!=null,说明hash冲突,向后环形查找，查找过程中遇到脏entry就replaceStaleEntry
-
-table[i]==null,新的entry直接插入，插入后调用cleanSomeSlots()检测并清除脏entry
-
-
-
 #### replaceStaleEntry
 
-```java
-private void replaceStaleEntry(ThreadLocal<?> key, Object value, int staleSlot) {
-  Entry[] tab = table;
-  int len = tab.length;
-  Entry e;
-  int slotToExpunge = staleSlot; //扫描起始位置
-  for (int i = prevIndex(staleSlot, len); (e = tab[i]) != null; i = prevIndex(i, len))
-    if (e.get() == null)
-      slotToExpunge = i;
-
-  for (int i = nextIndex(staleSlot, len); (e = tab[i]) != null; i = nextIndex(i, len)) {
-    ThreadLocal<?> k = e.get();
-
-    if (k == key) {
-      e.value = value;
-
-      tab[i] = tab[staleSlot];
-      tab[staleSlot] = e;
-
-      if (slotToExpunge == staleSlot)
-        slotToExpunge = i;
-      cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
-      return;
-    }
-
-    if (k == null && slotToExpunge == staleSlot)
-      slotToExpunge = i;
-  }
-
-  tab[staleSlot].value = null;
-  tab[staleSlot] = new Entry(key, value);
-
-  if (slotToExpunge != staleSlot)
-    cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
-}
-```
+//todo
 
 
 
@@ -6376,46 +5034,7 @@ private void replaceStaleEntry(ThreadLocal<?> key, Object value, int staleSlot) 
 
 #### expungeStaleEntry
 
-```java
-private int expungeStaleEntry(int staleSlot) {
-  Entry[] tab = table;
-  int len = tab.length;
-
-  // expunge entry at staleSlot
-  tab[staleSlot].value = null;
-  tab[staleSlot] = null;
-  size--;
-
-  // Rehash until we encounter null
-  Entry e;
-  int i;
-  for (i = nextIndex(staleSlot, len);
-       (e = tab[i]) != null;
-       i = nextIndex(i, len)) {
-    ThreadLocal<?> k = e.get();
-    if (k == null) {
-      e.value = null;
-      tab[i] = null;
-      size--;
-    } else {
-      int h = k.threadLocalHashCode & (len - 1);
-      if (h != i) {
-        tab[i] = null;
-        while (tab[h] != null)
-          h = nextIndex(h, len);
-        tab[h] = e;
-      }
-    }
-  }
-  return i;
-}
-```
-
-
-
-
-
-
+//todo
 
 
 
@@ -6423,16 +5042,7 @@ private int expungeStaleEntry(int staleSlot) {
 
 #### getEntry
 
-
-
-```java
-private Entry getEntry(ThreadLocal<?> key) {
-  int i = key.threadLocalHashCode & (table.length - 1);
-  Entry e = table[i];
-  if (e != null && e.get() == key)	return e;
-  else	return getEntryAfterMiss(key, i, e);
-}
-```
+//todo
 
 
 
@@ -6635,7 +5245,11 @@ ReentrantLock,synchronized
 
 
 
-非原子性地操作共享资源
+**线程安全的定义**
+
+某个类的行为与其规范完全一致,当多线程访问这个类时,始终能表现出正确的行为
+
+线程存在不安全性的本质在于 非原子性地操作共享资源
 
 [线程安全的主要体现](#JMM三大特性)
 
@@ -6670,6 +5284,103 @@ ReentrantLock,synchronized
 - Collections.unmodifiableXXX()
 
 
+
+#### stateLess
+
+无状态对象一定是线程安全的
+
+
+
+无状态不包含任何域,也不包含任何其他类中域的引用
+
+计算过程所产生的变量只作为局部变量,只能由本线程进行访问
+
+无状态 = 线程间不需要共享状态 -> 线程安全
+
+
+
+
+
+### 竞态条件
+
+当某个计算的正确性取决于多线程的交替执行时,就会产生竞态条件
+
+
+
+#### 先检查后执行
+
+Check-Then-Act 通过一个**可能失效的观测结果**来决定下一步的动作
+
+
+
+![](image.assets/image-20210626201035879.png)
+
+在"去看看他是否在另一家星巴克"方法中,问题点在于无法得知朋友B的具体位置,并且在方法执行过程中朋友的位置也是不可见的
+
+
+
+这个案例的竞态条件在于:
+
+要获得正确的结果,依赖于时间的发生顺序
+
+在离开星巴克A -> B 时,在A的观测将失效 (前脚踏出店门,朋友从后门进来了)
+
+
+
+
+
+为了保证线程安全性,先检查后执行 + 读取-修改-写入 这两个操作必须是原子性的
+
+
+
+
+
+
+
+### 重入
+
+每个锁关联一个计数器和所有者线程
+
+当计数器 = 0,代表锁没有被任何线程持有
+
+线程获取锁时,计数器置为1,并记录持有锁的线程
+
+当线程重入获取锁,计数器自增
+
+
+
+线程退出同步代码块,计数器自减
+
+当计数器 = 0,锁被释放
+
+
+
+### 如何用锁维护同步
+
+虽然大多数对象都用自己的对象锁进行同步,但**对象锁与对象的同步状态没有必然联系**,对象的域不一定要用自己的对象锁来保护,**某个线程获得对象锁后,只能阻止其他线程获得这把锁,但无法阻止其他线程直接访问这个对象**
+
+
+
+> 对于类中可能被多线程访问的所有可变状态变量,都应当只由同一把锁控制同步
+>
+> 从而避免维护代码时不清楚要用哪个锁
+
+
+
+
+
+同步代码块中也可能出现竞态条件问题
+
+```java
+if(!vector.contains(e))
+  vector.add(e);
+```
+
+虽然vector的方法都被synchronized修饰,但判断 vector中不存在则插入 的逻辑依然存在竞态条件问题
+
+
+
+滥用同步来控制代码流程也会出现 活跃性问题/性能问题
 
 
 
@@ -8111,15 +6822,7 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
-> **线程池的参数不好配置的原因**
->
-> 线程池的运行机制不好理解，配置合理需要强依赖开发人员的个人经验和知识；
->
-> 线程池执行的情况和任务类型相关性较大，IO/CPU密集型的任务运行起来的情况差异非常大
-
-
-
-
+线程池的参数不好配置的根本原因是 线程池执行的情况和任务类型相关性较大，IO/CPU密集型的任务运行起来的情况差异非常大
 
 
 
@@ -8213,8 +6916,6 @@ public static <T> Callable<T> callable(Runnable task, T result) {
   return new RunnableAdapter<T>(task, result);
 }
 ```
-
-
 
 
 
@@ -8432,14 +7133,11 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
   private static final int TIDYING    =  2 << COUNT_BITS;	//整理态，所有任务已结束 && workerCount=0，执行terminated()后进入结束态
   private static final int TERMINATED =  3 << COUNT_BITS;	//结束态
 
-  
   private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//用于位运算
   private static int runStateOf(int c)     { return c & ~CAPACITY; }	//获取运行状态	容量取反->29个0	与运算获得高3位的状态
   private static int workerCountOf(int c)  { return c & CAPACITY; }
   
-
   private final BlockingQueue<Runnable> workQueue;
-  
   private final ReentrantLock mainLock = new ReentrantLock(); //全局锁
   
   private final HashSet<Worker> workers = new HashSet<Worker>();
@@ -8464,12 +7162,6 @@ ThreadPoolExecutor也没有提供改变任务队列大小的接口
 - **`workQueue`:** 当新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，信任就会被存放在队列中。
 
 自定义了一个叫做 `ResizableCapacityLinkedBlockIngQueue` 的队列（主要就是把`LinkedBlockingQueue`的capacity 字段的final关键字修饰给去掉了，让它变为可变的）。
-
-
-
-
-
-
 
 
 
@@ -8930,30 +7622,6 @@ void interruptIfStarted() {
 
 
 
-```java
-//实现ScheduledExecutorService,获得调度能力
-public class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements ScheduledExecutorService {
-  public ScheduledThreadPoolExecutor(int corePoolSize,ThreadFactory threadFactory) {
-    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
-          new DelayedWorkQueue(), threadFactory);
-  }
-
-  public ScheduledThreadPoolExecutor(int corePoolSize,RejectedExecutionHandler handler) {
-    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
-          new DelayedWorkQueue(), handler);
-  }
-
-  public ScheduledThreadPoolExecutor(int corePoolSize,ThreadFactory threadFactory,RejectedExecutionHandler handler) {
-    super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
-          new DelayedWorkQueue(), threadFactory, handler);
-  }
-}
-```
-
-
-
-
-
 #### 运行机制
 
 
@@ -8985,35 +7653,6 @@ public class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements S
 
 
 
-
-#### ScheduledExecutorService
-
-
-
-```java
-public interface ScheduledExecutorService extends ExecutorService {
-    // 特定时间延时后执行一次Runnable
-    public ScheduledFuture<?> schedule(Runnable command,
-                                       long delay, TimeUnit unit);
-    // 特定时间延时后执行一次Callable
-    public <V> ScheduledFuture<V> schedule(Callable<V> callable,
-                                           long delay, TimeUnit unit);
-    // 固定周期执行任务（与任务执行时间无关，周期是固定的）
-    public ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
-                                                  long initialDelay,
-                                                  long period,
-                                                  TimeUnit unit);
-     // 固定延时执行任务（与任务执行时间有关，延时从上一次任务完成后开始）
-    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
-                                                     long initialDelay,
-                                                     long delay,
-                                                     TimeUnit unit);
-}
-```
-
-
-
-任务队列 `DelayQueue` 封装了一个 `PriorityQueue`，`PriorityQueue` 会对队列中的任务进行排序，执行所需时间短的放在前面先被执行(`ScheduledFutureTask` 的 `time` 变量小的先执行)，如果执行所需时间相同则先提交的任务将被先执行(`ScheduledFutureTask` 的 `squenceNumber` 变量小的先执行)
 
 
 
@@ -9055,8 +7694,6 @@ public interface ScheduledExecutorService extends ExecutorService {
 
 #### 阻塞队列与 生产/消费模型
 
-
-
 阻塞队列作为 生产者存放/消费者获取元素的容器
 
 
@@ -9067,135 +7704,6 @@ Java通过BlockingQueue提供了开箱即用的支持来控制这些方法的调
 
 **BlockingQueue是一种数据结构，支持一个线程往里存资源，另一个线程从里取资源。这正是解决生产者消费者问题所需要的，那么让我们开始解决该问题吧。**
 
-**生产者**
-
-以下代码用于生产者线程
-
-```java
-//生产者
-class Producer implements Runnable {
-
-    protected BlockingQueue<Object> queue;
-
-    Producer(BlockingQueue<Object> theQueue) {
-        this.queue = theQueue;
-    }
-
-    public void run() {
-        try {
-            while (true) {
-                Object justProduced = getResource();
-                queue.put(justProduced);
-                System.out.println("生产者资源队列大小= " + queue.size());
-            }
-        } catch (InterruptedException ex) {
-            System.out.println("生产者 中断");
-        }
-    }
-
-    Object getResource() {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ex) {
-            System.out.println("生产者 读 中断");
-        }
-        return new Object();
-    }
-}
-```
-
-**消费者**
-
-以下代码用于消费者线程
-
-```
-//消费者
-class Consumer implements Runnable {
-
-    protected BlockingQueue<Object> queue;
-
-    Consumer(BlockingQueue<Object> theQueue) {
-        this.queue = theQueue;
-    }
-
-    public void run() {
-        try {
-            while (true) {
-                Object obj = queue.take();
-                System.out.println("消费者 资源 队列大小 " + queue.size());
-                take(obj);
-            }
-        } catch (InterruptedException ex) {
-            System.out.println("消费者 中断");
-        }
-    }
-
-    void take(Object obj) {
-        try {
-            Thread.sleep(100); // simulate time passing
-        } catch (InterruptedException ex) {
-            System.out.println("消费者 读 中断");
-        }
-        System.out.println("消费对象 " + obj);
-    }
-}
-```
-
-**测试该解决方案是否运行正常**
-
-```
-//测试
-public class ProducerConsumerExample {
-
-    public static void main(String[] args) throws InterruptedException {
-        int numProducers = 4;
-        int numConsumers = 3;
-        BlockingQueue<Object> myQueue = new LinkedBlockingQueue<Object>(5);
-
-        for (int i = 0; i < numProducers; i++) {
-            new Thread(new Producer(myQueue)).start();
-        }
-
-        for (int i = 0; i < numConsumers; i++) {
-            new Thread(new Consumer(myQueue)).start();
-        }
-
-        Thread.sleep(1000);
-        System.exit(0);
-    }
-}
-```
-
-**运行结果**
-
-```
-生产者资源队列大小= 1
-生产者资源队列大小= 1
-消费者 资源 队列大小 1
-生产者资源队列大小= 1
-消费者 资源 队列大小 1
-消费者 资源 队列大小 1
-生产者资源队列大小= 1
-生产者资源队列大小= 3
-消费对象 java.lang.Object@1e1aa52b
-生产者资源队列大小= 2
-生产者资源队列大小= 5
-消费对象 java.lang.Object@6e740a76
-消费对象 java.lang.Object@697853f6
-......
-消费对象 java.lang.Object@41a10cbc
-消费对象 java.lang.Object@4963c8d1
-消费者 资源 队列大小 5
-生产者资源队列大小= 5
-生产者资源队列大小= 5
-消费者 资源 队列大小 4
-消费对象 java.lang.Object@3e49c35d
-消费者 资源 队列大小 4
-生产者资源队列大小= 5
-```
-
-**从输出结果中,我们可以发现队列大小永远不会超过5，消费者线程消费了生产者生产的资源**。
-
 
 
 
@@ -9205,50 +7713,6 @@ public class ProducerConsumerExample {
 
 
 ![](image.assets/Future继承.png)
-
-
-
-支持异步,异步执行的结果保存在Future中
-
-```java
-public interface Future<V> {
-  boolean cancel(boolean mayInterruptIfRunning);//入参true表示可以取消正在执行的任务		取消失败/任务完成返回false
-  boolean isCancelled();	//任务是否被取消成功
-  boolean isDone();
-  V get() throws InterruptedException, ExecutionException;	//获取执行结果，这个方法会阻塞，一直等到任务执行完毕
-  V get(long timeout, TimeUnit unit)  throws InterruptedException, ExecutionException, TimeoutException;
-}
-```
-
-
-
-
-
-#### RunnableFuture
-
-
-
-```java
-public interface RunnableFuture<V> extends Runnable, Future<V> {
-  void run();
-}
-```
-
-
-
-
-
-
-
-
-
-
-
-#### SchedualFuture
-
-表示一个延时的行为可以被取消。通常一个安排好的future是定时任务SchedualedExecutorService的结果
-
-
 
 #### CompleteFuture
 
@@ -9264,8 +7728,6 @@ thenApply / thenAccept 相当于 Function / Consumer
 private static final boolean useCommonPool = (ForkJoinPool.getCommonPoolParallelism() > 1);
 
 private static final Executor asyncPool = useCommonPool ? ForkJoinPool.commonPool() : new ThreadPerTaskExecutor();
-
-
 ```
 
 
@@ -9293,17 +7755,11 @@ public static CompletableFuture<Void> runAsync(Runnable runnable,Executor execut
 
 
 
-
-
-
-
-
-
-​    一个Future类是显示的完成，而且能被用作一个完成等级，通过它的完成触发支持的依赖函数和行为。当两个或多个线程要执行完成或取消操作时，只有一个能够成功。
+一个Future类是显示的完成，而且能被用作一个完成等级，通过它的完成触发支持的依赖函数和行为。当两个或多个线程要执行完成或取消操作时，只有一个能够成功。
 
 #### ForkJoinTask
 
-​    基于任务的抽象类，可以通过ForkJoinPool来执行。一个ForkJoinTask是类似于线程实体，但是相对于线程实体是轻量级的。大量的任务和子任务会被ForkJoinPool池中的真实线程挂起来，以某些使用限制为代价。
+基于任务的抽象类，可以通过ForkJoinPool来执行。一个ForkJoinTask是类似于线程实体，但是相对于线程实体是轻量级的。大量的任务和子任务会被ForkJoinPool池中的真实线程挂起来，以某些使用限制为代价。
 
 
 
@@ -9319,100 +7775,17 @@ public static CompletableFuture<Void> runAsync(Runnable runnable,Executor execut
 
 ![](image.assets/FutureTask.jpg)
 
-**FutureTask implements [RunnableFuture](#RunnableFuture) -> 既可以作为Runnable执行，又能Future.get**
-
-**提供[cancel()](####cancel)**
-
-```java
-public class FutureTask<V> implements RunnableFuture<V>{
-  private volatile int state;
-  private static final int NEW          = 0;
-  private static final int COMPLETING   = 1;
-  private static final int NORMAL       = 2;
-  private static final int EXCEPTIONAL  = 3;
-  private static final int CANCELLED    = 4;
-  private static final int INTERRUPTING = 5;
-  private static final int INTERRUPTED  = 6;
-
-  private Callable<V> callable;
-  private Object outcome;
-  private volatile Thread runner;
-  private volatile WaitNode waiters;
-
-  public FutureTask(Callable<V> callable);
-  public FutureTask(Runnable runnable, V result);
-}
 
 
-public interface RunnableFuture<V> extends Runnable, Future<V> {
-  void run();
-}
-```
+
 
 
 
 #### <a id="Future.get">get</a>
 
-==submit()的异常将被Future.report()封装在ExecutionException中重新抛出==
-
-把异常也作为返回值进行返回,不交给异常处理器
-
-```java
-public V get() throws InterruptedException, ExecutionException {
-    int s = state;
-    if (s <= COMPLETING)   s = awaitDone(false, 0L);	//任务未结束，阻塞
-    return report(s);
-}
-```
 
 
 
-
-
-#### cancel
-
-
-
-```java
-public boolean cancel(boolean mayInterruptIfRunning) {
-  if (!(state == NEW &&
-        UNSAFE.compareAndSwapInt(this, stateOffset, NEW,
-                                 mayInterruptIfRunning ? INTERRUPTING : CANCELLED)))
-    return false;
-  try {    // in case call to interrupt throws exception
-    if (mayInterruptIfRunning) {
-      try {
-        Thread t = runner;
-        if (t != null)
-          t.interrupt();
-      } finally { // final state
-        UNSAFE.putOrderedInt(this, stateOffset, INTERRUPTED);
-      }
-    }
-  } finally {
-    finishCompletion();
-  }
-  return true;
-}
-```
-
-
-
-
-
-#### report
-
-
-
-```java
-@SuppressWarnings("unchecked")
-private V report(int s) throws ExecutionException {
-    Object x = outcome;
-    if (s == NORMAL)	return (V)x;	//执行正常，则返回结果
-    if (s >= CANCELLED)	throw new CancellationException();
-    throw new ExecutionException((Throwable)x);	//执行异常
-}
-```
 
 
 
@@ -9460,15 +7833,11 @@ Jconsole	查看JVM状态
 
 
 
-
-
-
-
 ## JMM
 
 Java Memory Model
 
-JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各种平台下都能达到一致的内存访问效果
+JMM屏蔽了硬件和OS的内存访问差异，实现 Java 程序在各种平台下都能达到一致的内存访问效果
 
 ![](image.assets/内存模型.png)
 
@@ -9480,7 +7849,7 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 为了保证**线程中的局部变量不被别的线程访问**,栈线程私有
 
-**栈管运行，堆管存储**
+==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
 
 ![img](image.assets/8442519f-0b4d-48f4-8229-56f984363c69.png)
 
@@ -9488,7 +7857,9 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 #### 虚拟机栈
 
-==大小在编译时确定==,由若干栈帧组成
+==大小在编译时确定==,在方法运行期间不会改变大小
+
+由若干栈帧组成
 
 基本类型变量 / 对象的引用变量 / 实例方法 都在栈分配内存
 
@@ -9499,8 +7870,9 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 * ==基本类型,对象引用和局部变量表==(JOL的类型指针/实例数据)
 
   * **局部变量不会被赋初值**,不像类变量在加载过程中有准备阶段
-  * 局部变量表存放 方法参数 / 方法内定义的局部变量 / 对象引用(不同于对象本身,可能是指向对象起始地址的指针,可也能是指向代表对象的句柄 或 其他与此对象相关的位置)
+  * 局部变量表存放 方法参数 / 方法内的局部变量 / returnAddress类型(指向一条字节码指令的地址) / 对象引用(不同于对象本身,可能是指向对象起始地址的指针,可也能是指向代表对象的句柄 或 其他与此对象相关的位置)
   * 局部变量表的容量以Slot为最小单位，一个slot存放2^32^,JVM通过索引定位使用局部变量表。为了节省栈帧空间，**slot是可以复用的,不可达的变量可以被直接覆盖，所以栈中的变量不会被GC**
+  * 只有long/double 2种类型的数据需要占用2个Slot,其余数据类型都只是占用1个
 
 * ==操作数栈==(工作空间)
 
@@ -9521,24 +7893,30 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
   
 * 按定义顺序依次压栈，**相邻变量的地址之间不会存在其它变量**。栈的内存地址由高到低，**后定义的变量地址低于先定义的变量**
 
-* **线程请求的栈深度大于虚拟机所允许的深度StackOverflowError**,通常由递归引起
 
-* 虚拟机栈的动态拓展会不断地申请内存,当无法申请到足够的内存时,OOM
+
+**定义了2种异常**
+
+**线程请求的栈深度大于虚拟机所允许的深度StackOverflowError**,通常由递归引起
+
+虚拟机栈的动态拓展会不断地申请内存,当无法申请到足够的内存时,OOM
+
+
 
 
 
 #### 本地方法栈
 
+Native Method Stack
+
+本地方法栈的作用与虚拟机栈的作用是相近的,唯一区别只在于虚拟机栈执行Java方法,本地方法栈执行native方法
+
+虚拟机规范并没有规定本地方法栈使用的语言/数据结构 -> 具体的虚拟机可以对本地方法栈自由实现,甚至HotSpot是将本地方法栈和虚拟机栈合二为一
+
+
+
 * 本地方法被执行时,在本地方法栈也会创建一个栈帧,用于存放该本地方法的局部变量表、操作数栈、动态链接、出口信息
 * 方法结束后也会进行类似虚拟机栈的出栈和释放空间,也会出现 `StackOverFlowError` 和 `OutOfMemoryError` 两种错误
-
-==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
-
-
-
-
-
-
 
 
 
@@ -9552,22 +7930,36 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 只有1个,所有线程共享,**虚拟机启动时创建**,存储==对象和class对象==,**gc主要区域**
 
+根据JVM规范,堆可以处于物理上不连续的内存空间,只需逻辑上连续即可
+
 堆申请和释放由程序员控制，容易OOM
 
-* 新生代Young Generation   分三个区,默认占比 8:1:1,方便采用**复制-清除策略**
-* 区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC，Eden和使用区里都存在需要回收的对象,导致碎片
-* **Survivor from/to区交替空闲** -> 新生代实际可用90%
-  * Eden存放新创建对象,==分配内存时需要加锁==
-    * 线程在Eden上的独占空间:本地线程分配缓冲TLAB,==在TLAB分配内存不需要加锁==，首先根据逃逸算法,如果方法中的对象引用没有被返回/未被外部使用,尝试在TLAB分配,对象过大/TLAB满，在堆上分配
-    * Eden满时
-      * **进入老年代的对象大小在GC前未知**
-      * 之前晋升到老年代的平均值>老年代剩余空间，**full GC**
-      * < 则判断`HandlePromotionFailure`(是否允许担保失败,默认允许)，有担保则**Minor GC**
-        * **大对象进入年老代**,保证Eden空间充足  -XX:PretenureSizeThreshold(默认0,代表优先在Eden分配)
-        * **长期存活进入老年代**，避免from/to重复复制,以及Survivor空间不足 `-XX:MaxTenuringThreshold`年龄阈值 默认15
-        * **动态对象年龄判断**,年龄相同的对象 > Survivor的`-XX:TargetSurvivorRatio=percent`默认50%，超出部分放入老年代,保证老年代空间充足,并取min(该年龄,`-XX:MaxTenuringThreshold`)作为新的年龄阈值 
-    * GC后,使用/空闲区互换,**年龄+1**
-* 年老代Old Generation  存活时间较久，较大的对象
+
+
+#### 新生代
+
+Young Generation   Eden:from:to默认占比 8:1:1,方便采用**复制-清除策略**
+
+区分空闲/使用区,将存活的对象复制进空闲区，**避免碎片问题**。虽然复制后使用区没有碎片，但下次GC后,Eden和使用区里都存在需要回收的对象,导致碎片
+
+**Survivor from/to区交替空闲** -> 新生代实际可用90%
+
+Eden存放新创建对象,==分配内存时需要加锁==
+
+
+
+* Eden满时
+  * **进入老年代的对象大小在GC前未知**
+  * 之前晋升到老年代的平均值>老年代剩余空间，**full GC**
+  * < 则判断`HandlePromotionFailure`(是否允许担保失败,默认允许)，有担保则**Minor GC**
+    * **大对象进入年老代**,保证Eden空间充足  -XX:PretenureSizeThreshold(默认0,代表优先在Eden分配)
+    * **长期存活进入老年代**，避免from/to重复复制,以及Survivor空间不足 `-XX:MaxTenuringThreshold`年龄阈值 默认15
+    * **动态对象年龄判断**,年龄相同的对象 > Survivor的`-XX:TargetSurvivorRatio=percent`默认50%，超出部分放入老年代,保证老年代空间充足,并取min(该年龄,`-XX:MaxTenuringThreshold`)作为新的年龄阈值 
+* GC后,使用/空闲区互换,**年龄+1**
+
+
+
+年老代Old Generation  存活时间较久，较大的对象
 
 
 
@@ -9584,7 +7976,7 @@ JMM试图屏蔽硬件和OS的内存访问差异，以实现让 Java 程序在各
 
 #### TLAB
 
--XX:TLABSize
+-XX:TLABSize	默认Eden的1%
 
 -XX:UseTLAB	设置是否开启TLAB空间
 
@@ -9596,7 +7988,9 @@ Thread Local Allocation Buffer
 
 
 
-**JVM为每个线程在Eden区分配独占缓存区**(Eden的1%),使得线程可以不加锁地创建对象
+TLAB是线程在Eden上的独占空间,==在TLAB分配内存不需要加锁==，首先根据逃逸算法,如果方法中的对象引用没有被返回/未被外部使用,尝试在TLAB分配,对象过大/TLAB满，在堆上分配
+
+
 
 快速分配策略:当TLAB空间不足时,重新创建TLAB.多线程同时分配内存时,使用TLAB可以避免线程安全问题,提升内存分配的吞吐量
 
@@ -9653,19 +8047,30 @@ CPU从内存取数据到寄存器，然后进行处理，但内存处理速度�
 
 ![](image.assets/image-20201024224300360.png)
 
-> 《Java虚拟机规范》只规定方法区的概念和作用，并没有规定如何实现。**方法区和永久代的关系类似接口和类，永久代是HotSpot对方法区的一种实现方式**,其他JVM实现并没有永久代
+> 《Jvm规范》只规定方法区的概念和作用，并没有规定如何实现。**方法区和永久代的关系类似接口和类，永久代是HotSpot对方法区的一种实现方式**,其他JVM实现并没有永久代
+>
+> 
+>
+> JVM规范也没有规定方法区不实现GC
+>
+> GC在方法区的回收条件是极为苛刻的,主要针对常量池回收和类卸载
+>
+> 
+>
+> 当方法区无法满足内存分配需求时,也会OOM
 
 
 
 只有1个,共享,会在无法满足内存分配时报错
 
-==已被JVM加载的class信息 : 类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
+存储==已被JVM加载的class类型信息,static变量,常量，编译期生成的常量==等**唯一的元素**
 
 
 
-* 方法表
-  * 实现动态调用的核心,存放在方法区中的类型信息中
-  * 方法区的类型信息指向方法表，方法表指向具体方法,这些方法中包括从父类继承/自身重写
+**方法表**
+
+* 实现动态调用的核心,存放在方法区中的类型信息中
+* 方法区的类型信息指向方法表，方法表指向具体方法,这些方法中包括从父类继承/自身重写
 
 
 
@@ -9705,9 +8110,11 @@ class对象没有在任何地方被引用，无法在任何地方通过反射访
 
 #### 运行时常量池
 
+Runtime Constant Pool
+
 **-XX:PermSize和-XX:MaxPermSize**
 
-存放**编译期被确定**的各种**字面量**和**符号引用**
+存放**编译期被确定**的各种**字面量**和**符号引用**,这部分数据在类加载后进入方法区的运行常量池存放
 
 * 字面量：字符串、声明为final的常量值等
 * 符号引用：类和接口的完全限定名、字段的名称和描述符、方法的名称和描述符
@@ -9725,7 +8132,7 @@ class对象没有在任何地方被引用，无法在任何地方通过反射访
 
 
 1. **1.7- 运行时常量池存放在方法区, 此时 hotspot 虚拟机对方法区的实现为永久代**
-2. **1.7 字符串常量池单独移到堆中** 。
+2. **1.7 字符串常量池单独移到堆中**
 3. **1.8+ hotspot Metaspace取代永久代,这时候字符串常量池还在堆,运行时常量池在元空间**
 
 
@@ -9734,11 +8141,13 @@ class对象没有在任何地方被引用，无法在任何地方通过反射访
 
 ### 程序计数器
 
-**字节码解释器通过改变计数器的值来依次读取指令**，从而实现流程控制：顺序执行、选择、循环、异常处理
+Program Counter Register
+
+**字节码解释器通过改变计数器值来依次读取指令**，从而实现流程控制：顺序执行、选择、循环、异常处理
 
 **为了线程切换能恢复到正确的位置**，程序计数器线程私有
 
-执行native时记录undefined，执行Java代码时记录下一条指令的地址
+执行native时记录undefined，执行Java代码时记录下一条虚拟机字节码指令的地址
 
 
 
@@ -9748,13 +8157,13 @@ class对象没有在任何地方被引用，无法在任何地方通过反射访
 
 ### 直接内存
 
-不是虚拟机运行时数据区的一部分，也不是虚拟机规范中定义的内存区域，但这部分内存会被频繁地使用。也有OOM可能性
+不是虚拟机运行时数据区的一部分，也不是JVM规范中定义的内存区域，但这部分内存会被频繁地使用。也有OOM可能性
 
 
 
-NIO引入基于**通道（Channel）** 与**缓存区（Buffer）** 的 I/O 方式,可以用 Native函数库直接分配堆外内存，然后通过存储在堆中的 DirectByteBuffer 对象作为这块内存的引用进行操作。这样就能在一些场景中显著提高性能，因为**避免了在 Java 堆和 Native 堆之间来回复制数据**。
+NIO引入基于**通道（Channel）** 与**缓存区（Buffer）** 的 I/O 方式,可以用 Native函数库直接分配堆外内存，然后通过存储在堆中的 DirectByteBuffer 对象作为这块内存的引用进行操作,**避免了在 Java 堆和 Native 堆之间来回复制数据**
 
-本机直接内存的分配不会受到 Java 堆的限制，但是，既然是内存就会受到本机总内存大小以及处理器寻址空间的限制。
+本机直接内存的分配不会受到 Java 堆的限制，但是，既然是内存就会受到本机总内存大小以及处理器寻址空间的限制
 
 
 
@@ -9843,17 +8252,17 @@ JVM定义了8个操作来完成主内存和工作内存的交互
 
 #### 原子性
 
-Java 内存模型保证了 read、load、use、assign、store、write、lock 和 unlock 操作具有原子性，例如对一个 int 类型的变量执行 assign 赋值操作，这个操作就是原子性的
+Java 内存模型保证 read、load、use、assign、store、write、lock 和 unlock 操作具有原子性
 
-但JMM允许JVM将没有被 volatile 修饰的 64 位数据（long，double）的读写操作划分为两次 32 位的操作进行，即 load、store、read 和 write 操作可以不具备原子性
-
-
+但JMM允许JVM将没有被 volatile 修饰的 64 位数据（long，double）的读写操作划分为 两次32位的操作进行，即 load、store、read 和 write 操作可以不具备原子性
 
 
 
-将内存间的交互操作简化为 3 个：load、assign、store。
 
-下图演示了两个线程同时对 cnt 进行操作，load、assign、store 这一系列操作整体上看不具备原子性，那么在 T1 修改 cnt 并且还没有将修改后的值写入主内存，T2 依然可以读入旧值。可以看出，这两个线程虽然执行了两次自增运算，但是主内存中 cnt 的值最后为 1 而不是 2。因此对 int 类型读写操作满足原子性只是说明 load、assign、store 这些单个操作具备原子性。
+
+将内存间的交互操作简化为 3 个：load、assign、store
+
+下图演示了两个线程同时对 cnt 进行操作，load、assign、store 这一系列操作整体上看不具备原子性，那么在 T1 修改 cnt 并且还没有将修改后的值写入主内存，T2 依然可以读入旧值。可以看出，这两个线程虽然执行了两次自增运算，但是主内存中 cnt 的值最后为 1 而不是 2。因此对 int 类型读写操作满足原子性只是说明 load、assign、store 这些单个操作具备原子性
 
 <div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2797a609-68db-4d7b-8701-41ac9a34b14f.jpg" width="300px"> </div><br>
 
@@ -10003,6 +8412,30 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 
 
 
+### 64位JVM
+
+目前主流的Cou已经支持64位架构了,JVM也早就支持了64位系统的版本,但Java程序运行在64位JVM上需要付出额外的内存(将近是32位的1.1/1.3倍)
+
+
+
+1.6+提供了`UseCompressedOops`设置指针压缩,通过在执行代码时动态地植入压缩指令来节省内存的消耗,但这会**增加代码的执行量**:
+
+1. 所有堆中的对象的指针都被压缩 -> 需要额外的代码完成指针的访问
+2. 实例指向对象类型的引用也被压缩 -> 
+3. 子类型检查 -> 
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### 对象的访问定位
 
 
@@ -10147,7 +8580,11 @@ HotSpot 的GC实现只有两大种：
 
 
 
+**主要回收区域**
 
+主要回收 堆/方法区
+
+程序计数器,虚拟机栈,本地方法栈 生命周期与线程一致,随线程消亡而自动释放内存,不需要GC
 
 
 
@@ -10272,21 +8709,29 @@ HotSpot 的GC实现只有两大种：
 
 当所有的引用节点寻找完毕之后，剩余节点被认为不可达(与GC ROOT没有任何引用链的节点不可达)
 
+
+
+**优点** 解决循环引用问题
+
+**缺点** 需要耗费大量资源和时间，分析过程中停止所有进程,保证引用关系不发生变化
+
 ![](image.assets/72762049.png)
 
 
 
 **可作为GC Roots的对象**
 
-虚拟机栈中引用的对象（栈帧中的本地变量表）
+虚拟机栈帧的 本地变量表 中引用的对象
 
-方法区中类静态属性引用的对象
+方法区中类静态变量引用的对象
 
 方法区中常量引用的对象
 
 本地方法栈引用的对象
 
 被同步锁持有的对象
+
+已启动的且未终止的Java线程
 
 
 
@@ -10884,9 +9329,7 @@ UTF-16只能表示Unicode中第一层（BMP）中的字符，对于其他字符�
 
 ## 包装类型
 
-
-
-大多被final修饰,无法被继承/实现
+**都被final修饰**,无法被继承/实现
 
 除Double/Float外都实现了常量池技术,`Byte`,`Short`,`Integer`,`Long` 默认创建了数值 **[-128，127]** 的相应类型的缓存数据，`Character` 创建了数值在[0,127]范围的缓存数据，`Boolean` 直接返回 `True/False`
 
@@ -10961,27 +9404,11 @@ i4=i5+i6   true	//i5+i6被自动拆箱为0+40=40
 
 
 
-
-
-#### valueOf
-
-优先从IntegerCache取对象引用,不同于new Integer()的每次创建
-
-```java
-public static Integer valueOf(int i) {
-  if (i >= IntegerCache.low && i <= IntegerCache.high)
-    return IntegerCache.cache[i + (-IntegerCache.low)];
-  return new Integer(i);
-}
-```
-
-
-
 #### IntegerCache
 
 下界-128，上界默认127
 
-通过 -XX:AutoBoxCacheMax=&lt;size&gt; 指定上界
+`-XX:AutoBoxCacheMax=&lt;size` 指定上界,不支持调整下界
 
 ```java
 private static class IntegerCache {
@@ -10990,65 +9417,33 @@ private static class IntegerCache {
   static final Integer cache[];
 
   static {
-    int h = 127;
+    int h = 127; //默认的上界
     .......
   }
 ```
 
 
 
-
-
-
-
 ### String
 
-
-
 ```java
-public final class String implements Serializable, Comparable<String>, CharSequence {
-  private final char value[];
-
-  public String() {
-    this.value = "".value; //new String()只分配了空字符串的数组地址,没有产生新对象
-  }
-}
-```
-
- 
-
-
-
-```java
-String str1 = "abcd";//先检查字符串常量池中有没有"abcd"，如果字符串常量池中没有，则创建一个，然后 str1 指向字符串常量池中的对象，如果有，则直接将 str1 指向"abcd""；
+String str1 = "abcd";//先检查字符串常量池中有没有"abcd"
 String str2 = new String("abcd");//堆中创建新对象
 String str3 = new String("abcd");//堆中创建新对象
 String str4 = str1 + str2;//堆中创建新对象
 ```
 
-这两种不同的创建方法是有差别的。
-
 ![](image.assets/2019-3String-Pool-Java1-450x249.png)
-
-
 
 字符串在进行 +运算 时,双方的内容都需要被拷贝,这将引发性能问题
 
 
 
+#### final的好处
 
+可以缓存 hash值 / 字符串常量池
 
-
-
-
-
-
-
-
-
-**final的好处**
-
-可以缓存hash值,也可以缓存字符串常量池
+在网络传输中保证参数不变
 
 若允许被继承，其高度的被使用率会降低性能
 
@@ -11056,7 +9451,7 @@ String str4 = str1 + str2;//堆中创建新对象
 
 final天生的线程安全
 
-
+1.8+ 字符串常量池放置于方法区中
 
 
 
@@ -11088,36 +9483,6 @@ static int indexOf(char[] source, int sourceOffset, int sourceCount,
     return fromIndex; }
 }
 ```
-
-
-
-#### equals
-
-```java
-public boolean equals(Object anObject) {
-  if (this == anObject) {
-    return true;
-  }
-  if (anObject instanceof String) {	//对于非String类型,无法使用equals比较
-    String anotherString = (String)anObject;
-    int n = value.length;
-    if (n == anotherString.value.length) {
-      char v1[] = value;
-      char v2[] = anotherString.value;
-      int i = 0;
-      while (n-- != 0) {
-        if (v1[i] != v2[i])
-          return false;
-        i++;
-      }
-      return true;
-    }
-  }
-  return false;
-}
-```
-
-
 
 
 
