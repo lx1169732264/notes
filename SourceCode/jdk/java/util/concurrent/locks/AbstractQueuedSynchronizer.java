@@ -519,7 +519,7 @@ public abstract class AbstractQueuedSynchronizer
      * If head exists, its waitStatus is guaranteed not to be
      * CANCELLED.
      */
-    private transient volatile Node head;
+    private transient volatile Node head; // head的thread属性为null，不放任何线程信息，仅为标记位
 
     /**
      * Tail of the wait queue, lazily initialized.  Modified only via
@@ -530,7 +530,7 @@ public abstract class AbstractQueuedSynchronizer
     /**
      * The synchronization state.
      */
-    private volatile int state;
+    private volatile int state; //0空闲,1被占用，>1可重入占用
 
     /**
      * Returns the current value of synchronization state.
@@ -1196,7 +1196,7 @@ public abstract class AbstractQueuedSynchronizer
      */
     public final void acquire(int arg) {
         if (!tryAcquire(arg) &&
-            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+            acquireQueued(addWaiter(Node.EXCLUSIVE), arg)) //加锁失败时addWaiter()独占加入CLH等待队列
             selfInterrupt();
     }
 
