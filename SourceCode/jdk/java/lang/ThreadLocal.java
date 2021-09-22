@@ -96,13 +96,13 @@ public class ThreadLocal<T> { //通过每个线程保存变量的副本,空间�
      * implicit sequential thread-local IDs into near-optimally spread
      * multiplicative hash values for power-of-two-sized tables.
      */
-    private static final int HASH_INCREMENT = 0x61c88647; //斐波那契数,可以减少hash重复的概率
+    private static final int HASH_INCREMENT = 0x61c88647; //斐波那契数,减少hash重复概率
 
     /**
      * Returns the next hash code.
      */
     private static int nextHashCode() {
-        return nextHashCode.getAndAdd(HASH_INCREMENT); //每次创建threadLocal对象,hashCode+=HASH_INCREMENT
+        return nextHashCode.getAndAdd(HASH_INCREMENT); //每次创建threadLocal对象时,都会 hashCode += HASH_INCREMENT,让hashCode自增
     }
 
     /**
@@ -198,11 +198,11 @@ public class ThreadLocal<T> { //通过每个线程保存变量的副本,空间�
      */
     public void set(T value) {
         Thread t = Thread.currentThread();
-        ThreadLocalMap map = getMap(t);
+        ThreadLocalMap map = getMap(t); //取当前线程的ThreadLocalMap
         if (map != null)
             map.set(this, value); //以[threadlocal,v]的二元组存储
         else
-            createMap(t, value); //map在首次set threadLocal变量时创建
+            createMap(t, value); //map在首次set threadLocal变量时创建,存储[threadLocal,v]的二元组
     }
 
     /**
@@ -324,7 +324,7 @@ public class ThreadLocal<T> { //通过每个线程保存变量的副本,空间�
          * The table, resized as necessary.
          * table.length MUST always be a power of two.
          */
-        private Entry[] table;
+        private Entry[] table; // [ThreadLocal,v]的二元组
 
         /**
          * The number of entries in the table.
@@ -463,16 +463,16 @@ public class ThreadLocal<T> { //通过每个线程保存变量的副本,空间�
             int i = key.threadLocalHashCode & (len-1);
 
             for (Entry e = tab[i];
-                 e != null;
-                 e = tab[i = nextIndex(i, len)]) { //线性探测法查找元素,tab[i]!=null 时才停止查找
+                 e != null; //线性探测法查找元素,tab[i]!=null 时进方法体
+                 e = tab[i = nextIndex(i, len)]) {
                 ThreadLocal<?> k = e.get();
 
-                if (k == key) { //若key重复,替换     在循环体外还有一个cleanSomeSlots,用于清理该桶后面的空桶
+                if (k == key) { //场景1. key重复直接替换   在循环体外还有一个cleanSomeSlots,用于清理该桶后面的空桶
                     e.value = value;
                     return;
                 }
 
-                if (k == null) { //出现空桶,直接存储
+                if (k == null) { //场景2. 出现空桶,直接存储
                     replaceStaleEntry(key, value, i); //在线性探测中遇到的所有空桶都会被清理
                     return;
                 }
@@ -667,7 +667,7 @@ public class ThreadLocal<T> { //通过每个线程保存变量的副本,空间�
          * table removing stale entries. If this doesn't sufficiently
          * shrink the size of the table, double the table size.
          */
-        private void rehash() { //由于ThreadLocalMap不存在链表结构,无法参考HashMap的方式解决hash冲突
+        private void rehash() { //ThreadLocalMap不存在链表结构,无法参考HashMap的方式解决hash冲突
             expungeStaleEntries();
 
             // Use lower threshold for doubling to avoid hysteresis

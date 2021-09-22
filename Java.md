@@ -456,6 +456,50 @@ boolean batchRemove(Collection<?> c, boolean complement, final int from, final i
 
 
 
+### Lists
+
+
+
+|                      |                  |      |
+| -------------------- | ---------------- | ---- |
+| reverse              | 翻转列表         |      |
+| charactersOf("")     | 字符串->字符列表 |      |
+| partition(list,size) | 按size划分列表   |      |
+
+
+
+
+
+### ImmutableList
+
+
+
+不支持null的元素
+
+
+
+#### 三种构造方式
+
+```java
+ImmutableList.of("a", "b");
+ImmutableList.copyOf(list);
+ImmutableList.<String>builder().add("a").add("b").build();
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Map
@@ -4138,7 +4182,21 @@ t2T1		两个线程的局部变量s交换了引用
 
 
 
+### RateLimiter
 
+Guava基于令牌桶实现的限速工具类
+
+
+
+```java
+public static void main(String[] args) {
+  RateLimiter rateLimiter = RateLimiter.create(5); //1s内最多执行次数
+  for (int i=0; i< 10; i++) {
+    double timeCost = rateLimiter.acquire(); //timeCost:本次竞争所耗时间
+    System.out.println(LocalTime.now());
+  }
+}
+```
 
 
 
@@ -4149,10 +4207,6 @@ t2T1		两个线程的局部变量s交换了引用
 
 
 底层是CAS
-
-AtomicBoolean，AtomicUInteger，AtomicLong。分别用于Boolean，Integer，Long类型的原子性操作
-
-
 
 | 基本类型      | 数组类型             | 引用类型                                            | 对象的属性修改类型          |
 | ------------- | -------------------- | --------------------------------------------------- | --------------------------- |
@@ -4823,87 +4877,11 @@ try {
 
 
 
-### set
-
-```java
-public void set(T value) {
-  Thread t = Thread.currentThread();
-  ThreadLocalMap map = getMap(t);
-  if (map != null)
-    map.set(this, value);	//以 (threadLocal,value) 的键值对存储
-  else
-    createMap(t, value);
-}
-
-void createMap(Thread t, T firstValue) {
-  //this为threadLocal,ThreadLocalMap存储[threadLocal,v]的二元组,ThreadLocalMap被赋值给thread的成员变量threadLocals
-  t.threadLocals = new ThreadLocalMap(this, firstValue);
-}
-```
-
-
-
-### get
-
-从map的[threadLocal,v]二元组中取值
-
-```java
-public T get() {
-  Thread t = Thread.currentThread();
-  ThreadLocalMap map = getMap(t);
-  if (map != null) {
-    ThreadLocalMap.Entry e = map.getEntry(this);
-    if (e != null) {
-      T result = (T)e.value;
-      return result;
-    }
-  }
-  return setInitialValue();
-}
-```
-
-
-
-[ThreadLocalMap.getEntry](####getEntry)
-
-
-
-
-
-
-
-
-
 ### ThreadLocalMap
 
 ThreadLocal内部类
 
 存储(WeakReference<ThreadLocal<?>>,变量)的键值对，只有指定线程可以得到存储数据,相较于HashMap,并没有链表的概念
-
-```java
-static class ThreadLocalMap {
-  private static final int INITIAL_CAPACITY = 16;
-  private Entry[] table;	//保存(ThreadLocal,V)的键值对
-  private int size = 0;
-  private int threshold;
-  
-  private final int threadLocalHashCode = nextHashCode();
-  private static AtomicInteger nextHashCode = new AtomicInteger();
-  private static final int HASH_INCREMENT = 0x61c88647;//0x61c88647是斐波那契散列乘数，避免hash冲突
-  private static int nextHashCode() {
-    return nextHashCode.getAndAdd(HASH_INCREMENT);	//每次new ThreadLocal会使threadLocalHashCode自增，增量为0x61c88647
-  }
-
-  ThreadLocalMap(ThreadLocal<?> firstKey, Object firstValue) {
-    table = new Entry[INITIAL_CAPACITY];
-
-    int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1);	//位运算,计算出存放位置
-    table[i] = new Entry(firstKey, firstValue);
-    size = 1;
-    setThreshold(INITIAL_CAPACITY);
-  }
-}
-```
 
 
 
@@ -4938,8 +4916,6 @@ static class Entry extends WeakReference<ThreadLocal<?>> { //弱引用
 
 
 #### set
-
-
 
 ```java
 private void set(ThreadLocal<?> key, Object value) {
@@ -5029,9 +5005,87 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 
 
+### 为什么用弱引用
 
 
 
+**key 使用强引用时**
+
+回收ThreadLocal时，ThreadLocalMap还持有ThreadLocal的强引用，导致ThreadLocal不会被回收，导致Entry内存泄漏
+
+
+
+**key 使用弱引用时**
+
+回收ThreadLocal时，由于ThreadLocalMap持有ThreadLocal的弱引用，即使没有手动删除，ThreadLocal也会被回收。当key为null，在下一次ThreadLocalMap调用set/get/remove时被清除value
+
+
+
+### 案例
+
+
+
+```java
+public static void main(String[] args) throws InterruptedException {
+  Thread t = new Thread(() -> test("abc", false));
+  t.start();
+  t.join();
+  System.out.println("--gc后--");
+  Thread t2 = new Thread(() -> test("def", true));
+  t2.start();
+  t2.join();
+}
+
+private static void test(String s, boolean isGC) {
+  try {
+    Thread t = Thread.currentThread(); //存在强引用,在gc后key还在
+    ThreadLocal<Object> local = new ThreadLocal<>();
+    local.set(s);
+    if (isGC) {
+      System.gc();
+    }
+
+    Field field = t.getClass().getDeclaredField("threadLocals");
+    field.setAccessible(true);
+    Object ThreadLocalMap = field.get(t);
+    Field tableField = ThreadLocalMap.getClass().getDeclaredField("table");
+    tableField.setAccessible(true);
+    Object[] arr = (Object[]) tableField.get(ThreadLocalMap);
+    for (Object o : arr) {
+      if (o != null) {
+        Class<?> entryClass = o.getClass();
+        Field valueField = entryClass.getDeclaredField("value");
+        Field referenceField = entryClass.getSuperclass().getSuperclass().getDeclaredField("referent");
+        valueField.setAccessible(true);
+        referenceField.setAccessible(true);
+        System.out.println(String.format("弱引用key:%s,值:%s", referenceField.get(o), valueField.get(o)));
+      }
+    }
+  } catch (Exception e) {
+    e.printStackTrace();
+  }
+}
+```
+
+
+
+在ThreadLocal没有指向引用时,key在GC后被清除
+
+![](image.assets/threadLocal弱引用.png)
+
+
+
+
+
+在threadLocal没有指向引用时,GC将key清理了
+
+也就是说,在**强引用**不存在时，`key`会被回收，但`value`还在，并且永远存在，出现内存泄漏
+
+![image-20211011190000542](image.assets/image-20211011190000542.png)
+
+
+
+![](image.assets/5.png)
 
 
 
@@ -5042,6 +5096,26 @@ InheritableThreadLocal类是ThreadLocal类的子类
 
 
 **对象锁分为三种：共享资源、this、当前类的字节码文件对象**
+
+
+
+当使用锁来协调对某变量的访问时,在所有访问这个变量的方法都需要使用**同一把锁**
+
+不仅仅是在写入才需要锁,只有当所有访问方法都需要持有同一把锁,这个变量才是被锁保护的
+
+
+
+对象的内置锁和对象的锁定状态并没有内在的关联,虽然大多数类都以内置锁作为加锁机制,但对象的域并不一定要用内置锁来保护,**内置锁的存在只是为了避免显式地创建锁对象**
+
+
+
+仅在方法上加synchronized并不能保证方法的符合操作是原子性的
+
+```java
+if(!vector.contains(element))		vector.add(element); //contains和add都是原子方法,但复合的原子操作需要额外的加锁机制
+```
+
+
 
 
 
@@ -6790,6 +6864,20 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 线程池的参数不好配置的根本原因是 线程池执行的情况和任务类型相关性较大，IO/CPU密集型的任务运行起来的情况差异非常大
+
+
+
+![](image.assets/640)
+
+
+
+
+
+
+
+
+
+
 
 
 

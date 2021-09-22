@@ -526,7 +526,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The default concurrency level for this table. Unused but
      * defined for compatibility with previous versions of this class.
      */
-    private static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+    private static final int DEFAULT_CONCURRENCY_LEVEL = 16; //默认并发级别
 
     /**
      * The load factor for this table. Overrides of this value in
@@ -792,7 +792,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * creation, or 0 for default. After initialization, holds the
      * next element count value upon which to resize the table.
      */
-    private transient volatile int sizeCtl;
+    private transient volatile int sizeCtl; //-1: 正在初始化  -n: n-1个线程正在进行扩容(高16位是length生成的标识符,低16位是扩容的线程数)    n: table已初始化 ? 0.75 * table容量 : 初始化大小
 
     /**
      * The next table index (plus one) to split while resizing.
@@ -1008,11 +1008,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /** Implementation for put and putIfAbsent */
     final V putVal(K key, V value, boolean onlyIfAbsent) {
-        if (key == null || value == null) throw new NullPointerException();
+        if (key == null || value == null) throw new NullPointerException(); // kv不为空
         int hash = spread(key.hashCode());
         int binCount = 0;
         for (Node<K,V>[] tab = table;;) {
-            Node<K,V> f; int n, i, fh;
+            Node<K,V> f; int n, i, fh; // f:目标位置元素  fh:f的hash
             if (tab == null || (n = tab.length) == 0)
                 tab = initTable();
             else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
@@ -1020,7 +1020,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                              new Node<K,V>(hash, key, value, null)))
                     break;                   // no lock when adding to empty bin
             }
-            else if ((fh = f.hash) == MOVED)
+            else if ((fh = f.hash) == MOVED) //目标位置正在扩容
                 tab = helpTransfer(tab, f);
             else {
                 V oldVal = null;
@@ -2162,7 +2162,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      */
     static final class ForwardingNode<K,V> extends Node<K,V> {
         final Node<K,V>[] nextTable;
-        ForwardingNode(Node<K,V>[] tab) {
+        ForwardingNode(Node<K,V>[] tab) { //只在transfer()进行了调用
             super(MOVED, null, null, null);
             this.nextTable = tab;
         }
@@ -2223,16 +2223,16 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         while ((tab = table) == null || tab.length == 0) {
-            if ((sc = sizeCtl) < 0)
-                Thread.yield(); // lost initialization race; just spin
-            else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+            if ((sc = sizeCtl) < 0) // 有其他线程执行CAS成功，正在进行初始化
+                Thread.yield(); // lost initialization race; just spin 让出CPU的使用权
+            else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) { // sizeCtl置为-1
                 try {
                     if ((tab = table) == null || tab.length == 0) {
                         int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
                         @SuppressWarnings("unchecked")
                         Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
                         table = tab = nt;
-                        sc = n - (n >>> 2);
+                        sc = n - (n >>> 2); // >>>: 无符号右移   >>: 带符号右移    sc=0.75n
                     }
                 } finally {
                     sizeCtl = sc;
@@ -2298,13 +2298,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         Node<K,V>[] nextTab; int sc;
         if (tab != null && (f instanceof ForwardingNode) &&
             (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
-            int rs = resizeStamp(tab.length);
-            while (nextTab == nextTable && table == tab &&
-                   (sc = sizeCtl) < 0) {
-                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                    sc == rs + MAX_RESIZERS || transferIndex <= 0)
-                    break;
-                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
+            int rs = resizeStamp(tab.length); //根据length得到一个标识符
+            while (nextTab == nextTable && table == tab && // nextTab/table没有被并发修改
+                   (sc = sizeCtl) < 0) { // sizeCtl < 0 :还在扩容
+                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 || // sc前16位!=标识符: 标识符发生了变化   sizeCtl == rs + 1 :扩容结束
+                    sc == rs + MAX_RESIZERS || transferIndex <= 0) // sizeCtl == rs + 65535 达到最大帮助线程的数量
+                    break; // 不需要协助扩容
+                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) { //SIZECTL+1 :表示增加了一个帮助扩容的线程
                     transfer(tab, nextTab);
                     break;
                 }
