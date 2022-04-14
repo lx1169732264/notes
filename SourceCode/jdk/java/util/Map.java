@@ -738,7 +738,7 @@ public interface Map<K,V> {
      *         (<a href="{@docRoot}/java/util/Collection.html#optional-restrictions">optional</a>)
      * @since 1.8
      */
-    default V putIfAbsent(K key, V value) {
+    default V putIfAbsent(K key, V value) { //已存在则不put
         V v = get(key);
         if (v == null) {
             v = put(key, value);

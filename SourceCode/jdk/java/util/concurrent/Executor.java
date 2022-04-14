@@ -137,5 +137,5 @@ public interface Executor {
      * accepted for execution
      * @throws NullPointerException if command is null
      */
-    void execute(Runnable command); //只定义execute(),用于实现 提交和执行的解耦
+    void execute(Runnable command); //只定义execute(),用于实现 任务提交和执行 的解耦
 }

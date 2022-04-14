@@ -159,7 +159,7 @@ static AutoConfigurationMetadata loadMetadata(Properties properties) {
 
 ![](image.assets/image-20210719132914580.png)
 
-所有 Starter `META-INF/ 'PATH'`目录的启动配置类都会被读取到
+所有 starter `META-INF/ 'PATH'`目录的启动配置类都会被读取到
 
 
 
@@ -172,24 +172,20 @@ protected AutoConfigurationEntry getAutoConfigurationEntry(
   if (!isEnabled(annotationMetadata)) {
     return EMPTY_ENTRY;
   }
-  AnnotationAttributes attributes = getAttributes(annotationMetadata);
-  List<String> configurations = getCandidateConfigurations(annotationMetadata,
-                                                           attributes);
+  AnnotationAttributes attributes = getAttributes(annotationMetadata); //EnableAutoConfiguration的exclude和excludeName属性
+  
+  List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes); //读取所有Starter下的 META-INF/spring.factories,获取需要自动装配的配置类
+  
   configurations = removeDuplicates(configurations);
   Set<String> exclusions = getExclusions(annotationMetadata, attributes);
   checkExcludedClasses(configurations, exclusions);
-  configurations.removeAll(exclusions); //去除不需要的配置类,@ConditionalOnXXX 中的所有条件都满足，该类才会生效
-  configurations = filter(configurations, autoConfigurationMetadata);
+  configurations.removeAll(exclusions); //根据exclude和excludeName去除
+  
+  configurations = filter(configurations, autoConfigurationMetadata);//去除@ConditionalOnXXX 中条件不满足的类
   fireAutoConfigurationImportEvents(configurations, exclusions);
   return new AutoConfigurationEntry(configurations, exclusions);
 }
 ```
-
-
-
-
-
-
 
 
 

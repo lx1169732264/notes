@@ -8,6 +8,21 @@
 
 # 暂定
 
+
+
+#### 面向对象
+
+* 继承
+  * 一种特殊与一般的 ‘is a’ 关系
+  * 避免了一般类和特殊类之间共同特征的重复描述
+* 封装
+  * 封装行为和属性之间的关系
+  * 隐藏类内部的实现机制,迪米特原则
+* 多态
+  * 继承 + 重写 + 父类引用指向子类对象
+
+
+
 #### JDK 和 JRE
 
 Java Development Kit是功能齐全的 Java SDK。拥有 JRE 所拥有的一切，还有编译器（javac）和工具（如 javadoc 和 jdb）。能够创建和编译程序
@@ -351,34 +366,23 @@ public interface Comparator<T> {
 
 
 
-| ArrayList                       | LinkedList                | Vector                          |
-| ------------------------------- | ------------------------- | ------------------------------- |
-| Object[]                        | Object[]                  | Node的双向链表                  |
-| 线程不安全                      | 不安全                    | 安全                            |
-| 指定位置插入O(n) copy数组耗时   |                           | 指定位置插入O(n) 额外的查找耗时 |
-| 得益于数组结构,支持RandomAccess | 双向链表不支持RandomAcess |                                 |
-| 扩容的额外预留空间              |                           | 存储前后节点的额外空间          |
-| 1.5倍扩容                       | 链表天生不需要扩容        | 2倍扩容                         |
-|                                 |                           |                                 |
+| ArrayList                       | LinkedList                | Vector                          | CopyOnWriteArrayList |
+| ------------------------------- | ------------------------- | ------------------------------- | -------------------- |
+| Object[]                        | Object[]                  | Node的双向链表                  |                      |
+| 线程不安全                      | 不安全                    | 安全,synchronized               | CopyOnWriteArrayList |
+| 指定位置插入O(n) copy数组耗时   |                           | 指定位置插入O(n) 额外的查找耗时 |                      |
+| 得益于数组结构,支持RandomAccess | 双向链表不支持RandomAcess |                                 |                      |
+| 扩容的额外预留空间              |                           | 存储前后节点的额外空间          |                      |
+| 1.5倍扩容                       | 链表天生不需要扩容        | 2倍扩容                         |                      |
+|                                 |                           |                                 |                      |
 
 
-
-| CopyOnWriteArrayList               | Vector               |      |
-| ---------------------------------- | -------------------- | ---- |
-| **读不加锁,增删改加锁**,加强读性能 | CRUD都加synchronized |      |
-|                                    |                      |      |
 
 
 
 
 
 ### ArrayList
-
-
-
-
-
-
 
 
 
@@ -2210,7 +2214,13 @@ public static boolean[] copyOf(boolean[] original, int newLength) {
 
 
 
+## 线程安全的集合
 
+
+
+Collections.synchronizedXXX
+
+装饰模式,本质上是使用synchronized关键词,即使有锁升级的优化,性能也不够高
 
 
 
@@ -2232,13 +2242,7 @@ List list = new ArrayList<>(Arrays.asList("a", "b", "c"))
 
 **3. 使用 Java8 的Stream(推荐)**
 
-```java
-Integer [] myArray = { 1, 2, 3 };
-List myList = Arrays.stream(myArray).collect(Collectors.toList());
-//基本类型也可以实现转换（依赖boxed的装箱操作）
-int [] myArray2 = { 1, 2, 3 };
-List myList = Arrays.stream(myArray2).boxed().collect(Collectors.toList());
-```
+
 
 **4. 使用 Guava(推荐)**
 
@@ -2723,6 +2727,16 @@ public int read(byte b[], int off, int len) throws IOException {
 
 
 [装饰器模式](面向对象.md "装饰器")
+
+
+
+#### ByteArrayInputStream
+
+
+
+
+
+
 
 
 
@@ -4186,6 +4200,30 @@ t2T1		两个线程的局部变量s交换了引用
 
 Guava基于令牌桶实现的限速工具类
 
+按一定频率往桶里扔令牌，线程拿到令牌才能执行，比如你希望自己的应用程序QPS不要超过1000，那么RateLimiter设置1000的速率后，就会每秒往桶里扔1000个令牌
+
+与Semaphore 相比，==Semaphore 限制了并发访问的数量而不是使用速率==
+
+
+
+
+
+| **方法和描述**                                               |
+| ------------------------------------------------------------ |
+| acquire() 从RateLimiter获取一个许可，该方法会被阻塞直到获取到请求 |
+| acquire(int permits) 从RateLimiter获取指定许可数，该方法会被阻塞直到获取到请求 |
+| create(double permitsPerSecond) 根据指定的稳定吞吐率创建RateLimiter，这里的吞吐率是指每秒多少许可数（通常是指QPS，每秒多少查询） |
+| create(double permitsPerSecond, long warmupPeriod, TimeUnit unit) 根据指定的稳定吞吐率和预热期来创建RateLimiter，这里的吞吐率是指每秒多少许可数（通常是指QPS，每秒多少个请求量），在这段预热时间内，RateLimiter每秒分配的许可数会平稳地增长直到预热期结束时达到其最大速率。（只要存在足够请求数来使其饱和） |
+| getRate() 返回RateLimiter 配置中的稳定速率，该速率单位是每秒多少许可数 |
+| setRate(double permitsPerSecond) 更新RateLimite的稳定速率，参数permitsPerSecond 由构造RateLimiter的工厂方法提供。 |
+| toString() 返回对象的字符表现形式                            |
+| tryAcquire() 从RateLimiter 获取许可，如果该许可可以在无延迟下的情况下立即获取得到的话 |
+| tryAcquire(int permits) 从RateLimiter 获取许可数，如果该许可数可以在无延迟下的情况下立即获取得到的话 |
+| tryAcquire(int permits, long timeout, TimeUnit unit) 从RateLimiter 获取指定许可数如果该许可数可以在不超过timeout的时间内获取得到的话，或者如果无法在timeout 过期之前获取得到许可数的话，那么立即返回false （无需等待） |
+| tryAcquire(long timeout, TimeUnit unit) 从RateLimiter 获取许可如果该许可可以在不超过timeout的时间内获取得到的话，或者如果无法在timeout 过期之前获取得到许可的话，那么立即返回false（无需等待） |
+
+
+
 
 
 ```java
@@ -4197,6 +4235,10 @@ public static void main(String[] args) {
   }
 }
 ```
+
+
+
+
 
 
 
@@ -6828,42 +6870,10 @@ CachedThreadPool,核心线程数量0,不会有核心线程存活阻止线程池�
 
 
 
+### 设置线程数
 
-
-### 线程池参数
-
-| corePoolSize        | 核心数量            | 同时运行的最小线程数量                                       |
-| ------------------- | ------------------- | ------------------------------------------------------------ |
-| **maximumPoolSize** | 最大数量            |                                                              |
-| keepAliveTime       | 存活时间            | 线程数量上限 && 存活时间 > keepAliveTime，销毁线程           |
-| unit                | keepAliveTime的单位 |                                                              |
-| **workQueue**       | 任务队列            | 每次加入任务都判断池内正在运行的线程数量                     |
-| threadFactory       | 线程工厂            |                                                              |
-| handler             | 拒绝策略            | 默认AbortPolicy（抛出异常），CallerRunsPolicy(只用调用者所在线程来运行任务)、DiscardOldestPolicy(丢弃队列里最近的一个任务，再执行当前任务)、DiscardPolicy(不处理) |
-
-
-
-```java
-int getCorePoolSize()：获取核心线程数
-int getLargestPoolSize()：历史峰值线程数
-int getMaximumPoolSize()：最大线程数(线程池线程容量)
-int getActiveCount()：当前活跃线程数
-int getPoolSize()：当前线程池中的线程总数
-BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积压任务的总数，getQueue.size()
-```
-
-
-
-
-
-#### 线程数的设置
-
-- **CPU 密集型任务(N+1)：**这种任务主要消耗CPU资源，N+1是为了防止线程偶发的缺页中断，或者其它原因导致的任务暂停而带来的影响,多出来的一个线程可以充分利用 CPU 的空闲时间
-- **I/O 密集型任务(2N)：**系统会用大部分的时间来处理I/O，而线程在处理I/O时不占用CPU时间片，这时就可以将 CPU 交给其它线程使用
-
-
-
-线程池的参数不好配置的根本原因是 线程池执行的情况和任务类型相关性较大，IO/CPU密集型的任务运行起来的情况差异非常大
+- **CPU 密集型任务(N+1)：**N+1防止线程偶发的缺页中断，或者其它原因导致的任务暂停而带来的影响,多出来的线程可以充分利用 CPU 的空闲时间
+- **I/O 密集型任务(2N)：**系统会用大部分的时间来处理I/O，而处理I/O时不占用CPU时间片，可以将时间片交给其它线程使用
 
 
 
@@ -6871,21 +6881,7 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 ### Executors
-
-通过Executors.newXXX快速创建3种类型的ThreadPoolExecutor
 
 
 
@@ -7167,38 +7163,13 @@ public <T> Future<T> submit(Callable<T> task) {
 
 
 
+![](image.assets/77441586f6b312a54264e3fcf5eebe2663494.png)
+
+
+
 ![](image.assets/线程池状态转移.jpg)
 
 
-
-
-
-```java
-public abstract class AbstractExecutorService implements ExecutorService {}
-
-public class ThreadPoolExecutor extends AbstractExecutorService {
-  //32位,高3位表示runState运行状态,低29位表示workerCount工作线程数量
-  private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
-  private static int ctlOf(int rs, int wc) { return rs | wc; }	//合并rs,wc->ctl
-  
-  private static final int COUNT_BITS = Integer.SIZE - 3;	//29位
-  private static final int RUNNING    = -1 << COUNT_BITS;	//运行态
-  private static final int SHUTDOWN   =  0 << COUNT_BITS;	//关闭态，不接受新任务，处理队列任务
-  private static final int STOP       =  1 << COUNT_BITS;	//停止态，不接受新任务，不处理队列任务，打断运行中任务
-  private static final int TIDYING    =  2 << COUNT_BITS;	//整理态，所有任务已结束 && workerCount=0，执行terminated()后进入结束态
-  private static final int TERMINATED =  3 << COUNT_BITS;	//结束态
-
-  private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//用于位运算
-  private static int runStateOf(int c)     { return c & ~CAPACITY; }	//获取运行状态	容量取反->29个0	与运算获得高3位的状态
-  private static int workerCountOf(int c)  { return c & CAPACITY; }
-  
-  private final BlockingQueue<Runnable> workQueue;
-  private final ReentrantLock mainLock = new ReentrantLock(); //全局锁
-  
-  private final HashSet<Worker> workers = new HashSet<Worker>();
-  private final Condition termination = mainLock.newCondition();
-}
-```
 
 
 
@@ -7220,48 +7191,7 @@ ThreadPoolExecutor也没有提供改变任务队列大小的接口
 
 
 
-#### 拒绝策略
-
-
-
-```java
-public static class AbortPolicy implements RejectedExecutionHandler {}//默认,抛出RejectedExecutionException
-public static class CallerRunsPolicy implements RejectedExecutionHandler {}	//调用run并且阻塞执行
-public static class DiscardOldestPolicy implements RejectedExecutionHandler {}	//丢弃新任务
-public static class DiscardPolicy implements RejectedExecutionHandler {}	//丢弃队首任务
-```
-
-
-
 #### execute
-
-
-
-```java
-public void execute(Runnable command) {
-  if (command == null) throw new NullPointerException();
-  int c = ctl.get();
-  if (workerCountOf(c) < corePoolSize) { //工作中线程数量 < 核心,添加核心线程
-    if (addWorker(command, true))
-      return;
-    c = ctl.get();//更新数量
-  }
-
-  if (isRunning(c) && workQueue.offer(command)) { //向正在运行的线程池添加任务至工作队列
-    int recheck = ctl.get();
-    if (!isRunning(recheck) && remove(command)) //二次校验,若线程池停止则移出队列并拒绝
-      reject(command);
-    else if (workerCountOf(recheck) == 0) //空闲工作线程=0,添加非核心线程
-      addWorker(null, false);
-  }
-  else if (!addWorker(command, false)) //添加线程失败
-    reject(command);
-}
-```
-
-
-
-
 
 <img src="image.assets/线程任务处理流程.png" style="zoom:67%;" />
 
@@ -7270,14 +7200,6 @@ public void execute(Runnable command) {
 #### addWorker
 
 在工作队列满时,才会尝试添加线程
-
-```java
-boolean addWorker(command, true)： //核心线程执行任务
-boolean addWorker(command, false)：//非核心线程执行任务
-boolean addWorker(null, false)：   //非核心线程，无任务
-```
-
-
 
 ```java
 private boolean addWorker(Runnable firstTask, boolean core) {
@@ -7908,8 +7830,6 @@ JMM屏蔽了硬件和OS的内存访问差异，实现 Java 程序在各种平台
 
 -Xss
 
-虚拟机和物理机都有代码执行能力,物理机执行引擎建立在处理器、硬件指令集、操作系统层面,虚拟机执行引擎由自己实现，用于执行虚拟机字节码指令集
-
 为了保证**线程中的局部变量不被别的线程访问**,栈线程私有
 
 ==栈是运行时单位，解决程序运行时方法调用/执行，堆是存储单位，解决数据存储==
@@ -7920,11 +7840,7 @@ JMM屏蔽了硬件和OS的内存访问差异，实现 Java 程序在各种平台
 
 #### 虚拟机栈
 
-==大小在编译时确定==,在方法运行期间不会改变大小
-
-由若干栈帧组成
-
-基本类型变量 / 对象的引用变量 / 实例方法 都在栈分配内存
+由若干栈帧组成,==大小在编译时确定==,运行期间不会改变大小
 
 生命周期与线程相同 -> 不存在GC,只要线程死亡,栈空间将自动释放
 
@@ -8039,25 +7955,17 @@ Eden存放新创建对象,==分配内存时需要加锁==
 
 #### TLAB
 
+Thread Local Allocation Buffer 线程在Eden上的独占空间,==在TLAB不需要加锁==
+
 -XX:TLABSize	默认Eden的1%
 
--XX:UseTLAB	设置是否开启TLAB空间
+-XX:UseTLAB	是否开启
 
 
 
-Thread Local Allocation Buffer
+**堆是线程共享的,创建对象需要加锁**导致分配速度降低
 
-堆区线程共享,创建对象线程不安全,需要加锁导致分配速度降低
-
-
-
-TLAB是线程在Eden上的独占空间,==在TLAB分配内存不需要加锁==，首先根据逃逸算法,如果方法中的对象引用没有被返回/未被外部使用,尝试在TLAB分配,对象过大/TLAB满，在堆上分配
-
-
-
-快速分配策略:当TLAB空间不足时,重新创建TLAB.多线程同时分配内存时,使用TLAB可以避免线程安全问题,提升内存分配的吞吐量
-
-
+根据逃逸算法,如果对象作为返回值/被外部使用,则在TLAB分配
 
 
 
@@ -8351,11 +8259,9 @@ AtomicInteger 能保证多个线程修改的原子性
 
 
 
-#### <a name="指令重排">有序性</a>
+#### <a name="指令重排">有序性(指令重排)</a>
 
-在本线程内观察，所有操作都是有序的。在一个线程观察另一个线程，所有操作都是无序的，无序是因为发生了==指令重排==
-
-JMM允许编译器和处理器对指令进行重排序，重排序过程不会影响到单线程程序的执行，却会影响到多线程并发执行的正确性
+JMM允许编译器和处理器对指令进行重排序，==重排只对于多线程会有影响==
 
 as-if-serial语义:不管怎么重排序，单线程程序的执行结果都不能被改变
 
@@ -8363,7 +8269,17 @@ as-if-serial语义:不管怎么重排序，单线程程序的执行结果都不�
 
 volatile 关键字通过添加内存屏障的方式来禁止指令重排，即重排序时不能把后面的指令放到内存屏障之前
 
-synchronized 保证每个时刻只有一个线程执行同步代码
+synchronized 保证每个时刻只有一个线程执行同步代码 -> ==synchronized内部也会发生重排==
+
+
+
+[DCL双重检查锁中,单例对象必须加volatile](###创建过程)
+
+
+
+this逃逸问题
+
+![](image.assets/image-20220410192744585.png)
 
 
 
@@ -8527,29 +8443,25 @@ Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节)
 
 
 
-**64/32位操作系统指系统使用多少位表示一个指针**
-
-**Java默认开启指针压缩,使得运行在64位操作系统上的指针也是4字节**
-
-但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB的内存空间无法开启指针压缩
 
 
 
-![image-20201220173759450](image.assets/image-20201220173759450.png)
+
+<img src="image.assets/image-20201220173759450.png" style="zoom: 67%;" />
 
 
 
-| 对象头 markword       | 锁                                   | 8字节 | 对象运行时数据，哈希，GC年龄，锁状态标志 |
+| 标记 markword       | 锁                                   | 8字节 | hashCode，GC年龄(三色标记)，锁状态标志 |
 | --------------------- | ------------------------------------ | ----- | ------------------------------------------------------------ |
-| 类型指针 classpointer | 指向xxx.class                        | 4     | 指向类元数据的指针，从而判断对象是哪个类的实例     |
-| 实例数据 instancedata | 成员属性                             | 每个4 | 类中各个字段                                     |
-| 对齐 padding          | 填充为8的倍数,加速读取 |       | Hotspot JVM规定对象起始地址必须是8的整数倍 |
+| 类型指针 classpointer | class对象的地址                  | 4/8 | 标明对象是哪个类的实例     |
+| 实例数据 instancedata | 成员属性                             | n | 成员属性                                 |
+| 对齐 padding          | 填充为8的倍数,加速读取 |       | Hotspot规定对象起始地址必须是8的倍数 |
 
 
 
-开启指针压缩后,最小的一个对象为 8对象头+4类型指针+4对齐 = 16字节
 
 
+**最小对象 = 8对象头+4类型指针+4对齐 = 16字节**
 
 ![](image.assets/image-20201220175904411.png)
 
@@ -8557,32 +8469,15 @@ Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节)
 
 ```java
 Object o = new Object();
-        System.out.println(ClassLayout.parseInstance(o).toPrintable());//打印对象在内存中的布局	需加入JOL依赖(Java Object Layout)
-        synchronized (o) {
-            System.out.println(ClassLayout.parseInstance(o).toPrintable());
-        }
-
-java.lang.Object object internals:
- OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
-      0     4        (object header)        //对象头           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
-      4     4        (object header)        //对象头           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
-      8     4        (object header)        //类型指针       e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
-   	//Object无成员属性
-     12     4        (loss due to the next object alignment)	//前面的3个Size合计3*4=12,需要填充额外的4字节
-Instance size: 16 bytes//占据的总字节
-Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
-
-
-//锁住对象后的内存状态
-java.lang.Object object internals:
- OFFSET  SIZE   TYPE DESCRIPTION                               VALUE
-      0     4        (object header)                           e8 f7 ac 02 (11101000 11110111 10101100 00000010) (44890088)
-      4     4        (object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
-      8     4        (object header)                           e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
-     12     4        (loss due to the next object alignment)
-Instance size: 16 bytes
-Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+System.out.println(ClassLayout.parseInstance(o).toPrintable());//打印对象在内存中的布局
+synchronized (o) {
+  System.out.println(ClassLayout.parseInstance(o).toPrintable());
+}
 ```
+
+![](image.assets/image-20220409180103398.png)
+
+
 
 
 
@@ -8602,23 +8497,21 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 
 ### 64位JVM
 
-目前主流的Cou已经支持64位架构了,JVM也早就支持了64位系统的版本,但Java程序运行在64位JVM上需要付出额外的内存(将近是32位的1.1/1.3倍)
+1.6+提供了`UseCompressedOops`设置指针压缩
 
 
 
-1.6+提供了`UseCompressedOops`设置指针压缩,通过在执行代码时动态地植入压缩指令来节省内存的消耗,但这会**增加代码的执行量**:
+**64/32位操作系统指系统使用多少位表示一个指针** -> 不开启指针压缩,类型指针占8字节
+
+**Java默认开启指针压缩,64位操作系统上的指针也是4字节**,但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB的内存空间无法开启指针压缩
+
+
+
+通过在执行代码时动态地植入压缩指令来节省内存的消耗,但这会**增加代码的执行量**:
 
 1. 所有堆中的对象的指针都被压缩 -> 需要额外的代码完成指针的访问
-2. 实例指向对象类型的引用也被压缩 -> 
-3. 子类型检查 -> 
-
-
-
-
-
-
-
-
+2. 实例指向对象类型的引用也被压缩
+3. 子类型检查
 
 
 
@@ -8628,13 +8521,20 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 
 
 
-建立对象就是为了使用对象，Java程序通过栈上的 reference 数据来操作堆的具体对象。对象的访问方式由JVM实现而定，目前主流的访问方式有**① 使用句柄**和**② 直接指针**：
+通过栈上的 reference 数据来访问堆中的对象,具体的访问方式由JVM实现而定
 
-**句柄：**在堆中划分出一块内存来作为句柄池，reference 中存储句柄池地址，而句柄池中包含对象实例数据与类型数据各自的具体地址信息
 
-优点: 在对象被移动时只改变句柄中的实例数据指针，reference不修改
 
-![](image.assets/对象的访问定位-使用句柄.png)**直接指针：**reference中存储对象实例数据的地址,实例数据包含指向类型数据的指针
+**1. 句柄：**在堆中划分一块内存作为句柄池，reference 中存储句柄池地址，而句柄池中包含对象实例数据与类型数据各自的具体地址信息
+
+* 优点: 在对象因GC被移动时,只改变句柄中的实例数据指针，reference不修改
+  * 句柄里存储了对class对象的地址 -> 对象占用内存小
+
+* 缺点: 需要先找句柄,再找实例,多了一层的链路
+
+<img src="image.assets/对象的访问定位-使用句柄.png" style="zoom: 50%;" />
+
+**2. 直接指针(hotSpot)：**reference中存储对象实例数据的地址,实例数据包含指向类型数据的指针
 
 优点: 速度快，节省一次指针定位的时间开销
 
@@ -8663,12 +8563,6 @@ JNI具有不安全性,会受到内存损坏错误的影响
 难以调试
 
 GC无法追踪本机内存的使用情况,导致无法自动GC
-
-
-
-
-
-
 
 
 
@@ -9926,41 +9820,21 @@ setScale	保留几位小数
 
 ![Java创建对象的过程](image.assets/Java创建对象的过程.png)
 
-[类加载](#类加载)检查
+1. [类加载](#类加载)检查
 
-JVM遇到 new 指令时，首先检查这个指令的参数是否能在常量池中定位到类的符号引用，并检查类是被加载、解析和初始化。如果没有，先执行类加载
+   首先检查这个指令的参数是否能在常量池中定位到类的符号引用，并检查类是被加载、解析和初始化。如果没有，先执行类加载
 
+2. 分配内存  **对象所占内存在类加载后便可确定**
 
+   JVM通过CAS+[TLAB](#TLAB)保证分配内存的线程安全,首先在TLAB尝试分配,当TLAB内存不足，再用CAS在堆中分配内存
 
-分配内存
+3. 赋初值   内存空间有上次遗留下来的值,为了保证这部分数据不被读取,数据更加安全,用初值来进行覆盖
 
-**对象所需大小在类加载后便可确定**，为对象分配空间等同于把确定大小的内存从堆中划分出来
+4. 设置对象头
 
-JVM通过CAS+[TLAB](#TLAB)保证分配内存的线程安全,首先在TLAB尝试分配,当对象大于 TLAB 中的剩余内存，再采用 CAS 在堆中进行内存分配
+5. 执行<init>	为成员变量赋初始值
 
-
-
-赋初值
-
-将分配到的内存空间都赋初值（不包括对象头）
-
-
-
-设置对象头
-
-保存对象是哪个类的实例、如何才能找到类的元数据信息、对象的哈希码、对象的 GC 分代年龄等信息
-
-
-
-执行 init 方法
-
-在上面工作都完成之后，从JVM视角来看，一个新的对象已经产生了，但``<init>` 方法还没有执行，所有的字段都还为零。所以一般来说，`<init>`将对象按照程序员的意愿进行初始化，这样一个真正可用的对象才算完全产生出来
-
-
-
-
-
-
+==由于3/5可以进行指令重排,所以需要加volatile==
 
 
 

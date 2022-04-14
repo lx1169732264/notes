@@ -378,16 +378,16 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * that workerCount is 0 (which sometimes entails a recheck -- see
      * below).
      */
-    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0)); //高3位: runState运行状态  低29位: workerCount工作线程数量    用一个变量存储两个值,能避免维护两者的不一致,也能避免加锁
     private static final int COUNT_BITS = Integer.SIZE - 3;
     private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
 
     // runState is stored in the high-order bits
     private static final int RUNNING    = -1 << COUNT_BITS;
-    private static final int SHUTDOWN   =  0 << COUNT_BITS;
-    private static final int STOP       =  1 << COUNT_BITS;
-    private static final int TIDYING    =  2 << COUNT_BITS;
-    private static final int TERMINATED =  3 << COUNT_BITS;
+    private static final int SHUTDOWN   =  0 << COUNT_BITS; //不接受新任务，处理队列任务
+    private static final int STOP       =  1 << COUNT_BITS; //不接受新任务,也不处理队列中的任务,中断正在处理任务的线程
+    private static final int TIDYING    =  2 << COUNT_BITS; //所有任务已终止,workerCount为0
+    private static final int TERMINATED =  3 << COUNT_BITS; //terminated()方法执行完进入这个状态
 
     // Packing and unpacking ctl
     private static int runStateOf(int c)     { return c & ~CAPACITY; }
@@ -445,7 +445,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * return null even if it may later return non-null when delays
      * expire.
      */
-    private final BlockingQueue<Runnable> workQueue;
+    private final BlockingQueue<Runnable> workQueue; //通过生产者消费者模式,任务和线程两者解耦，不让两者直接关联，才可以做后续的分配工作
 
     /**
      * Lock held on access to workers set and related bookkeeping.
@@ -593,7 +593,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * runWorker).
      */
     private final class Worker
-        extends AbstractQueuedSynchronizer
+        extends AbstractQueuedSynchronizer //继承AQS实现独占锁。没有使用可重入锁，用不可重入的特性去反应线程现在的执行状态
         implements Runnable
     {
         /**
@@ -605,7 +605,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         /** Thread this worker is running in.  Null if factory fails. */
         final Thread thread;
         /** Initial task to run.  Possibly null. */
-        Runnable firstTask;
+        Runnable firstTask; //初始化的任务可以为null, null ? 调用getTask()去取 : 直接执行任务
         /** Per-thread task counter */
         volatile long completedTasks;
 
@@ -647,7 +647,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             return true;
         }
 
-        public void lock()        { acquire(1); }
+        public void lock()        { acquire(1); } //acquire()
         public boolean tryLock()  { return tryAcquire(1); }
         public void unlock()      { release(1); }
         public boolean isLocked() { return isHeldExclusively(); }
@@ -898,14 +898,14 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * state).
      * @return true if successful
      */
-    private boolean addWorker(Runnable firstTask, boolean core) {
+    private boolean addWorker(Runnable firstTask, boolean core) { //core=false: 非核心线程
         retry:
         for (;;) {
             int c = ctl.get();
             int rs = runStateOf(c);
 
             // Check if queue empty only if necessary.
-            if (rs >= SHUTDOWN &&
+            if (rs >= SHUTDOWN && //1. 状态必须RUNNING
                 ! (rs == SHUTDOWN &&
                    firstTask == null &&
                    ! workQueue.isEmpty()))
@@ -1043,7 +1043,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * @return task, or null if the worker must exit, in which case
      *         workerCount is decremented
      */
-    private Runnable getTask() {
+    private Runnable getTask() { //空闲线程从队列取任务执行
         boolean timedOut = false; // Did the last poll() time out?
 
         for (;;) {
@@ -1300,9 +1300,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * @throws NullPointerException if {@code workQueue}
      *         or {@code threadFactory} or {@code handler} is null
      */
-    public ThreadPoolExecutor(int corePoolSize,
+    public ThreadPoolExecutor(int corePoolSize, //同时运行的最小线程数量
                               int maximumPoolSize,
-                              long keepAliveTime,
+                              long keepAliveTime, //线程数量上限 && 存活时间 > keepAliveTime，销毁线程
                               TimeUnit unit,
                               BlockingQueue<Runnable> workQueue,
                               ThreadFactory threadFactory,
@@ -1363,20 +1363,20 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
          * and so reject the task.
          */
         int c = ctl.get();
-        if (workerCountOf(c) < corePoolSize) {
-            if (addWorker(command, true))
+        if (workerCountOf(c) < corePoolSize) { //1. 直接用核心线程执行
+            if (addWorker(command, true)) //添加核心线程
                 return;
             c = ctl.get();
         }
-        if (isRunning(c) && workQueue.offer(command)) {
+        if (isRunning(c) && workQueue.offer(command)) { //2. 核心线程满了,放入任务队列
             int recheck = ctl.get();
-            if (! isRunning(recheck) && remove(command))
+            if (!isRunning(recheck) && remove(command))
                 reject(command);
             else if (workerCountOf(recheck) == 0)
-                addWorker(null, false);
+                addWorker(null, false); //添加非核心线程
         }
-        else if (!addWorker(command, false))
-            reject(command);
+        else if (!addWorker(command, false)) //3.任务队列满了,尝试加工作线程
+            reject(command); //4.加线程失败,拒绝
     }
 
     /**
@@ -2020,7 +2020,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * unless the executor has been shut down, in which case the task
      * is discarded.
      */
-    public static class CallerRunsPolicy implements RejectedExecutionHandler {
+    public static class CallerRunsPolicy implements RejectedExecutionHandler { //让提交任务的线程执行run
         /**
          * Creates a {@code CallerRunsPolicy}.
          */
@@ -2044,7 +2044,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * A handler for rejected tasks that throws a
      * {@code RejectedExecutionException}.
      */
-    public static class AbortPolicy implements RejectedExecutionHandler {
+    public static class AbortPolicy implements RejectedExecutionHandler { //默认,抛出RejectedExecutionException
         /**
          * Creates an {@code AbortPolicy}.
          */
@@ -2068,7 +2068,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * A handler for rejected tasks that silently discards the
      * rejected task.
      */
-    public static class DiscardPolicy implements RejectedExecutionHandler {
+    public static class DiscardPolicy implements RejectedExecutionHandler { //丢弃队首任务
         /**
          * Creates a {@code DiscardPolicy}.
          */
@@ -2089,7 +2089,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * request and then retries {@code execute}, unless the executor
      * is shut down, in which case the task is discarded.
      */
-    public static class DiscardOldestPolicy implements RejectedExecutionHandler {
+    public static class DiscardOldestPolicy implements RejectedExecutionHandler { //丢弃新任务
         /**
          * Creates a {@code DiscardOldestPolicy} for the given executor.
          */

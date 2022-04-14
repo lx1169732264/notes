@@ -134,7 +134,7 @@ import java.util.Collection;
  * @since 1.5
  * @author Doug Lea
  */
-public interface ExecutorService extends Executor {
+public interface ExecutorService extends Executor { //扩充任务执行的方式 submit     提供管理线程池的方法
 
     /**
      * Initiates an orderly shutdown in which previously submitted

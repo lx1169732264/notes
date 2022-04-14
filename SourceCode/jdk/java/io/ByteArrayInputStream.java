@@ -51,7 +51,7 @@ class ByteArrayInputStream extends InputStream {
      * stream;  element <code>buf[pos]</code> is
      * the next byte to be read.
      */
-    protected byte buf[];
+    protected byte buf[]; //内部缓冲区,存储从流中读取的字节,会被jvm自动回收
 
     /**
      * The index of the next character to read from the input stream buffer.
@@ -276,7 +276,7 @@ class ByteArrayInputStream extends InputStream {
      * this class can be called after the stream has been closed without
      * generating an <tt>IOException</tt>.
      */
-    public void close() throws IOException {
+    public void close() throws IOException { //由于流的数据以字节数组的形式存储在内存,所以无需关闭,由jvm自动回收
     }
 
 }
