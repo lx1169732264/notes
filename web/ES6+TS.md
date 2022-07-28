@@ -4,7 +4,7 @@
 
 
 
-boolean	数字	字符串	数组
+boolean	数字	string	
 
 
 
@@ -86,7 +86,35 @@ sym2 === sym3; // false, symbols是唯一的
 
 
 
+## string
 
+
+
+### substr vs substring
+
+它们的第一个参数都是截取的起始位置
+
+substr的第二个参数是截取的长度
+
+substring的第二个参数是截止的下标
+
+
+
+
+
+
+
+## 数组
+
+
+
+### slice vs splice
+
+slice和splice都是第⼀个参数都是截取开始位置
+
+slice第⼆个参数是截取的结束位置(不包含),⽽splice第⼆个参数是截取长度
+
+**slice不会对原数组产⽣变化,⽽splice会**
 
 
 
@@ -163,9 +191,7 @@ x = y; // Error
 
 
 
-## var
-
-
+## var 全局变量
 
 var可以在包含它的函数，模块，命名空间或全局作用域内部任何位置被访问
 
@@ -196,15 +222,27 @@ var x;	//指向同一个x
 
 
 
+### 变量提升
+
+var变量可以在声明之前使用，值为`undefined`; `let`声明的变量一定要在声明后使用
+
+```javascript
+// var 的情况
+console.log(foo); // 输出undefined
+var foo = 2;
+
+// let 的情况
+console.log(bar); // 报错ReferenceError
+let bar = 2;
+```
 
 
 
-
-## let
-
+## let 局部变量
 
 
-类似var，所声明变量只在let所在的==块级作用域==有效	->	适用于for循环， 声明循环变量的部分为父作用域，循环体内部是子作用域
+
+类似var，所声明变量只在let所在的==块级作用域==有效
 
 不允许重复声明,变量同名时报错
 
@@ -417,13 +455,91 @@ console.log({user, foo})	//	对象的简洁表示,不能调用构造函数 {user
 
 
 
+# null vs undefined
+
+null: 没有对象,即此处不该有值，转为数值时为0
+
+undefined: 缺少值，即此处应该有值，但还没定义，转为数值时为NaN
+（1）变量被声明了，但没有赋值时，就等于undefined。
+（2) 调⽤函数时，应该提供的参数没有提供，该参数等于undefined。
+（3）对象没有赋值的属性，该属性的值为undefined。
+（4）函数没有返回值时，默认返回undefined。
+
+undeclared：js语法错误，没有申明直接使⽤，js⽆法找到对应的上下⽂
+
+
+
+
+
+
+
+# 等号
+
+
+
+双等号 基本类型比较值相等,非基本类型比较地址相等。会进行**隐式转换**
+
+三等号 值和类型都相等
+
+
+
+0 == “ ” == [ ] == false, null/undefined与前四个都不相等
+
+null == undefined
+
+null 和 undefined 的值相等，但类型不等：
+
+```javascript
+typeof undefined             // undefined
+typeof null                  // object
+```
+
+
+
+对于非基本数据类型之间的比较, 双等号和三等号没有区别, 都是进行地址比较
+
+
+
+# this
+
+js中this 是在运行期间绑定的，所以this可以是**全局对象、当前对象或者任意对象**，这完全取决于函数的调用方式
+
+this永远指向所在函数的所有者，当没有显示的所有者的时候，指向全局对象
+
+
+
+- 方法中 调用方法的对象
+- 单独使用/函数中 全局对象(window)
+- 在函数中，在严格模式下，this 是未定义的(undefined)
+- 在事件中，接收事件的元素
+
+
+
+
+
+# dom
+
+
+
+document.getElementsByClassName() 通过类别名获取dom
+
+
+
+# window
+
+
+
+## 重定向页面
+
+1. window.location.href    替换当前页
+2. window.location.replace 替换当前页, 但不会写入浏览记录
+3. window.open    打开新窗口
+
 
 
 
 
 # 接口
-
-
 
 
 
@@ -578,15 +694,13 @@ for (let i of list) {} // "4", "5", "6"
 
 # Promise
 
-
-
 表示异步操作的最终结果,使用then()与返回值进行交互
 
 
 
 回调函数容易陷入回调地狱,维护较为困难
 
-而Promise是对象,可以保存状态,创建后立即执行,**无法取消**
+而Promise是对象,可以保存状态,创建后立即执行,**无法取消**. **通过Promise可以将多次嵌套的回调代码改写为顺序执行的代码**
 
 
 

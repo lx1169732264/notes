@@ -1,4 +1,37 @@
+# 使用场景
+
+1. 缓存 利用内存的高速访问
+
+2. 排行榜 利用zset排序
+3. 计算器/限速器 利用原子性的自增操作
+4. Session共享
+5. 分布式锁
+
+
+
+
+
 # 注解
+
+
+
+## 自定义注解
+
+关键字为@interface, 属性的访问修饰符只能是public
+
+```java
+@Retention(RetentionPolicy.CLASS)
+@Mapping(target = "id", ignore = true)
+@Mapping(target = "version", ignore = true)
+@Mapping(target = "dxCreated", ignore = true)
+@Mapping(target = "dxModified", ignore = true)
+public @interface ToEntity {
+}
+```
+
+
+
+
 
 
 
@@ -376,8 +409,6 @@ public List<Teacher> getKlassRelatedTeachers(
 用于读取请求的body并且**Content-Type=application/json** 格式的数据，接收到数据之后会自动将数据绑定到 Java 对象上去。**使用`HttpMessageConverter`或者自定义的`HttpMessageConverter`将请求的 body 中的 json 字符串转换为 java 对象**
 
 
-
-**一个请求方法只可以有一个`@RequestBody`，但是可以有多个`@RequestParam`和`@PathVariable`**。 如果你的方法必须要用两个 `@RequestBody`来接受数据的话，大概率是你的数据库设计或者系统设计出问题了！
 
 
 
@@ -1080,41 +1111,13 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 
 
-# 循环依赖
 
 
 
-对于普通的循环依赖如A 依赖B， B依赖A。在初始化A的时候，会实例化B，实例化B发现需要A的引用，通过缓存返回A的引用。虽然A还未初始化完毕，但是由于是对象的引用，所以最终初始化完成的时候，两个对象均是初始化完整的
 
 
 
-getSingleton(beanName, true)这个方法实际上就是到缓存中尝试去获取Bean，整个缓存分为三级
 
-- singletonObjects，一级缓存，存储所有创建完成的单例Bean
-- earlySingletonObjects，完成实例化，但未进行属性注入及初始化的对象
-- singletonFactories，提前暴露的单例工厂（获取对象的函数表达式），二级缓存中存储的就是从这个工厂中获取到的对象
-
-循环依赖装载流程：
-
-- 条件1.出现循环依赖的Bean必须要是单例
-- 条件2.依赖注入的方式不能全是构造器注入的方式
-
-1. 实例化A对象，添加提前暴露的对象的方法到singletonFactory
-2. 填充对象，无循环引用，直接调用postProcessAfterInitialization方法。有循环引用，doGetBean循环引用的对象。
-3. 循环引用对象B实例化，在填充对象的时候，发现循环依赖A，从三级缓存中获取，并添加A到二级缓存。
-4. 若A为AOP代理，此时二级缓存中的对象为代理对象A。
-5. B初始化完成后，继续A的对象填充及初始化，填充完成后。从二级缓存中获取对象，若存在对象，说明发生了循环引用，返回二级缓存的对象。
-
-### 相关问题(加深理解)
-
-可以使用两层缓存吗？
-
-> 1. 如果单单使用二级缓存，为解决循环引用问题，那么二级缓存存储的就是为进行属性注入的对象。这与Spring生命周期的设计相悖
-> 2. Spring结合AOP跟Bean的生命周期本身就是通过AnnotationAwareAspectJAutoProxyCreator这个后置处理器来完成的，在这个后置处理的postProcessAfterInitialization方法中对初始化后的Bean完成AOP代理。 如果出现了循环依赖，那没有办法，只有给Bean先创建代理。但是如果没有出现循环依赖的情况下，设计之初就是让Bean在生命周期的最后一步完成代理而不是在实例化后就立马完成代理。
-
-三级缓存为什么要使用工厂而不是直接使用引用？换而言之，为什么需要这个三级缓存，直接通过二级缓存暴露一个引用不行吗？
-
-> 这个工厂的目的在于**延迟对实例化阶段生成对象的代理**，只有真正发生循环依赖的时候，才去提前生成代理对象，否则只会创建一个工厂并将其放入到三级缓存中，但是不会去通过这个工厂去真正创建对象。
 
 
 
@@ -1177,37 +1180,140 @@ getSingleton(beanName, true)这个方法实际上就是到缓存中尝试去获�
 
 
 
-
-
-
-
-
-
 ## bean生命周期
 
+在传统的Java应用中，用new实例化,一旦bean不再被使用，则由Java自动进行垃圾回收
+
+而spring应用中bean的生命周期是由Ioc容器托管的
 
 
-1. 容器找到配置文件中 Spring Bean 的定义,利用反射实例,并set属性值
 
-- 如果 Bean 实现 `BeanNameAware` 接口，调用 `setBeanName()`，定义Bean的名字
-- 如果 Bean 实现 `BeanClassLoaderAware` 接口，调用 `setBeanClassLoader()`，传入 `ClassLoader`对象的实例
-- 与上面的类似，如果实现了其他 `*.Aware`接口，就调用相应的方法
-- 如果有和加载这个 Bean 的 Spring 容器相关的 `BeanPostProcessor` 对象，执行`postProcessBeforeInitialization()` 方法
-- 如果Bean实现`InitializingBean`接口，执行`afterPropertiesSet()`方法
-- 如果 Bean 在配置文件中的定义包含 init-method 属性，执行指定的方法。
-- 如果有和加载这个 Bean的 Spring 容器相关的 `BeanPostProcessor` 对象，执行`postProcessAfterInitialization()` 方法
-- 当要销毁 Bean 的时，如果 Bean 实现了 `DisposableBean` 接口，执行 `destroy()`
-- 当要销毁 Bean 的时，如果 Bean 在配置文件中的定义包含 destroy-method 属性，执行指定的方法
+**5个阶段** 反射创建bean工厂 创建实例化 依赖注入 容器缓存 销毁实例
+
+
+
+### 各种接口方法分类
+
+> 1、Bean自身的方法
+
+这个包括了Bean本身调用的方法和通过配置文件中的init-method和destroy-method指定的方法
+
+> 2、Bean级生命周期接口方法
+
+这个包括了BeanNameAware、BeanFactoryAware、InitializingBean和DiposableBean这些接口的方法
+
+> 3、容器级生命周期接口方法
+
+这个包括了InstantiationAwareBeanPostProcessor 和 BeanPostProcessor 这两个接口实现，一般称它们的实现类为“后处理器”。
+
+> 4、工厂后处理器接口方法
+
+这个包括了AspectJWeavingEnabler, ConfigurationClassPostProcessor, CustomAutowireConfigurer等等非常有用的工厂后处理器接口的方法。工厂后处理器也是容器级的。在应用上下文装配配置文件之后立即调用
+
+
+
+![](image.assets/20210427163007275.png)
+
+
+
+**第1步**：调用bean的构造方法创建bean
+
+**第2步**：通过反射调用setter方法进行属性的依赖注入, 包含@AutoWired
+
+**第3步**：如果实现BeanNameAware接口的话，会设置bean的name
+
+**第4步**：如果实现了BeanFactoryAware，会把bean factory设置给bean
+
+**第5步**：如果实现了ApplicationContextAware，会给bean设置ApplictionContext
+
+**第6步**：如果实现了BeanPostProcessor接口，则执行前置处理方法；
+
+**第7步**：实现了InitializingBean接口的话，执行afterPropertiesSet方法；
+
+**第8步**：执行自定义的init方法；
+
+**第9步**：执行BeanPostProcessor接口的后置处理方法。
+
+这时，就完成了bean的创建过程。
+
+**在使用完bean需要销毁时，会先执行DisposableBean接口的destroy方法，然后在执行自定义的destroy方法**。
 
 
 
 ### 生命周期行为
 
+只会被执行一次,哪怕在web容器在其内部中多次实例化bean
+
 @PostConstruct	bean初始化前的方法	注解类的构造方法之后 && Servlet.init()前执行
 
 @PreDestory	bean销毁前的方法	Servlet.destroy()前执行
 
-被这两个注解修饰的方法可以保证在Servlet生命周期只被执行一次，即使 Web 容器在其内部中多次实例化bean
+
+
+
+
+## 三级缓存
+
+1. singletonObjects 存放已经历完整生命周期的Bean
+2. earlySingletonObjects 存放早期暴露出来的Bean，Bean的生命周期未结束（属性还未填充完整）
+3. singletonFactories，存放可以生成Bean的工厂
+
+
+
+
+
+### 循环依赖
+
+
+
+A创建过程中需要B，于是**A将自己放到三级缓存**里面，去**实例化B**
+
+B实例化的时候发现需要A，于是B先查一级缓存，没有，再查二级缓存，还是没有，再查三级缓存，找到了A然后把三级缓存里面的这个**A放到二级缓存里面，并删除三级缓存里面的A**
+
+B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面的A依然是创建中状态**）然后回来接着创建A，此时B已经创建结束，直接从一级缓存里面拿到B，然后完成创建，并**将A放到一级缓存**中。
+
+
+
+### 只用earlySingletonObjects
+
+1. 实例化A, 依赖注入时发现取不到B
+2. 将A放入earlySingletonObjects中
+3. 实例化B, 但并未放入earlySingletonObjects, 也没有注入到a中
+4. 另一个线程注入了a, 这时a.b=null
+
+
+
+**只用singletonObjects和singletonFactories**
+
+**成品放在singletonObjects中，半成品通过singletonFactories来获取**
+
+流程是这样的：实例化A ->创建A的对象工厂并放入singletonFactories中 ->填充A的属性时发现取不到B->实例化B->创建B的对象工厂并放入singletonFactories中->从singletonFactories中获取A的对象工厂并获取A填充到B中->将成品B放入singletonObjects,并从singletonFactories中删除B的对象工厂->将B填充到A的属性中->将成品A放入singletonObjects并删除A的对象工厂。
+
+问题：这样的流程也适用于普通的IOC以及有并发的场景，但**如果A上加个切面（AOP）的话，这种情况也无法满足需求**。
+
+
+
+
+
+
+
+
+
+## 5个作用域
+
+1. Singleton **默认**
+2. Prototype 每次注入时都是新的
+3. Request 每个http请求
+4. Session
+5. GlobalSession 用于 Portlet 有单独的 Session
+
+
+
+
+
+
+
+
 
 
 
@@ -1217,32 +1323,45 @@ getSingleton(beanName, true)这个方法实际上就是到缓存中尝试去获�
 
 
 
-![](image.assets/MVC.png)
+## 常用注解
+
+@Controller @RequestMapping @ResponseBody @RequestBody @PathVariable @RestController
 
 
 
-1. 客户端（浏览器）发送请求，直接请求到 `DispatcherServlet`。
-2. `DispatcherServlet` 根据请求信息调用 `HandlerMapping`，解析请求对应的 `Handler`。
-3. 解析到对应的 `Handler`（也就是我们平常说的 `Controller` 控制器）后，开始由 `HandlerAdapter` 适配器处理。
-4. `HandlerAdapter` 会根据 `Handler `来调用真正的处理器来处理请求，并处理相应的业务逻辑。
-5. 处理器处理完业务后，会返回一个 `ModelAndView` 对象，`Model` 是返回的数据对象，`View` 是个逻辑上的 `View`。
-6. `ViewResolver` 会根据逻辑 `View` 查找实际的 `View`。
-7. `DispaterServlet` 把返回的 `Model` 传给 `View`（视图渲染）。
-8. 把 `View` 返回给请求者（浏览器）
+## 请求流程
 
 
+
+![](image.assets/image-20220720202505051.png)
+
+
+
+1. 客户端发送请求到 `DispatcherServlet`
+
+2. `DispatcherServlet#getHandler` 根据请求url调用 `HandlerMapping`，得到对应的 `Handler`
+
+3. 解析到对应的 `Handler`（`Controller`）后，开始由 `HandlerAdapter` 适配器处理
+
+   早期的mvc支持实现`Controller#handleRequest`来当作一个handler,现在都是通过@RequestMapping. Adapter兼容这两种
+
+4. 调用`HandlerAdapter#handler`, 处理业务并返回`ModelAndView` ，`Model` 是返回的数据对象，`View` 是个逻辑上的 `View`
+
+5. `ViewResolver` 会根据逻辑 `View` 查找实际的 `View`
+
+6. `DispaterServlet` 把返回的 `Model` 传给 `View`（视图渲染）
+
+7. 把 `View` 返回给客户端
 
 # Spring的设计模式
 
-
-
-- **工厂设计模式** : Spring使用工厂模式通过 `BeanFactory`、`ApplicationContext` 创建 bean 对象。
-- **代理设计模式** : Spring AOP 功能的实现。
-- **单例设计模式** : Spring 中的 Bean 默认都是单例的。
-- **模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式。
-- **包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源。
-- **观察者模式:** Spring 事件驱动模型就是观察者模式很经典的一个应用。
-- **适配器模式** :Spring AOP 的增强或通知(Advice)使用到了适配器模式、spring MVC 中也是用到了适配器模式适配`Controller`。
+- **工厂设计模式** : Spring使用工厂模式通过 `BeanFactory`、`ApplicationContext` 创建 bean 对象
+- **代理设计模式** : AOP
+- **单例设计模式** : Bean 默认单例
+- **模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式
+- **包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源
+- **观察者模式:** Spring 事件驱动模型就是观察者模式很经典的一个应用
+- **适配器模式** : MVC HandlerAdapter
 
 
 
@@ -1254,102 +1373,53 @@ getSingleton(beanName, true)这个方法实际上就是到缓存中尝试去获�
 
 # Spring事务
 
-
-
-@Transactional使用JDBC事务来进行事务控制,只能配置在**public**方法/类上,并且**类内部的调用不支持事务**,作用在类时,非public方法不生效
-
-事务开始时，通过**AOP**机制，生成代理connection对象，并将其放入 DataSource 实例的某个与 DataSourceTransactionManager 相关的容器中
+spring会扫描bean方法上是否包含@Transactional，如果包含则为这个bean动态生成代理类，继承那个bean。并重写方法开启关闭事务
 
 
 
-@Transactional 的事务由 基于接口/类的代理被创建而开启。所以在同一个类中一个方法调用另一个方法有事务的方法，事务是不会起作用的
-
-spring 在扫描bean方法上是否包含@Transactional，如果包含则为这个bean动态地生成一个代理类，继承那个bean。此时@Transactional方法实际上由代理类在调用前开启事务
-
-但**类内部的调用没有通过代理类**，而是直接通过原来的那个bean，所以就不会启动transaction
+事务开始时，会通过**AOP**机制，生成数据库的代理连接对象
 
 
 
+**如果对象实现了接口，默认用JDK动态代理，否则用 CGLIB 动态代理**
 
+- **JDK代理**使用的是**反射机制生成**一个实现代理接口的匿名类，在调用具体方法前调用InvokeHandler来处理。
+- **CGLIB代理使用字节码处理框架ASM**，对代理对象类的class文件加载进来，**通过修改字节码生成子类。**
+- JDK创建代理对象效率较高，执行效率较低；
+  CGLIB创建代理对象效率较低，执行效率高。
+- JDK动态代理机制是委托机制，只能对实现接口的类生成代理，通过反射动态实现接口类；
+  CGLIB则使用的继承机制，针对类实现代理，被代理类和代理类是继承关系，所以代理类是可以赋值给被代理类的，因为是继承机制，不能代理final修饰的类。
 
-==在具体的类/类的方法上使用 @Transactional 注解，而不要使用在类所要实现的任何接口上==
+JDK代理是不需要依赖第三方的库，只要JDK环境就可以进行代理，需要满足以下要求：
+ **1.实现InvocationHandler接口，重写invoke()
+ 2.使用Proxy.newProxyInstance()产生代理对象
+ 3.被代理的对象必须要实现接口**
 
-在接口上使用 @Transactional 注解，只能设置了基于接口的代理时它才生效。因为注解是不能继承的，这就意味着如果正在使用基于类的代理时，那么事务的设置将不能被基于类的代理所识别，而且对象也将不会被事务代理所包装
-
-
-
-
-
-**如果目标对象实现了接口，默认情况下会采用 JDK 的动态代理，如果目标对象没有实现了接口,会使用 CGLIB 动态代理。**
-
-多提一嘴：`createAopProxy()` 方法 决定了是使用 JDK 还是 Cglib 来做动态代理，源码如下：
-
-```java
-public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
-
-	@Override
-	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
-		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
-			Class<?> targetClass = config.getTargetClass();
-			if (targetClass == null) {
-				throw new AopConfigException("TargetSource cannot determine target class: " +
-						"Either an interface or a target is required for proxy creation.");
-			}
-			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
-				return new JdkDynamicAopProxy(config);
-			}
-			return new ObjenesisCglibAopProxy(config);
-		}
-		else {
-			return new JdkDynamicAopProxy(config);
-		}
-	}
-  .......
-}
-```
-
-如果一个类或者一个类中的 public 方法上被标注`@Transactional` 注解的话，Spring 容器就会在启动的时候为其创建一个代理类，在调用被`@Transactional` 注解的 public 方法的时候，实际调用的是，`TransactionInterceptor` 类中的 `invoke()`方法。这个方法的作用就是在目标方法之前开启事务，方法执行过程中如果遇到异常的时候回滚事务，方法调用完成之后提交事务
-
-
-
-## 失效的6种场景
-
-
-
-### 非public的方法
-
-`TransactionInterceptor` （事务拦截器）在目标方法执行前后进行拦截，`DynamicAdvisedInterceptor`（CglibAopProxy 的内部类）的 intercept 方法或 `JdkDynamicAopProxy` 的 invoke 方法会间接调用 `AbstractFallbackTransactionAttributeSource`的 `computeTransactionAttribute` 方法，获取Transactional 注解的事务配置信息
-
-```java
-protected TransactionAttribute computeTransactionAttribute(Method method,
-                                                           Class<?> targetClass) {
-  // Don't allow no-public methods as required.
-  if (allowPublicMethodsOnly() && !Modifier.isPublic(method.getModifiers())) { //检查目标方法的修饰符是否为 public，不是 public则不会获取@Transactional 的属性配置信息
-    return null;
-  }
-```
-
-
-
-### 传播机制设置错误
-
-
-
-PROPAGATION_SUPPORTS
-
-PROPAGATION_NOT_SUPPORTED
-
-PROPAGATION_NEVER
-
-这三种不会回滚
-
-
-
-### rollbackFor设置错误
+CGLib 必须依赖于CGLib的类库,需要满足以下要求：
+ **1.实现MethodInterceptor接口，重写intercept()
+ 2.使用Enhancer对象.create()产生代理对象**
 
 
 
 
+
+## 失效的场景
+
+1. 事务注解作用于类,类的非public方法
+2. 不会回滚的传播机制 PROPAGATION_SUPPORTS, PROPAGATION_NOT_SUPPORTED, PROPAGATION_NEVER
+3. rollbackFor指定了错误的异常
+4. 内部调用类的方法. 这样不会通过代理类,而是直接通过原来的bean
+5. **不能在接口上加事务注解** 由于注解不会被继承, 如果在接口类上加事务,则事务失效. 如果在接口方法上加事务, 则事务依然生效
+6. 异常被捕获
+
+
+
+### 同一个方法调用无事务的解决方案
+
+当方法被同一个类调用的时候，spring无法将这个方法加到事务管理中。只有在代理对象之间进行调用时，可以触发切面逻辑。
+
+1. 使用 ApplicationContext 获取该对象
+2. 使用 AopContext.currentProxy() 获取代理对象,但是需要配置exposeProxy=true
 
 
 
@@ -1506,20 +1576,16 @@ public interface TransactionStatus {
 
 
 
-### 传播机制
+## 传播机制
 
-`TransactionDefinition.XXX`
-
-
-
-| 支持当前事务   | PROPAGATION_REQUIRED 默认 | 加入外层/新建事务执行                                   | 一起回滚                              |
-| -------------- | ------------------------- | ------------------------------------------------------- | ------------------------------------- |
-|                | PROPAGATION_SUPPORT       | 加入外层,外层无事务则内层以非事务执行                   |                                       |
-|                | PROPAGATION_MANDATORY     | 加入外层,外层非事务则抛异常                             |                                       |
-| 不支持当前事务 | PROPAGATION_REQUES_NEW    | 新建事务,外层挂起                                       | 独立回滚                              |
-|                | PROPAGATION_NOT_SUPPORT   | 非事务执行内层,外层挂起                                 |                                       |
-|                | PROPAGATION_NEVER         | 非事务执行内层,外层有事务就抛异常                       |                                       |
-| 混沌中立       | PROPAGATION_NESTED        | 外层有事务则加入外层,无事务则与PROPAGATION_REQUIRED一致 | 外层回滚则一起回滚,子事务可以单独回滚 |
+| 支持当前事务   | REQUIRED 默认 | 加入外层/新建事务                           | 一起回滚                              |
+| -------------- | ------------- | ------------------------------------------- | ------------------------------------- |
+|                | SUPPORT       | 加入外层/无事务                             |                                       |
+|                | MANDATORY     | 加入外层/抛异常                             |                                       |
+| 不支持当前事务 | REQUIRES_NEW  | 新建事务,外层挂起                           | 独立回滚                              |
+|                | NOT_SUPPORT   | 非事务执行内层,外层挂起                     |                                       |
+|                | NEVER         | 非事务执行内层,外层有事务就抛异常           |                                       |
+| 混沌中立       | NESTED        | 外层有事务则加入外层,无事务则与REQUIRED一致 | 外层回滚则一起回滚,子事务可以单独回滚 |
 
 
 
@@ -1528,12 +1594,6 @@ public interface TransactionStatus {
 ## 隔离级别
 
 通过``isolation =XXX``配置
-
-| READ_UNCOMMITTED | 读未提交 |
-| ---------------- | -------- |
-| READ_COMMITTED   | 读提交   |
-| REPEATABLE_READ  | 可重复读 |
-| SERIALIZABLE     | 串行     |
 
 
 
@@ -1546,38 +1606,6 @@ public interface TransactionDefinition {
     int ISOLATION_SERIALIZABLE = 8;
 }
 ```
-
-
-
-为了方便使用，Spring 也相应地定义了一个枚举类：`Isolation`
-
-
-
-```java
-public enum Isolation {
-
-	DEFAULT(TransactionDefinition.ISOLATION_DEFAULT),
-	READ_UNCOMMITTED(TransactionDefinition.ISOLATION_READ_UNCOMMITTED),
-	READ_COMMITTED(TransactionDefinition.ISOLATION_READ_COMMITTED),
-	REPEATABLE_READ(TransactionDefinition.ISOLATION_REPEATABLE_READ),
-	SERIALIZABLE(TransactionDefinition.ISOLATION_SERIALIZABLE);
-
-	private final int value;
-
-	Isolation(int value) {
-		this.value = value;
-	}
-
-	public int value() {
-		return this.value;
-	}
-
-}
-```
-
-下面我依次对每一种事务隔离级别进行介绍：
-
-
 
 
 
@@ -1597,21 +1625,7 @@ public enum Isolation {
 
 
 
-## 注意事项
 
-1. @Transactional只用于public方法
-2. ==类内部调用 @Transactional 不起作用==
-3. @Transactional 的方法内，不要去抓取数据库相关异常
-4. 标记 @Transactional 的类/方法也能final
-
-
-
-#### 同一个方法调用无事务的解决方案
-
-当方法被同一个类调用的时候，spring无法将这个方法加到事务管理中。只有在代理对象之间进行调用时，可以触发切面逻辑。
-
-1. 使用 ApplicationContext 获取该对象
-2. 使用 AopContext.currentProxy() 获取代理对象,但是需要配置exposeProxy=true
 
 
 

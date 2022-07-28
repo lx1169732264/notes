@@ -178,8 +178,7 @@ dubbo.protocol.port=20880
 ```java
 @Service	Sping注解
 
-      @Reference		远程调用服务注解
-      UserService userService;
+@Reference		远程调用服务注解
 ```
 
 * properties

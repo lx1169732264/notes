@@ -91,10 +91,6 @@ server.1=IP:2181:3181:observer
 
 
 
-
-
-
-
 # 安装
 
 
