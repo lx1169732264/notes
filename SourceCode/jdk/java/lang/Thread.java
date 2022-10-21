@@ -146,7 +146,7 @@ class Thread implements Runnable {
     }
 
     private volatile String name;
-    private int            priority;
+    private int            priority; //优先级1~10,默认5	优先级不代表执行顺序
     private Thread         threadQ;
     private long           eetop;
 
@@ -192,7 +192,7 @@ class Thread implements Runnable {
      * not specify a stack size.  It is up to the VM to do whatever it
      * likes with this number; some VMs will ignore it.
      */
-    private long stackSize;
+    private long stackSize; //栈大小
 
     /*
      * JVM-private state that persists after native thread termination.
@@ -205,7 +205,7 @@ class Thread implements Runnable {
     private long tid;
 
     /* For generating thread ID */
-    private static long threadSeqNumber;
+    private static long threadSeqNumber; //用于匿名线程生成tid
 
     /* Java thread status for tools,
      * initialized to indicate thread 'not yet started'
@@ -224,14 +224,14 @@ class Thread implements Runnable {
      * Set by (private) java.util.concurrent.locks.LockSupport.setBlocker
      * Accessed using java.util.concurrent.locks.LockSupport.getBlocker
      */
-    volatile Object parkBlocker;
+    volatile Object parkBlocker; //用于LockSupport.park
 
     /* The object in which this thread is blocked in an interruptible I/O
      * operation, if any.  The blocker's interrupt method should be invoked
      * after setting this thread's interrupt status.
      */
     private volatile Interruptible blocker;
-    private final Object blockerLock = new Object();
+    private final Object blockerLock = new Object(); //设置blocker变量时用的锁
 
     /* Set the blocker field; invoked via sun.misc.SharedSecrets from java.nio code
      */
@@ -745,7 +745,7 @@ class Thread implements Runnable {
     @Override
     public void run() {
         if (target != null) {
-            target.run();
+            target.run(); //如果是直接调用run,target就是main线程
         }
     }
 
@@ -1249,7 +1249,7 @@ class Thread implements Runnable {
 
         if (millis == 0) {
             while (isAlive()) {
-                wait(0);
+                wait(0); //等同于this.wait(0)
             }
         } else {
             while (isAlive()) {

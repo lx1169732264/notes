@@ -138,7 +138,7 @@ public class LockSupport {
      */
     public static void unpark(Thread thread) {
         if (thread != null)
-            UNSAFE.unpark(thread);
+            UNSAFE.unpark(thread); //将permit设置1(多次unpark不累加). 支持先unpark,再park
     }
 
     /**
@@ -172,7 +172,7 @@ public class LockSupport {
     public static void park(Object blocker) {
         Thread t = Thread.currentThread();
         setBlocker(t, blocker);
-        UNSAFE.park(false, 0L);
+        UNSAFE.park(false, 0L); //permit设置为0
         setBlocker(t, null);
     }
 
@@ -400,7 +400,7 @@ public class LockSupport {
         try {
             UNSAFE = sun.misc.Unsafe.getUnsafe();
             Class<?> tk = Thread.class;
-            parkBlockerOffset = UNSAFE.objectFieldOffset
+            parkBlockerOffset = UNSAFE.objectFieldOffset //Thread.parkBlocker只在线程被阻塞时被赋值。此时无法调用Thread的get方法,所以必须用内存偏移量
                 (tk.getDeclaredField("parkBlocker"));
             SEED = UNSAFE.objectFieldOffset
                 (tk.getDeclaredField("threadLocalRandomSeed"));

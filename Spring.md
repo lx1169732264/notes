@@ -192,7 +192,7 @@ static AutoConfigurationMetadata loadMetadata(Properties properties) {
 
 ![](image.assets/image-20210719132914580.png)
 
-所有 starter `META-INF/ 'PATH'`目录的启动配置类都会被读取到
+所有 Starter `META-INF/ 'PATH'`目录的启动配置类都会被读取到
 
 
 
@@ -205,20 +205,24 @@ protected AutoConfigurationEntry getAutoConfigurationEntry(
   if (!isEnabled(annotationMetadata)) {
     return EMPTY_ENTRY;
   }
-  AnnotationAttributes attributes = getAttributes(annotationMetadata); //EnableAutoConfiguration的exclude和excludeName属性
-  
-  List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes); //读取所有Starter下的 META-INF/spring.factories,获取需要自动装配的配置类
-  
+  AnnotationAttributes attributes = getAttributes(annotationMetadata);
+  List<String> configurations = getCandidateConfigurations(annotationMetadata,
+                                                           attributes);
   configurations = removeDuplicates(configurations);
   Set<String> exclusions = getExclusions(annotationMetadata, attributes);
   checkExcludedClasses(configurations, exclusions);
-  configurations.removeAll(exclusions); //根据exclude和excludeName去除
-  
-  configurations = filter(configurations, autoConfigurationMetadata);//去除@ConditionalOnXXX 中条件不满足的类
+  configurations.removeAll(exclusions); //去除不需要的配置类,@ConditionalOnXXX 中的所有条件都满足，该类才会生效
+  configurations = filter(configurations, autoConfigurationMetadata);
   fireAutoConfigurationImportEvents(configurations, exclusions);
   return new AutoConfigurationEntry(configurations, exclusions);
 }
 ```
+
+
+
+
+
+
 
 
 
@@ -1188,7 +1192,7 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 
 
-**5个阶段** 反射创建bean工厂 创建实例化 依赖注入 容器缓存 销毁实例
+**5个阶段** 反射创建bean工厂 创建bean实例化 依赖注入 容器缓存 销毁实例
 
 
 
@@ -1204,7 +1208,7 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 > 3、容器级生命周期接口方法
 
-这个包括了InstantiationAwareBeanPostProcessor 和 BeanPostProcessor 这两个接口实现，一般称它们的实现类为“后处理器”。
+这个包括了InstantiationAwareBeanPostProcessor 和 BeanPostProcessor 这两个接口实现，一般称它们的实现类为“后处理器”。 
 
 > 4、工厂后处理器接口方法
 
@@ -1226,17 +1230,15 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 **第5步**：如果实现了ApplicationContextAware，会给bean设置ApplictionContext
 
-**第6步**：如果实现了BeanPostProcessor接口，则执行前置处理方法；
+**第6步**：如果实现了BeanPostProcessor接口，则执行前置处理方法
 
 **第7步**：实现了InitializingBean接口的话，执行afterPropertiesSet方法；
 
-**第8步**：执行自定义的init方法；
+**第8步**：执行自定义的init方法
 
-**第9步**：执行BeanPostProcessor接口的后置处理方法。
+**第9步**：执行BeanPostProcessor接口的后置处理方法
 
-这时，就完成了bean的创建过程。
-
-**在使用完bean需要销毁时，会先执行DisposableBean接口的destroy方法，然后在执行自定义的destroy方法**。
+**在使用完bean需要销毁时，会先执行DisposableBean接口的destroy方法，然后在执行自定义的destroy方法**
 
 
 
@@ -1252,17 +1254,17 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 
 
-## 三级缓存
+## 循环依赖
+
+
+
+### 三级缓存
 
 1. singletonObjects 存放已经历完整生命周期的Bean
 2. earlySingletonObjects 存放早期暴露出来的Bean，Bean的生命周期未结束（属性还未填充完整）
 3. singletonFactories，存放可以生成Bean的工厂
 
-
-
-
-
-### 循环依赖
+==三级缓存无法解决构造器注入的循环依赖,无法解决非单例的依赖==
 
 
 
@@ -1274,7 +1276,7 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 
 
-### 只用earlySingletonObjects
+#### 只用earlySingletonObjects
 
 1. 实例化A, 依赖注入时发现取不到B
 2. 将A放入earlySingletonObjects中
@@ -1295,17 +1297,174 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 
 
-
-
-
-
 ## 5个作用域
 
 1. Singleton **默认**
-2. Prototype 每次注入时都是新的
+2. Prototype 每次注入都是新的
 3. Request 每个http请求
 4. Session
 5. GlobalSession 用于 Portlet 有单独的 Session
+
+
+
+
+
+
+
+## BeanFactory和FactoryBean的区别
+
+BeanFactory：管理Bean的容器，Spring中生成的Bean都是由这个接口的实现来管理的。
+
+FactoryBean：用来创建比较复杂的bean，一般的bean 直接用xml配置即可，但如果一个bean的创建过程中涉及到很多其他的bean 和复杂的逻辑，直接用xml配置比较麻烦，这时可以考虑用FactoryBean，可以隐藏实例化复杂Bean的细节
+
+当配置文件中bean标签的class属性配置的实现类是FactoryBean时，通过 getBean()方法返回的不是FactoryBean本身，而是调用FactoryBean#getObject()方法所返回的对象，相当于FactoryBean#getObject()代理了getBean()方法。如果想得到FactoryBean必须使用 '&' + beanName 的方式获取。
+
+
+
+
+
+## BeanFactory和ApplicationContext
+
+
+
+| BeanFactory | ApplicationContext |
+
+它使用懒加载 它使用即时加载 
+
+它使用语法显式提供资源对象 它自己创建和管理资源对象 
+
+不支持国际化 支持国际化 
+
+不支持基于依赖的注解 支持基于依赖的注解 
+
+BeanFactory和ApplicationContext的优缺点分析：
+
+BeanFactory的优缺点：
+
+- 优点：应用启动的时候占用资源很少，对资源要求较高的应用，比较有优势；
+- 缺点：运行速度会相对来说慢一些。而且有可能会出现空指针异常的错误，而且通过Bean工厂创建的Bean生命周期会简单一些。
+
+ApplicationContext的优缺点：
+
+- 优点：所有的Bean在启动的时候都进行了加载，系统运行的速度快；在系统启动的时候，可以发现系统中的配置问题。
+- 缺点：把费时的操作放到系统启动中完成，所有的对象都可以预加载，缺点就是内存占用较大。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 注入方式
+
+
+
+1、`@Configuration`与`@Bean`
+
+2、`@Controller`、`@Service`、`@Repository`、`@Component` 注解标注该类，然后启用`@ComponentScan`自动扫描
+
+3、使用`@Import` 方法。使用@Import注解把bean导入到当前容器中
+
+
+
+@Autowired 默认byType注入,是spring的注解
+
+@Resource 默认byName注入,是J2EE的注解 有name/type两个属性,可以根据这个自定义注入策略
+
+
+
+**在构造器注入时,优先byType进行注入,否则byName**
+
+
+
+
+
+### 注入时有多个实现类
+
+
+
+1. @Resource指定beanName
+
+   ```java
+   @Service("xxxService")
+   @Resource(name = "xxxService")
+   ```
+
+2. @Autowired指定beanName
+
+   ```java
+   @Service("xxxService")
+   @Autowired("xxxService")
+   ```
+
+3. 注入的地方@Qualifier
+
+   ```java
+   @Autowired
+   @Qualifier(value = "manService")
+   ```
+
+4. 实现类加 @Primary
+
+
+
+
+
+## @Bean Vs @Compoment
+
+@Bean用 Java 代码装配 Bean，@Component 是自动装配 Bean
+
+@Bean 作用在方法上，表示这个方法会返回一个 Bean。@Bean 需要在配置类中使用，即类上需要加上@Configuration注解
+
+@Compoment作用在类上, 告知Spring要为这个类创建bean，每个类对应一个 Bean
+
+
+
+## @Component、@Controller、@Repositor和@Service
+
+@Component：最普通的组件，可以被注入到spring容器进行管理
+
+@Controller：将类标记为 Spring Web MVC 控制器
+
+@Service：将类标记为业务层组件
+
+@Repository：将类标记为数据访问组件，即DAO组件
+
+
+
+
+
+## 单例bean的线程不安全
+
+bean最好是无状态的
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1355,13 +1514,98 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 # Spring的设计模式
 
-- **工厂设计模式** : Spring使用工厂模式通过 `BeanFactory`、`ApplicationContext` 创建 bean 对象
-- **代理设计模式** : AOP
+- **工厂模式** : BeanFactory 可以通过ApplicationContext 创建 bean 对象
+- **代理设计模式** : AOP有两种方式`JdkDynamicAopProxy`和`Cglib2AopProxy`
 - **单例设计模式** : Bean 默认单例
 - **模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式
 - **包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源
-- **观察者模式:** Spring 事件驱动模型就是观察者模式很经典的一个应用
+- **观察者模式:** Spring 事件驱动模型
 - **适配器模式** : MVC HandlerAdapter
+
+
+
+
+
+# 动态代理的两种方式
+
+
+
+**JDK动态代理**
+
+如果目标类实现了接口，Spring AOP会选择使用JDK动态代理目标类。代理类根据目标类实现的接口动态生成，不需要自己编写，生成的动态代理类和目标类都实现相同的接口。JDK动态代理的核心是`InvocationHandler`接口和`Proxy`类
+
+缺点：如果**类没有实现接口，就不能用JDK动态代理**
+
+
+
+**CGLIB动态代理** Code Generation Library
+
+通过继承实现。如果目标类没有实现接口，那么Spring AOP会选择使用CGLIB来动态代理目标类。CGLIB可以在运行时动态生成类的字节码，动态创建目标类的子类对象，在子类对象中增强目标类
+
+**通过继承实现代理,如果类被标记为`final`，就不能用CGLIB**
+
+优点：目标类不需要实现特定的接口，更加灵活
+
+
+
+
+
+什么时候采用哪种动态代理？
+
+1. 如果目标对象实现接口，默认情况下会采用JDK的动态代理实现AOP
+2. 如果目标对象实现接口，可以强制使用CGLIB实现AOP
+3. 如果目标对象没有实现接口，必须采用CGLIB库
+
+
+
+# AOP
+
+
+
+
+
+## 5种通知类型
+
+1. before
+2. after
+3. after-returning
+4. after-throwing
+5. around
+
+
+
+```java
+try {
+  try {
+    //@Before
+    method.invoke(..);
+  } finally {
+    //@After
+  }
+  //@AfterReturning
+} catch() {
+  //@AfterThrowing
+}
+```
+
+
+
+# Spring Event
+
+观察者模式
+
+
+
+实现Spring事件机制主要有4个类：
+
+1. ApplicationEvent：事件，每个实现类表示一类事件，可携带数据
+2. ApplicationListener：事件监听器，用于接收事件处理
+3. ApplicationEventMulticaster：事件管理者，用于事件监听器的注册和事件的广播
+4. ApplicationEventPublisher：事件发布者，委托事件管理者完成事件发布
+
+
+
+
 
 
 
@@ -1614,6 +1858,45 @@ public interface TransactionDefinition {
 事务可能涉及对数据库的锁定，长时间运行事务会不必要地占用数据库资源。这时就可以声明一个事务在特定秒数后自动回滚，不必等它自己结束。
 
 由于超时时钟在一个事务启动的时候开始的，因此只对会启动新事务的传播行为来说，声明事务超时才有意义
+
+
+
+
+
+
+
+# IOC
+
+spring是一个ioc容器，容器就是放数据的，ioc容器实际上就是个map（key，value），里面存的是各种对象（在xml里配置的bean节点||repository、service、controller、component），在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里；扫描到打上上述注解的类还是通过反射new对象放到map里。
+
+这个时候map里就有各种对象了，接下来我们在代码里需要用到里面的对象时，再通过DI注入（autowired、resource等注解，xml里bean节点内的ref属性，项目启动的时候会读取xml节点ref属性根据id注入，也会扫描这些注解，根据类型或id注入；id就是对象名）
+
+
+
+
+
+## 容器初始化过程
+
+ioc 容器初始化过程：BeanDefinition 的资源定位、解析和注册
+
+1. 从XML中读取配置文件
+2. 将bean标签解析成 BeanDefinition，如解析 property 元素， 并注入到 BeanDefinition 实例中
+3. 将 BeanDefinition 注册到容器 BeanDefinitionMap 中
+4. BeanFactory 根据 BeanDefinition 的定义信息创建实例化和初始化 bean
+
+单例bean的初始化以及依赖注入一般都在容器初始化阶段进行，只有懒加载（lazy-init为true）的单例bean是在应用第一次调用getBean()时进行初始化和依赖注入
+
+```java
+finishBeanFactoryInitialization(beanFactory);
+```
+
+多例bean 在容器启动时不实例化，即使设置 lazy-init 为 false 也没用，只有调用了getBean()才进行实例化
+
+`loadBeanDefinitions`采用了模板模式，具体加载 `BeanDefinition` 的逻辑由各个子类完成
+
+
+
+
 
 
 

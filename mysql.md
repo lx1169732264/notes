@@ -1317,9 +1317,9 @@ SELECT *  FROM t2 ORDER BY created DESC LIMIT 6,6;
 
 ## Count
 
-统计列值	count(col)		**不统计null**,性能较慢
+统计列值	count(col)		==不统计null==,性能较慢
 
-统计行数	count() / count(*)	统计NULL
+统计行数	count(1) / count(*)	统计NULL
 
 
 
@@ -2035,6 +2035,12 @@ bf 00 13 00 32 01 1e          回滚指针
 
 
 
+
+
+
+
+
+
 **不要在一次事务中使用多种存储引擎**
 
 MySQL服务器层不管理事务，由下层的存储引擎实现
@@ -2074,15 +2080,11 @@ Commit;
 
 
 
-**ACID**
+InnoDB通过 ⽇志和锁 来保证的事务的 ACID特性
 
-| Atomicity原子性 | Consistency一致性           | Isolation隔离性            | Durability持久性                                       |
-| --------------- | --------------------------- | -------------------------- | ------------------------------------------------------ |
-| 全完成/全不完成 | 保持数据**完整性/可见性**   | **允许并发事务的数据一致** | 事务提交后对数据的**修改是永久**的，即便故障也不会丢失 |
-|                 | [doublewrite](#doublewrite) | [隔离级别](#隔离级别)      | [doublewrite](#doublewrite)                            |
-|                 | 崩溃恢复                    | 锁                         |                                                        |
-
-
+1. 数据库锁保障事务的隔离性
+2. Redo Log（重做⽇志）保障事务的持久性. 操作数据前, 将新数据备份到redo log, 事务提交时只需要保证redo log已持久化, 不需要将数据持久化, 在恢复数据时只需要根据redo log恢复数据即可
+3. Undo Log （撤销⽇志）保障事务的原⼦性/⼀致性. 操作数据前, 先将数据在undo log备份, 在需要回滚时可以将数据恢复到事务开始前的状态
 
 
 
@@ -2096,14 +2098,25 @@ SET [GLOBAL|SESSION] TRANSACTION ISOLATION LEVEL {level};	#设置隔离等级
 
 
 
-|   隔离级别    | 脏读 select | 不可重复读 update |   幻读 insert/delete   |
-| :-----------: | :---------: | :---------------: | :--------------------: |
-| Read Uncommit |             |                   |                        |
-|  Read Commit  |      ×      |                   |                        |
-| Read Repeate  |      ×      |   快照+==事务==   | [MVCC/NK锁](#避免幻读) |
-| SERIALIZABLE  |      ×      |         ×         |           ×            |
+|   隔离级别    |     脏读 select      |      不可重复读 update       |     幻读 insert/delete     |
+| :-----------: | :------------------: | :--------------------------: | :------------------------: |
+| Read Uncommit |                      |                              |                            |
+|  Read Commit  |          ×           |                              |                            |
+| Read Repeate  |          ×           |        快照+==事务==         |   [MVCC/NK锁](#避免幻读)   |
+| SERIALIZABLE  |          ×           |              ×               |             ×              |
+|               | 读到事务没提交的数据 | 两次查询结果的数据内容不一致 | 两次查询结果的记录数不一致 |
 
 **可重复读和读提交是矛盾的**。可重复读看不到其他事务的提交，违背了读提交；如果可重复读严格遵守读提交，就会导致前后两次读到的结果不一致，违背可重复读
+
+
+
+**如何保证repeatable read不会幻读**
+
+在SQL中加⼊ for update (排他锁) 或 lock in share mode (共享 锁)语句。锁住可能造成幻读的数据，阻⽌数据的写⼊操作
+
+
+
+
 
 
 
@@ -6657,9 +6670,36 @@ CPU瓶颈	数据完全存放在内存 或 磁盘读速度很快
 
 
 
+# 面试
 
 
 
+## 行列转换
+
+![](image.assets/image-20220730152502900.png)
+
+```sql
+SELECT `姓名`,
+max(case `科目` when '语文' then `成绩` else 0 end) AS '语文' --非语文科目返回0, 通过max可以取到结果
+FROM t GROUP BY name;
+```
+
+
+
+
+
+## 同时使用group和order
+
+![](image.assets/image-20220730152912940.png)
+
+
+
+```sql
+SELECT id FROM (
+  SELECT * FROM t ORDER BY create_time desc
+) tmp
+GROUP BY bill_no; --group优先于order执行. 会导致group后的结果无法携带正确的时间信息
+```
 
 
 

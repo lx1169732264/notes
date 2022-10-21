@@ -565,7 +565,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @return the node, or null if none
      */
     final Node<K,V> getNode(int hash, Object key) {
-        Node<K,V>[] tab; Node<K,V> first, e; int n; K k; //first:对应下标链表的链头元素    e:first.next(下一个桶)    k:first.key
+        Node<K,V>[] tab; Node<K,V> first, e; int n; K k; //first:对应下标链表的链头元素
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (first = tab[(n - 1) & hash]) != null) { //能进行get操作的前提: 1.table!=null 2.数组长度>0 3.对应下标的桶!=null
             if (first.hash == hash && // always check first node

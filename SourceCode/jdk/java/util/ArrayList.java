@@ -501,7 +501,7 @@ public class ArrayList<E> extends AbstractList<E>
         int numMoved = size - index - 1;
         if (numMoved > 0)
             System.arraycopy(elementData, index+1, elementData, index,
-                             numMoved); //不进行移除,而是直接通过复制覆盖被移除元素
+                             numMoved); //直接通过复制覆盖被移除元素
         elementData[--size] = null; // help GC  将最后一个元素置为null
 
         return oldValue;
