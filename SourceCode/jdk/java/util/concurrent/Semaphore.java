@@ -187,7 +187,7 @@ public class Semaphore implements java.io.Serializable {
         protected final boolean tryReleaseShared(int releases) {
             for (;;) {
                 int current = getState();
-                int next = current + releases;
+                int next = current + releases; //release就是增加信号量
                 if (next < current) // overflow
                     throw new Error("Maximum permit count exceeded");
                 if (compareAndSetState(current, next))
@@ -245,7 +245,7 @@ public class Semaphore implements java.io.Serializable {
                 if (hasQueuedPredecessors())
                     return -1;
                 int available = getState();
-                int remaining = available - acquires;
+                int remaining = available - acquires; //剩余可用的信号量
                 if (remaining < 0 ||
                     compareAndSetState(available, remaining))
                     return remaining;

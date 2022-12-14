@@ -26,9 +26,9 @@ char型变量是用来存储Unicode编码的字符的，可以存储汉字。不
 
 ## switch语句能否作用在byte上，能否作用在long上，能否作用在String上?
 
-在switch（expr1）中，expr1只能是一个整数表达式或者枚举常量（更大字体），整数表达式可以是int基本类型或Integer包装类型，由于，byte,short,char都可以隐含转换为int，所以，这些类型以及这些类型的包装类型也是可以的。
+在switch（expr1）中，expr1只能是一个整数表达式或者枚举常量，整数表达式可以是int基本类型或Integer包装类型，由于byte,short,char都可以隐含转换为int，所以这些类型以及这些类型的包装类型也是可以的
 
-switch 不支持 long 类型；从 java1.7开始 switch 开始支持 String，这是 Java 的语法糖
+switch 不支持 long 类型；从1.7开始 switch 开始支持 String，这是 Java 的语法糖
 
 
 
@@ -96,8 +96,8 @@ Java虽然传地址的值,但不是引用调用
 
 ### 成员变量 VS 局部变量
 
-1. 从语法形式上看，成员变量是属于类的，而局部变量是在代码块或方法中定义的变量或是方法的参数；成员变量可以被 `public`,`private`,`static` 等修饰符所修饰，而局部变量不能被访问控制修饰符及 `static` 所修饰；但是，成员变量和局部变量都能被 `final` 所修饰。
-2. 从变量在内存中的存储方式来看,如果成员变量是使用 `static` 修饰的，那么这个成员变量是属于类的，如果没有使用 `static` 修饰，这个成员变量是属于实例的。而对象存在于堆内存，局部变量则存在于栈内存。
+1. 从语法形式上看，成员变量是属于类的，而局部变量是在代码块或方法中定义的变量或是方法的参数；成员变量可以被 `public`,`private`,`static` 等修饰符所修饰，而局部变量不能被访问控制修饰符及 `static` 所修饰；但是，**成员变量和局部变量都能被 `final` 修饰**
+2. 从变量在内存中的存储方式来看,如果成员变量是使用 `static` 修饰的，那么这个成员变量是属于类的，如果没有使用 `static` 修饰，这个成员变量是属于实例的。而对象存在于堆内存，局部变量则存在于栈内存
 3. 从变量在内存中的生存时间上看，成员变量是对象的一部分，它随着对象的创建而存在，而局部变量随着方法的调用而自动消失。
 4. 从变量是否有默认值来看，成员变量如果没有被赋初，则会自动以类型的默认值而赋值（一种情况例外:被 `final` 修饰的成员变量也必须显式地赋值），而局部变量则不会自动赋值
 
@@ -3259,7 +3259,7 @@ public abstract class SelectionKey {
 
 
 
-Java线程基于内核线程实现 -> 创建/析构/同步需要系统调用 -> 用户/内核态切换
+
 
 
 
@@ -3272,29 +3272,17 @@ Java线程基于内核线程实现 -> 创建/析构/同步需要系统调用 -> 
 
 **守护线程 daemon**
 
-即使没有主动创建线程,后台也会有多个线程,如主线程(用户线程),gc线程(守护线程)
+即使没有主动创建线程,后台也会有多个线程,如gc线程
 
 一条java线程将对应多条操作系统OS的线程(例如守护线程)
 
-**JVM保证用户线程执行完毕,但不等待守护线程执行完毕** -> 所有非守护线程结束,程序才终止
-
-Thread.setDaemon
+**守护线程的生命周期与JVM一致**, JVM中所有的线程都是守护线程的时候，JVM 就可以退出了
 
 
 
 **上下文切换 ContextSwitch**
 
 CPU给每个线程分配CPU时间片,时间片结束后切换线程，当前状态放到缓存或者内存中，称为**保护现场**，以便下次切换回这个任务时，可以再加载状态
-
-
-
-**超线程**
-
-一个ALU对应多个PC/Registers (所谓的4核8线程)
-
-原本上下文切换需要切换掉 程序计数器PC 和 寄存器Registers 中的数据,再让运算单元ALU去运算
-
-而超线程的ALU不需要切换数据,只需要切换PC/Registers,效率更高
 
 
 
@@ -3312,25 +3300,7 @@ CPU给每个线程分配CPU时间片,时间片结束后切换线程，当前状�
 
 实现Callable接口  (有返回值,可抛出异常)
 
-```java
-//1.实现Callable接口,定义返回值类型
-public class TestCallable implements Callable<String> {
 
-  //2.重写call()方法,需要抛出异常
-  @Override
-  public String call() {  return Thread.currentThread().getName(); }
-
-  public static void main(String[] args) throws ExecutionException, InterruptedException  {
-    //3.创建执行服务
-    ExecutorService service = Executors.newFixedThreadPool(3);
-    //4.提交执行
-    Future<String> result = service.submit(new TestCallable());
-    //5.获取返回值
-    String str = result.get();
-    //6.关闭服务	需要抛出2个异常
-    service.shutdown();}
-}
-```
 
 
 
@@ -3949,63 +3919,24 @@ arriveAndDeregister()	线程到达此处时停止,不再参与后续阶段
 
 信号量
 
-**`synchronized` / `ReentrantLock` 同时只允许一个线程访问某资源，`Semaphore`(信号量)可以指定线程数同时访问**
+**`synchronized` / `ReentrantLock` 同时只允许一个线程访问某资源，`Semaphore`可以指定线程数同时访问**
 
 将构造 AQS 的 state 为 `permits`。当执行任务的线程数量超出 `permits`，那么多余的线程将会被放入阻塞队列 Park,并自旋判断 state 是否大于 0。只有当 state 大于 0 的时候，阻塞的线程才能继续执行,此时先前执行任务的线程继续执行 `release()` 方法，`release()` 方法使得 state 的变量会加 1，那么自旋的线程便会判断成功。
-如此，每次只有最多不超过 `permits` 数量的线程能自旋成功，便限制了执行任务线程的数量
+
+
+
+
+访问资源前，线程必须得到信号量的许可(permits-—),permits为0时,无法获得许可
+
+完成访问后，线程必须向信号量归还许可（permits++）
+
+**适用场景**:	限流,多个共享资源的互斥使用 / 并发线程数的控制
 
 ![](image.assets/16317a4db0f8406b)
 
 
 
 
-
-访问资源前，线程必须得到信号量的许可(permits-—)
-
-完成访问后，线程必须向信号量归还许可（permits++）
-
-**适用场景**:	限流,多个共享资源的互斥使用 / 并发线程数的控制
-
-
-
-```java
-public class Semaphore implements Serializable {
-  private final Semaphore.Sync sync; //Semaphore的内部类
-  
-  public Semaphore(int permits) { //默认非公平
-    sync = new NonfairSync(permits); //同时执行的线程数量
-  }
-
-  public Semaphore(int permits, boolean fair) { //也支持公平
-    sync = fair ? new FairSync(permits) : new NonfairSync(permits);
-  }
-}
-```
-
-
-
-#### Sync
-
-Semaphore的内部类
-
-```java
-abstract static class Sync extends AbstractQueuedSynchronizer {
-  private static final long serialVersionUID = 1192457210091910933L;
-
-  Sync(int var1) {
-    this.setState(var1); //将AQS的state置为最大同时运行线程数
-  }
-}
-```
-
-
-
-
-
-```java
-acquire（获取） 成功获取时信号量–-	信号量为0时,获取失败,
-release（释放）信号量++，唤醒等待的线程,必须放在finally
-```
 
 
 
@@ -4298,9 +4229,7 @@ public interface BlockingQueue<E> extends Queue<E> {
 
 
 
-
-
-new和terminated实际上并不是线程的状态, 而是Thread对象的状态, 话句话说, 新建/终止的不是线程, 而是代表线程的对象
+new和terminated实际上并不是线程的状态,而是Thread对象的状态,新建/终止的不是线程,而是代表线程的对象
 
 
 
@@ -4309,8 +4238,6 @@ new和terminated实际上并不是线程的状态, 而是Thread对象的状态, 
 目前操作系统架构通常用“时间分片方式进行抢占调度时间. 这个时间片短到10ms,区分为ready/running是意义不大的.
 
 这也使得RUNNABLE的线程, 可能正在运行,也可能处于等待时间片的状态
-
-
 
 
 
@@ -4332,7 +4259,9 @@ run()是作为main线程下的普通方法，并不是多线程
 
 ### sleep
 
-==不释放对象锁==,**可在任意地方使用**,无需在同步方法内
+是Thread的方法,==不释放对象锁==,**可在任意地方使用**,无需在同步方法内
+
+虽然让出了cpu,但依然保持着监控状态,当指定时间到了会自动恢复运行
 
 [wait释放对象锁](###wait/notify)
 
@@ -4709,15 +4638,10 @@ if(!vector.contains(element))		vector.add(element); //contains和add都是原子
 
 
 * 悲观
-  * 认为别人会修改，每次拿数据的时都上锁，别的线程block
-  * 传统的关系型数据库里边就用到了很多这种锁机制，比如行锁，表锁等，读锁，写锁等，都是在做操作之前先上锁
-
-
+  * 写多读少，每次拿数据的时都上锁，别的线程block
 
 * 乐观
-  * 认为别人不修改，不上锁，但在更新时判断在此期间别人有没有去更新数据(版本号),在更新数据时提高版本号.提交时的版本低于目前版本,将回滚
-  * 适用于并发量不大的场景,省去了锁的开销，加大了系统的整个吞吐量
-  * 如果并发量大,上层应用不断进行retry，降低性能
+  * 读多写少,对比版本号保证数据是最新的
 
 
 
@@ -4791,14 +4715,15 @@ ReentrantLock,synchronized
 
 #### 自旋
 
-当线程A想要获取一把自旋锁,而该锁又被其它线程锁持有时，线程A会在一个循环中自旋以检测锁是否可用
+在一个有限的周期内不断重试获取锁
+
+是如果锁的竞争激烈，或者持有锁的线程需要长时间占用锁执行同步块，这时候不适合自旋
 
 
 
 - **由于自旋时不释放CPU，因而持有自旋锁的线程应该尽快释放自旋锁，否则等待该自旋锁的线程会一直自旋，浪费CPU时间**
-- **持有自旋锁的线程在sleep前应释放自旋锁**
 
-
+  
 
 
 
@@ -5161,8 +5086,6 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 
 
 ## synchronized
-
-
 
 **悲观+不公平+可重入	无锁/自旋/互斥信号量**
 
@@ -6389,6 +6312,8 @@ final boolean transferForSignal(Node node) {
 
 降低创建/销毁对象的资源消耗,**利于管理线程的个数与活跃数,统一分配、调优和监控**
 
+线程池在内部构建了生产者消费者模型，将线程和任务两者解耦，并不直接关联，从而良好的缓冲任务，复用线程
+
 <img src="image.assets/内核级线程.png" style="zoom: 67%;" />
 
 **内核级线程**是真正与操作系统内核交互的线程,存在上下文切换等性能消耗
@@ -6534,7 +6459,10 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 2. CallerRunsPolicy 只用调用者所在的线程来处理任务
 3. DiscardOldestPolicy 丢弃任务, 不作任何处理
 4. DiscardPolicy 丢弃workQueue中最老的一个任务，并将新任务加入
->>>>>>> e6a7a07 (21.7.28)
+
+
+
+
 
 
 
@@ -6816,38 +6744,27 @@ public <T> Future<T> submit(Callable<T> task) {
 
 
 
-![](image.assets/线程池状态转移.jpg)
+![](image.assets/77441586f6b312a54264e3fcf5eebe2663494.png)
 
 
 
 
 
 ```java
-public abstract class AbstractExecutorService implements ExecutorService {}
-
-public class ThreadPoolExecutor extends AbstractExecutorService {
-  //32位,高3位表示runState运行状态,低29位表示workerCount工作线程数量
-  private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
-  private static int ctlOf(int rs, int wc) { return rs | wc; }	//合并rs,wc->ctl
-  
-  private static final int COUNT_BITS = Integer.SIZE - 3;	//29位
-  private static final int RUNNING    = -1 << COUNT_BITS;	//运行态
-  private static final int SHUTDOWN   =  0 << COUNT_BITS;	//关闭态，不接受新任务，处理队列任务
-  private static final int STOP       =  1 << COUNT_BITS;	//停止态，不接受新任务，不处理队列任务，打断运行中任务
-  private static final int TIDYING    =  2 << COUNT_BITS;	//整理态，所有任务已结束 && workerCount=0，执行terminated()后进入结束态
-  private static final int TERMINATED =  3 << COUNT_BITS;	//结束态
-
-  private static final int CAPACITY   = (1 << COUNT_BITS) - 1;	//用于位运算
-  private static int runStateOf(int c)     { return c & ~CAPACITY; }	//获取运行状态	容量取反->29个0	与运算获得高3位的状态
-  private static int workerCountOf(int c)  { return c & CAPACITY; }
-  
-  private final BlockingQueue<Runnable> workQueue;
-  private final ReentrantLock mainLock = new ReentrantLock(); //全局锁
-  
-  private final HashSet<Worker> workers = new HashSet<Worker>();
-  private final Condition termination = mainLock.newCondition();
-}
+private static final int RUNNING    = -1 << COUNT_BITS;
+private static final int SHUTDOWN   =  0 << COUNT_BITS; //不接受新任务,处理队列任务
+private static final int STOP       =  1 << COUNT_BITS; //不接受新任务,也不处理队列中的任务,中断正在处理任务的线程
+private static final int TIDYING    =  2 << COUNT_BITS; //所有任务已终止,workerCount为0
+private static final int TERMINATED =  3 << COUNT_BITS; //terminated()方法执行完进入这个状态
 ```
+
+线程池生命周期
+
+![图3 ](image.assets/582d1606d57ff99aa0e5f8fc59c7819329028.png)
+
+
+
+
 
 
 
@@ -6886,30 +6803,6 @@ public static class DiscardPolicy implements RejectedExecutionHandler {}	//丢�
 
 
 
-```java
-public void execute(Runnable command) {
-  if (command == null) throw new NullPointerException();
-  int c = ctl.get();
-  if (workerCountOf(c) < corePoolSize) { //工作中线程数量 < 核心,添加核心线程
-    if (addWorker(command, true))
-      return;
-    c = ctl.get();//更新数量
-  }
-
-  if (isRunning(c) && workQueue.offer(command)) { //向正在运行的线程池添加任务至工作队列
-    int recheck = ctl.get();
-    if (!isRunning(recheck) && remove(command)) //二次校验,若线程池停止则移出队列并拒绝
-      reject(command);
-    else if (workerCountOf(recheck) == 0) //空闲工作线程=0,添加非核心线程
-      addWorker(null, false);
-  }
-  else if (!addWorker(command, false)) //添加线程失败
-    reject(command);
-}
-```
-
-
-
 
 
 <img src="image.assets/线程任务处理流程.png" style="zoom:67%;" />
@@ -6920,76 +6813,7 @@ public void execute(Runnable command) {
 
 在工作队列满时,才会尝试添加线程
 
-```java
-boolean addWorker(command, true)： //核心线程执行任务
-boolean addWorker(command, false)：//非核心线程执行任务
-boolean addWorker(null, false)：   //非核心线程，无任务
-```
 
-
-
-```java
-private boolean addWorker(Runnable firstTask, boolean core) {
-  retry://自旋、CAS、重读ctl，直到确定是否可以创建worker
-  for (;;) {
-    int c = ctl.get();
-    int rs = runStateOf(c);
-
-    if (rs >= SHUTDOWN && ! (rs == SHUTDOWN && firstTask == null && ! workQueue.isEmpty()))
-      return false;
-
-    for (;;) {
-      int wc = workerCountOf(c);
-      if (wc >= CAPACITY || wc >= (core ? corePoolSize : maximumPoolSize))
-        return false;
-      
-      if (compareAndIncrementWorkerCount(c)) //CAS成功则跳出循环
-        break retry;
-      c = ctl.get();  // 更新数量
-      if (runStateOf(c) != rs) //当最新状态!=原状态,跳到外层重新retry,否则继续内层CAS
-        continue retry;
-    }
-  }
-
-  boolean workerStarted = false; //新线程是否启动成功
-  boolean workerAdded = false; //新线程是否创建成功
-  Worker w = null;
-  try {
-    w = new Worker(firstTask);
-    final Thread t = w.thread;
-    if (t != null) {
-      final ReentrantLock mainLock = this.mainLock;
-      mainLock.lock();
-      try {
-        int rs = runStateOf(ctl.get());
-        if (rs < SHUTDOWN || (rs == SHUTDOWN && firstTask == null)) { //firstTask == null则只新建线程而不执行任务
-          if (t.isAlive()) throw new IllegalThreadStateException();
-          
-          workers.add(w);
-          int s = workers.size(); //更新当前工作线程的最大容量
-          if (s > largestPoolSize)
-            largestPoolSize = s;
-          workerAdded = true;
-        }
-      } finally {
-        mainLock.unlock(); //
-      }
-      if (workerAdded) {
-        t.start(); //Worker通过ThreadFactory封装成thread,t.start实际上调用 Worker.run
-        workerStarted = true;
-      }
-    }
-  } finally {
-    if (! workerStarted)
-      addWorkerFailed(w); //线程启动失败则从工作线程移除woker
-  }
-  return workerStarted;
-}
-```
-
-
-
-[t.start()调用了Worker.run()](##start->run)
 
 ![](image.assets/addWorker流程.png)
 
@@ -7034,45 +6858,6 @@ final void runWorker(Worker w) {
 
 
 #### getTask
-
-```java
-/**
-1.Worker数>maximumPoolSize 
-2.线程池STOP状态
-3.线程池SHUTDOWN状态&&任务队列为空
-4.这个Worker等待Task超时了，并且超时的Worker会被终止，allowCoreThreadTimeOut||workerCount>corePoolSize
-返回的Runnable==null，表示需要移除Worker对象的引用,Worker的数量--*/
-private Runnable getTask() {
-  boolean timedOut = false; //是否超时
-
-  for (;;) {
-    int c = ctl.get();
-    int rs = runStateOf(c);
-
-    // 线程池状态至少为 STOP || 线程池状态 == SHUTDOWN &&任务队列空,则减少线程数量，返回 null
-    if (rs >= SHUTDOWN && (rs >= STOP || workQueue.isEmpty())) {
-      decrementWorkerCount();
-      return null;
-    }
-
-    int wc = workerCountOf(c);
-    boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;	//是否允许超时 -> 控制核心线程数量
-
-    if ((wc > maximumPoolSize || (timed && timedOut)) && (wc > 1 || workQueue.isEmpty())) {
-      if (compareAndDecrementWorkerCount(c))	return null;
-      continue;
-    }
-
-    try {
-      Runnable r = timed ? workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) : workQueue.take();	//允许超时->poll	不允许超时->take
-      if (r != null)  return r;
-      timedOut = true;	//在keepAliveTime时间内未成功获取任务,则超时
-    } catch (InterruptedException retry) {
-      timedOut = false;
-    }
-  }
-}
-```
 
 
 
@@ -7245,48 +7030,6 @@ public void setCorePoolSize(int corePoolSize) {
 
 线程池在执行shutdown()或tryTerminate()时,会调用interruptIdleWorkers()来中断空闲的线程，interruptIdleWorkers()会使用tryLock()来判断线程池中的线程是否是空闲状态；如果线程是空闲状态则可以安全回收
 
-```java
-//AQS + Runnable
-private final class Worker extends AbstractQueuedSynchronizer implements Runnable{
-  final Thread thread;
-  Runnable firstTask;//保存传入的第一个任务，firstTask!=null->核心线程->立即执行firstTask
-  //firstTask==null->非核心->执行workQueue任务
-  volatile long completedTasks;		//完成的task数量
-
-  Worker(Runnable firstTask) {
-    setState(-1);	//将AQS的state置为-1，在runWoker()前不允许中断
-    this.firstTask = firstTask;
-    this.thread = getThreadFactory().newThread(this);	//ThreadPoolExecutor.getThreadFactory()
-  }
-
-  public void run() { runWorker(this); }
-
-  protected boolean isHeldExclusively() {
-    return getState() != 0;	// 1 代表被锁住了，0 代表未锁
-  }
-
-  public void lock()        { acquire(1); }
-  public boolean tryLock()  { return tryAcquire(1); }
-  public void unlock()      { release(1); }
-  public boolean isLocked() { return isHeldExclusively(); }
-  
-  protected boolean tryAcquire(int unused) {
-    if (compareAndSetState(0, 1)) {
-      setExclusiveOwnerThread(Thread.currentThread());	//独占锁
-      return true;
-    }
-    return false;
-  }
-
-  protected boolean tryRelease(int unused) {
-    setExclusiveOwnerThread(null);
-    setState(0);	//执行完将状态置为0
-    return true;
-  }
-
-}
-```
-
 
 
 
@@ -7380,9 +7123,7 @@ void interruptIfStarted() {
 
 7种阻塞队列
 
-
-
-- **ArrayBlockingQueue**：**基于数组 有界**，FIFO（先进先出）排序,**队满时不公平**(队列外的被阻塞元素将持续阻塞,没有获得锁的机会)
+- **ArrayBlockingQueue**：**基于数组 有界**，FIFO(先进先出),**队满时不公平**(队列外的被阻塞元素将持续阻塞,没有获得锁的机会)
 - **LinkedBlockingQueue**：**基于链表 有界**，FIFO排序，吞吐量高于ArrayBlockingQueue。Executors.newFixedThreadPool()
 - **SynchronousQueue**：**不存储元素**。插入必须等到另一个线程调用移除操作，否则阻塞，吞吐量高于Linked-BlockingQueue，Executors.newCachedThreadPool
 - **PriorityBlockingQueue**：**支持优先级排序 无界**
@@ -7391,22 +7132,6 @@ void interruptIfStarted() {
   - transfer()如果当前有消费者正在等待接收元素（take或者待时间限制的poll方法），transfer可以把生产者传入的元素立刻传给消费者。如果没有消费者等待接收元素，则将元素放在队列的tail节点，并等到该元素被消费者消费了才返回
   - tryTransfer()用来试探生产者传入的元素能否直接传给消费者。，如果没有消费者在等待，则返回false。和上述方法的区别是该方法无论消费者是否接收，方法立即返回。而transfer方法是必须等到消费者消费了才返回
 - LinkedBlockingDeque：双向链表 在入队时，减少一半的竞争
-
-
-
-
-
-#### 阻塞队列与 生产/消费模型
-
-阻塞队列作为 生产者存放/消费者获取元素的容器
-
-
-
-任何有效的生产者-消费者问题解决方案都是通过控制生产者put()方法（生产资源）和消费者take()方法（消费资源）的调用来实现的，一旦你实现了对方法的阻塞控制，那么你将解决该问题。
-
-Java通过BlockingQueue提供了开箱即用的支持来控制这些方法的调用（一个线程创建资源，另一个消费资源）。java.util.concurrent包下的BlockingQueue接口是一个线程安全的可用于存取对象的队列。
-
-**BlockingQueue是一种数据结构，支持一个线程往里存资源，另一个线程从里取资源。这正是解决生产者消费者问题所需要的，那么让我们开始解决该问题吧。**
 
 
 
@@ -8273,13 +7998,11 @@ Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节)
 
 **64/32位操作系统指系统使用多少位表示一个指针**
 
-**Java默认开启指针压缩,使得运行在64位操作系统上的指针也是4字节**
-
-但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB的内存空间无法开启指针压缩
+**Java默认开启指针压缩,指针是4字节**,但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB将无法开启指针压缩
 
 
 
-![image-20201220173759450](image.assets/image-20201220173759450.png)
+![](image.assets/image-20201220173759450.png)
 
 
 
@@ -8908,26 +8631,28 @@ G1 把堆划分成多个大小相等的独立区域（Region），新生代和�
 
 读取字节码，并转换成class对象
 
-每个类加载器都有独立的类名称空间,==类相同前提是被同一个类加载器加载==,相同字节码被不同的类加载器加载,得到的类不同,包括``equals()`、`isAssignableFrom()`、`isInstance()`、`instanceof`的结果
+每个类加载器都有独立的类名称空间,==类相同前提是被同一个类加载器加载==,包括`equals()`、`isInstance()`、`instanceof`的结果
 
 Class Loader只负责.class文件的加载,能否运行由执行引擎决定
 
 
 
-1. 启动类加载器 Bootstrap ClassLoader	rt.jar 核心类加载 该加载器无法直接获取
+1. 启动类加载器 Bootstrap ClassLoader	%JAVA_HOME%\lib 核心类加载 该加载器无法直接获取
 
-2. 扩展类加载器 Extension ClassLoader	JRE扩展目录\lib\ext
+2. 扩展类加载器 Extension ClassLoader	%JAVA_HOME%\lib\ext
 
-3. 应用程序类加载器 Application ClassLoader  加载ClassPath下的jar
+3. 应用程序类加载器 Application ClassLoader  加载classPath,若未设置则为应用程序当前路径
 4. 自定义类加载器 Custom ClassLoader  继承ClassLoader，加载自定义类/导入的jar包
+
+从4->1向上委托
 
 
 
 #### 双亲委派模型
 
-**所有加载请求委托到启动类加载器**，当父加载器无法完成加载（没找到所需的类）,子加载器尝试自己加载
+**所有加载请求都被一致向上委派,直到某个父类加载器发现加载路径下没有找到所需加载的Class,子加载器才会尝试自己加载**
 
-自底向上再自顶向下,**保证类只被加载一次**
+自底向上**保证类只被加载一次**
 
 ![](image.assets/20200227105016489.png)
 
@@ -9738,9 +9463,7 @@ public final native void notifyAll() 		//唤醒所有等待线程
 
 ### wait/notify
 
-wait()会释放锁。避免死锁
-
-必须在同步方法体内使用
+是Object的方法,==会释放锁,并进入同步对象的等待队列==.必须在同步方法体内使用.需要用notify()唤醒
 
 
 

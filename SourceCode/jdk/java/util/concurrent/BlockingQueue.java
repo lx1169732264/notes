@@ -259,7 +259,7 @@ public interface BlockingQueue<E> extends Queue<E> {
      * @return the head of this queue
      * @throws InterruptedException if interrupted while waiting
      */
-    E take() throws InterruptedException;
+    E take() throws InterruptedException; //阻塞
 
     /**
      * Retrieves and removes the head of this queue, waiting up to the
@@ -273,7 +273,7 @@ public interface BlockingQueue<E> extends Queue<E> {
      *         specified waiting time elapses before an element is available
      * @throws InterruptedException if interrupted while waiting
      */
-    E poll(long timeout, TimeUnit unit)
+    E poll(long timeout, TimeUnit unit) //非阻塞
         throws InterruptedException;
 
     /**

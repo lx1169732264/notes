@@ -1638,7 +1638,11 @@ return Iterables.all(conditions, c->c.match(obj));
 
 
 
-同源策略: 浏览器的一个安全机制。同源是指**协议、域名、端口**一致,若不一致则浏览器禁止访问这个url
+同源策略: **协议、主机、端口**一致视为同源
+
+同源策略会阻止一个域的javascript脚本和另外一个域的内容进行交互
+
+![](image.assets/70e9de32598a4783acfafbf082ff3039.png)
 
 
 
@@ -1659,10 +1663,6 @@ location / {
    }
 }
 ```
-
-
-
-
 
 
 
@@ -1689,7 +1689,7 @@ public class CorsFilter implements Filter {
 
 
 
-### 继承 HandlerInterceptorAdapter
+### 继承HandlerInterceptorAdapter
 
 
 
@@ -1740,74 +1740,6 @@ public class AppConfig implements WebMvcConfigurer {
 public User get(@PathVariable Long id) {
 }
 ```
-
-
-
-
-
-
-
-
-
-
-
-# 调试
-
-
-
-
-
-### Drop Frame
-
-虚拟机栈抛弃当前栈帧,回到上一个方法的栈帧 (跳出当前方法)
-
-
-
-只适用于方法调用另一个方法,对于同一个方法体则无法跳出
-
-Drop Frame的本质是抛弃栈帧,而同一个方法体就无法丢弃栈帧
-
-
-
-### Run to Cursor
-
-快进至光标所在位置
-
-
-
-只在光标在断点之后有效,之前则程序直接退出
-
-
-
-
-
-
-
-### 断点改变变量的值
-
-![](image.assets/image-20210621234356238.png)
-
-
-
-
-
-
-
-
-
-## 日志
-
-
-
-五个级别
-
-错误级别(ERROR) －－指系统发生了严重的问题，系统无法自行恢复，需要立刻调查，例如: NPE, 数据库不可用等
-警告级别(WARN) －－指系统可以继续运行，但是存在潜在风险，一般而言，高可靠的系统应该具备平滑处理警告事件的能力。警告日志例子包括，接收到错误参数而改用默认值，达到运行最大线程数而抛弃当前
-信息级别(INFO) －－重要信息点，这些信息对于问题定位、数据分析应该提供重要帮助。例如：定期启动的任务事件
-调试级别(DEBUG) －－ 系统运行的详细日志，包括参数值的打印
-跟踪级别(TRACE) －－更加详细的日志，一般而言，用于客户端产品的收集
-
-
 
 
 
@@ -2499,41 +2431,15 @@ HTTP 重定向负载均衡服务器使用某种负载均衡算法计算得到服
 
 
 
-### 数据库的唯一索引
-
-获得锁时向表中插入记录，释放锁时删除记录。唯一索引可以保证该记录只被插入一次
+### Redis SETNX
 
 
 
-**缺点**
-
-- 锁没有失效时间，解锁失败的话其它进程无法再获得该锁
-- 只能是非阻塞锁，插入失败直接就报错了，无法重试
-- 不可重入，已经获得锁的进程也必须重新获取锁
+### Redis RedLock
 
 
 
-### Redis 的 SETNX 指令
-
-SETNX（set if not exist）指令插入一个键值对，如果 Key 已经存在，那么会返回 False，否则插入成功并返回 True
-
-SETNX 指令和数据库的唯一索引类似，保证了只存在一个 Key 的键值对，那么可以用一个 Key 的键值对是否存在来判断是否存于锁定状态
-
-EXPIRE 指令可以为设置**过期时间**，避免数据库唯一索引实现方式中释放锁失败的问题
-
-
-
-### Redis 的 RedLock 算法
-
-Redis集群实现分布式锁，保证在发生单点故障时仍然可用
-
-- 尝试从 N 个互相独立 Redis 实例获取锁
-- 计算获取锁消耗的时间，只有时间小于锁的过期时间，并且从大多数（N / 2 + 1）实例上获取了锁，才认为获取锁成功
-- 如果获取锁失败，就到每个实例上释放锁
-
-
-
-### Zookeeper 的有序节点
+### Zookeeper有序节点
 
 
 
@@ -2548,103 +2454,6 @@ Redis集群实现分布式锁，保证在发生单点故障时仍然可用
 ## 分布式ID生成
 
 
-
-### 自增ID
-
-第一种方案仍然还是基于数据库的自增ID，需要单独使用一个数据库实例，在这个实例中新建一个单独的表：
-
-表结构如下：
-
-```sql
-CREATE DATABASE `SEQID`;
-
-CREATE TABLE SEQID.SEQUENCE_ID (
-	id bigint(20) unsigned NOT NULL auto_increment, 
-	stub char(10) NOT NULL default '',
-	PRIMARY KEY (id),
-	UNIQUE KEY stub (stub)
-) ENGINE=MyISAM;
-```
-
-可以使用下面的语句生成并获取到一个自增ID
-
-```sql
-begin;
-replace into SEQUENCE_ID (stub) VALUES ('anyword');
-select last_insert_id();
-commit;
-```
-
-stub字段在这里并没有什么特殊的意义，只是为了方便的去插入数据，只有能插入数据才能产生自增id。而对于插入我们用的是replace，replace会先看是否存在stub指定值一样的数据，如果存在则先delete再insert，如果不存在则直接insert。
-
-这种生成分布式ID的机制，需要一个单独的Mysql实例，虽然可行，但是基于性能与可靠性来考虑的话都不够，**业务系统每次需要一个ID时，都需要请求数据库获取，性能低，并且如果此数据库实例下线了，那么将影响所有的业务系统。**
-
-
-
-### 数据库多主模式
-
-如果我们两个数据库组成一个**主从模式**集群，正常情况下可以解决数据库可靠性问题，但是如果主库挂掉后，数据没有及时同步到从库，这个时候会出现ID重复的现象。我们可以使用**双主模式**集群，也就是两个Mysql实例都能单独的生产自增ID，这样能够提高效率，但是如果不经过其他改造的话，这两个Mysql实例很可能会生成同样的ID。需要单独给每个Mysql实例配置不同的起始值和自增步长。
-
-第一台Mysql实例配置：
-
-```sql
-set @@auto_increment_offset = 1;     -- 起始值
-set @@auto_increment_increment = 2;  -- 步长
-```
-
-第二台Mysql实例配置：
-
-```sql
-set @@auto_increment_offset = 2;     -- 起始值
-set @@auto_increment_increment = 2;  -- 步长
-```
-
-经过上面的配置后，这两个Mysql实例生成的id序列如下： mysql1,起始值为1,步长为2,ID生成的序列为：1,3,5,7,9,... mysql2,起始值为2,步长为2,ID生成的序列为：2,4,6,8,10,...
-
-对于这种生成分布式ID的方案，需要单独新增一个生成分布式ID应用，比如DistributIdService，该应用提供一个接口供业务应用获取ID，业务应用需要一个ID时，通过rpc的方式请求DistributIdService，DistributIdService随机去上面的两个Mysql实例中去获取ID。
-
-实行这种方案后，就算其中某一台Mysql实例下线了，也不会影响DistributIdService，DistributIdService仍然可以利用另外一台Mysql来生成ID。
-
-但是这种方案的扩展性不太好，如果两台Mysql实例不够用，需要新增Mysql实例来提高性能时，这时就会比较麻烦。
-
-现在如果要新增一个实例mysql3，要怎么操作呢？ 第一，mysql1、mysql2的步长肯定都要修改为3，而且只能是人工去修改，这是需要时间的。 第二，因为mysql1和mysql2是不停在自增的，对于mysql3的起始值我们可能要定得大一点，以给充分的时间去修改mysql1，mysql2的步长。 第三，在修改步长的时候很可能会出现重复ID，要解决这个问题，可能需要停机才行。
-
-
-
-### 号段模式
-
-我们可以使用号段的方式来获取自增ID，号段可以理解成批量获取，比如DistributIdService从数据库获取ID时，如果能批量获取多个ID并缓存在本地的话，那样将大大提供业务应用获取ID的效率。
-
-比如DistributIdService每次从数据库获取ID时，就获取一个号段，比如(1,1000]，这个范围表示了1000个ID，业务应用在请求DistributIdService提供ID时，DistributIdService只需要在本地从1开始自增并返回即可，而不需要每次都请求数据库，一直到本地自增到1000时，也就是当前号段已经被用完时，才去数据库重新获取下一号段。
-
-所以，我们需要对数据库表进行改动，如下：
-
-```sql
-CREATE TABLE id_generator (
-  id int(10) NOT NULL,
-  current_max_id bigint(20) NOT NULL COMMENT '当前最大id',
-  increment_step int(10) NOT NULL COMMENT '号段的长度',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-```
-
-这个数据库表用来记录自增步长以及当前自增ID的最大值（也就是当前已经被申请的号段的最后一个值），因为自增逻辑被移到DistributIdService中去了，所以数据库不需要这部分逻辑了
-
-这种方案不再强依赖数据库，就算数据库不可用，那么DistributIdService也能继续支撑一段时间。但是如果DistributIdService重启，会丢失一段ID，导致ID空洞。
-
-为了提高DistributIdService的高可用，需要做一个集群，业务在请求DistributIdService集群获取ID时，会随机的选择某一个DistributIdService节点进行获取，对每一个DistributIdService节点来说，数据库连接的是同一个数据库，那么可能会产生多个DistributIdService节点同时请求数据库获取号段，那么这个时候需要利用乐观锁来进行控制，比如在数据库表中增加一个version字段，在获取号段时使用如下SQL：
-
-```sql
-update id_generator set current_max_id=#{newMaxId}, version=version+1 where version = #{version}
-```
-
-因为newMaxId是DistributIdService中根据oldMaxId+步长算出来的，只要上面的update更新成功了就表示号段获取成功了。
-
-为了提供数据库层的高可用，需要对数据库使用多主模式进行部署，对于每个数据库来说要保证生成的号段不重复，这就需要利用最开始的思路，再在刚刚的数据库表中增加起始值和步长，比如如果现在是两台Mysql，那么 mysql1将生成号段（1,1001]，自增的时候序列为1，3，5，7.... mysql1将生成号段（2,1002]，自增的时候序列为2，4，6，8，10...
-
-更详细的可以参考滴滴开源的TinyId：[github.com/didi/tinyid…](https://github.com/didi/tinyid/wiki/tinyid原理介绍)
-
-在TinyId中还增加了一步来提高效率，在上面的实现中，ID自增的逻辑是在DistributIdService中实现的，而实际上可以把自增的逻辑转移到业务应用本地，这样对于业务应用来说只需要获取号段，每次自增时不再需要请求调用DistributIdService了
 
 ### 雪花算法
 
@@ -2667,36 +2476,6 @@ snowflake是twitter开源的分布式ID生成算法，是一种算法，所以�
 
 
 
-在大厂里，其实并没有直接使用snowflake，而是进行了改造，因为snowflake算法中最难实践的就是工作机器id，原始的snowflake算法需要人工去为每台机器去指定一个机器id，并配置在某个地方从而让snowflake从此处获取机器id。
-
-但是在大厂里，机器是很多的，人力成本太大且容易出错，所以大厂对snowflake进行了改造
-
-
-
-### 百度（uid-generator）
-
-github地址：[uid-generator](https://github.com/baidu/uid-generator)
-
-uid-generator使用的就是snowflake，只是在生产机器id，也叫做workId时有所不同。
-
-uid-generator中的workId是由uid-generator自动生成的，并且考虑到了应用部署在docker上的情况，在uid-generator中用户可以自己去定义workId的生成策略，默认提供的策略是：应用启动时由数据库分配。说的简单一点就是：应用在启动时会往数据库表(uid-generator需要新增一个WORKER_NODE表)中去插入一条数据，数据插入成功后返回的该数据对应的自增唯一id就是该机器的workId，而数据由host，port组成。
-
-对于uid-generator中的workId，占用了22个bit位，时间占用了28个bit位，序列化占用了13个bit位，需要注意的是，和原始的snowflake不太一样，时间的单位是秒，而不是毫秒，workId也不一样，同一个应用每重启一次就会消费一个workId。
-
-
-
-### 美团（Leaf）
-
-美团的Leaf也是一个分布式ID生成框架。它非常全面，即支持号段模式，也支持snowflake模式。号段模式这里就不介绍了，和上面的分析类似。
-
-Leaf中的snowflake模式和原始snowflake算法的不同点，也主要在workId的生成，Leaf中workId是基于ZooKeeper的顺序Id来生成的，每个应用在使用Leaf-snowflake时，在启动时都会都在Zookeeper中生成一个顺序Id，相当于一台机器对应一个顺序节点，也就是一个workId。
-
-### 总结
-
-总得来说，上面两种都是自动生成workId，以让系统更加稳定以及减少人工成功
-
-
-
 ### Redis的incr指令
 
 这里额外再介绍一下使用Redis来生成分布式ID，其实和利用Mysql自增ID类似，可以利用Redis中的incr命令来实现原子性的自增与返回，比如：
@@ -2715,10 +2494,6 @@ OK
 RDB持久化相当于定时打一个快照进行持久化，如果打完快照后，连续自增了几次，还没来得及做下一次快照持久化，这个时候Redis挂掉了，重启Redis后会出现ID重复
 
 AOF持久化相当于对每条写命令进行持久化，如果Redis挂掉了，不会出现ID重复的现象，但是会由于incr命令过得，导致重启恢复数据时间过长
-
-
-
-
 
 
 
@@ -3181,124 +2956,6 @@ BASE ⽀持的是 ⼤型分布式系统，提出通过牺牲强⼀致性获得�
 
 
 
-## Paxos
-
-用于达成共识性问题，即对多个节点产生的值，该算法能保证只选出唯一一个值。
-
-主要有三类节点：
-
-- 提议者（Proposer）：提议一个值；
-- 接受者（Acceptor）：对每个提议进行投票；
-- 告知者（Learner）：被告知投票的结果，不参与投票过程。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/b988877c-0f0a-4593-916d-de2081320628.jpg"/> </div><br>
-
-### 执行过程
-
-规定一个提议包含两个字段：[n, v]，其中 n 为序号（具有唯一性），v 为提议值。
-
-#### 1. Prepare 阶段
-
-下图演示了两个 Proposer 和三个 Acceptor 的系统中运行该算法的初始过程，每个 Proposer 都会向所有 Acceptor 发送 Prepare 请求。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/1a9977e4-2f5c-49a6-aec9-f3027c9f46a7.png"/> </div><br>
-
-当 Acceptor 接收到一个 Prepare 请求，包含的提议为 [n1, v1]，并且之前还未接收过 Prepare 请求，那么发送一个 Prepare 响应，设置当前接收到的提议为 [n1, v1]，并且保证以后不会再接受序号小于 n1 的提议。
-
-如下图，Acceptor X 在收到 [n=2, v=8] 的 Prepare 请求时，由于之前没有接收过提议，因此就发送一个 [no previous] 的 Prepare 响应，设置当前接收到的提议为 [n=2, v=8]，并且保证以后不会再接受序号小于 2 的提议。其它的 Acceptor 类似。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/fb44307f-8e98-4ff7-a918-31dacfa564b4.jpg"/> </div><br>
-
-如果 Acceptor 接收到一个 Prepare 请求，包含的提议为 [n2, v2]，并且之前已经接收过提议 [n1, v1]。如果 n1 \> n2，那么就丢弃该提议请求；否则，发送 Prepare 响应，该 Prepare 响应包含之前已经接收过的提议 [n1, v1]，设置当前接收到的提议为 [n2, v2]，并且保证以后不会再接受序号小于 n2 的提议。
-
-如下图，Acceptor Z 收到 Proposer A 发来的 [n=2, v=8] 的 Prepare 请求，由于之前已经接收过 [n=4, v=5] 的提议，并且 n \> 2，因此就抛弃该提议请求；Acceptor X 收到 Proposer B 发来的 [n=4, v=5] 的 Prepare 请求，因为之前接收到的提议为 [n=2, v=8]，并且 2 \<= 4，因此就发送 [n=2, v=8] 的 Prepare 响应，设置当前接收到的提议为 [n=4, v=5]，并且保证以后不会再接受序号小于 4 的提议。Acceptor Y 类似。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2bcc58ad-bf7f-485c-89b5-e7cafc211ce2.jpg"/> </div><br>
-
-#### 2. Accept 阶段
-
-当一个 Proposer 接收到超过一半 Acceptor 的 Prepare 响应时，就可以发送 Accept 请求。
-
-Proposer A 接收到两个 Prepare 响应之后，就发送 [n=2, v=8] Accept 请求。该 Accept 请求会被所有 Acceptor 丢弃，因为此时所有 Acceptor 都保证不接受序号小于 4 的提议。
-
-Proposer B 过后也收到了两个 Prepare 响应，因此也开始发送 Accept 请求。需要注意的是，Accept 请求的 v 需要取它收到的最大提议编号对应的 v 值，也就是 8。因此它发送 [n=4, v=8] 的 Accept 请求。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/9b838aee-0996-44a5-9b0f-3d1e3e2f5100.png"/> </div><br>
-
-#### 3. Learn 阶段
-
-Acceptor 接收到 Accept 请求时，如果序号大于等于该 Acceptor 承诺的最小序号，那么就发送 Learn 提议给所有的 Learner。当 Learner 发现有大多数的 Acceptor 接收了某个提议，那么该提议的提议值就被 Paxos 选择出来。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/bf667594-bb4b-4634-bf9b-0596a45415ba.jpg"/> </div><br>
-
-### 约束条件
-
-#### 1\. 正确性
-
-指只有一个提议值会生效。
-
-因为 Paxos 协议要求每个生效的提议被多数 Acceptor 接收，并且 Acceptor 不会接受两个不同的提议，因此可以保证正确性。
-
-#### 2\. 可终止性
-
-指最后总会有一个提议生效。
-
-Paxos 协议能够让 Proposer 发送的提议朝着能被大多数 Acceptor 接受的那个提议靠拢，因此能够保证可终止性。
-
-## 六、Raft
-
-Raft 也是分布式一致性协议，主要是用来竞选主节点。
-
-- [Raft: Understandable Distributed Consensus](http://thesecretlivesofdata.com/raft)
-
-### 单个 Candidate 的竞选
-
-有三种节点：Follower、Candidate 和 Leader。Leader 会周期性的发送心跳包给 Follower。每个 Follower 都设置了一个随机的竞选超时时间，一般为 150ms\~300ms，如果在这个时间内没有收到 Leader 的心跳包，就会变成 Candidate，进入竞选阶段。
-
-- 下图展示一个分布式系统的最初阶段，此时只有 Follower 没有 Leader。Node A 等待一个随机的竞选超时时间之后，没收到 Leader 发来的心跳包，因此进入竞选阶段。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118015898.gif"/> </div><br>
-
-- 此时 Node A 发送投票请求给其它所有节点。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118445538.gif"/> </div><br>
-
-- 其它节点会对请求进行回复，如果超过一半的节点回复了，那么该 Candidate 就会变成 Leader。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118483039.gif"/> </div><br>
-
-- 之后 Leader 会周期性地发送心跳包给 Follower，Follower 接收到心跳包，会重新开始计时。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521118640738.gif"/> </div><br>
-
-### 多个 Candidate 竞选
-
-- 如果有多个 Follower 成为 Candidate，并且所获得票数相同，那么就需要重新开始投票。例如下图中 Node B 和 Node D 都获得两票，需要重新开始投票。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521119203347.gif"/> </div><br>
-
-- 由于每个节点设置的随机竞选超时时间不同，因此下一次再次出现多个 Candidate 并获得同样票数的概率很低。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111521119368714.gif"/> </div><br>
-
-### 数据同步
-
-- 来自客户端的修改都会被传入 Leader。注意该修改还未被提交，只是写入日志中。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/71550414107576.gif"/> </div><br>
-
-- Leader 会把修改复制到所有 Follower。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/91550414131331.gif"/> </div><br>
-
-- Leader 会等待大多数的 Follower 也进行了修改，然后才将修改提交。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/101550414151983.gif"/> </div><br>
-
-- 此时 Leader 会通知的所有 Follower 让它们也提交修改，此时所有节点的值达成一致。
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/111550414182638.gif"/> </div><br>
-
 
 
 ## 面试
@@ -3332,48 +2989,6 @@ Raft 也是分布式一致性协议，主要是用来竞选主节点。
 ### 解决网络异常需要重试的问题
 
 记录本地事务提交表,轮循提交记录放到mq,部分mq是自带重试功能的,还能做到代码的解耦,异步,允许一定程度的消息堆积
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3444,17 +3059,6 @@ tid: 1, modified: 2016-09-01 19:30:00
 
 
 
-## 翻页临时性遗漏
-
-使用可变字段进行轮询式的数据同步时，很可能会有临时性遗漏。临时性遗漏并不是说这个数据再也同步不到了，而是说在数据同步完，要进行数据分析时，发现数据有缺失；另外就是，轮询式的数据同步，总归有个轮询间隔，那么这个数据同步到的时候就不那么及时了
-
-> 订单按修改时间同步时，如果当前时间为01:00，同步的时间范围是 昨天23:00~当前时间 01:00，同步结束时间为 01:10；如果此时认为前一天的订单都已经同步完成，那是不对的。因为在同步的过程中，前一天的订单会修改，其修改时间会变到01:00之后，而我们的同步时间范围是 23:00~01:00，肯定是抓不到这些有修改的订单的。
-
-解决办法：不断同步多次，直至同步耗时小于某个时间的同步次数大于某个值为止
-
-
-
-
 ## 翻页性能差
 
 翻页同步时，如果符合条件的记录数很多，越往后翻，则越慢。如果数据来自内部接口，则内部可以提供一个不翻页的增量同步接口。假设查询用到的索引字段为 a,b, 主键字段为b,c，增量字段为b，那么，提供以下查询来做增量同步即可
@@ -3464,14 +3068,6 @@ select * from t1 where a = :A and b>= :fromB and b <= :toB and (b > :fromB or c 
 ```
 
 
-
-## 翻页会内存溢出
-
-针对外部接口只提供翻页增量同步接口的情况，由于一个增量步长内包含的记录数可能很多，为了程序的稳定性，防止OOM，必须控制步长
-
-当增量步长内返回的总记录数大于特定值时，将步长减半；如果遇到超时错误，也将步长减半
-
-当增量步长内返回的记录数小于某个特定值时，如500，则考虑将步长加倍
 
 
 
@@ -3485,7 +3081,6 @@ select * from t1 where a = :A and b>= :fromB and b <= :toB and (b > :fromB or c 
 5. 采用两个同步任务，一前一后，用于保证即时性和不遗漏
 6. 内部接口或数据库同步，采用不翻页的增量同步
 7. 如果只能采用翻页同步，且增量字段是可变字段，则必须从后往前翻页
-8. 动态步长
 9. 服务器开启时钟同步
 
 

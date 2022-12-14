@@ -1,11 +1,82 @@
-# 使用场景
+# 微服务
 
-1. 缓存 利用内存的高速访问
 
-2. 排行榜 利用zset排序
-3. 计算器/限速器 利用原子性的自增操作
-4. Session共享
-5. 分布式锁
+
+## 服务注册发现
+
+维护服务地址,当新的服务启动后，会向注册中心注册地址。服务的调用方直接向注册中心要 Service Provider 地址就行了
+
+注册中心需要与服务提供者保持心跳(探活)
+
+
+
+## API网关
+
+API Gateway 是一个服务器，也是进入系统的唯一节点。这跟面向对象设计模式中的 Facade 模式很像
+
+网关提供 API 给各个客户端,负责**请求转发、安全认证、响应合并和协议转换**,可能还有授权、监控、负载均衡、缓存、请求分片和管理、静态响应处理等其他功能
+
+
+
+## 配置中心
+
+需要满足如下几个要求：高效获取、实时感知、分布式访问
+
+
+
+## 事件调度
+
+消息服务和事件的统一调度，常用用 kafka ，activemq 等
+
+
+
+## 服务跟踪
+
+1. 为了实现请求跟踪，当请求发送到分布式系统的入口端点时，只需要服务跟踪框架为该请求 创建一个唯一的跟踪标识，同时在分布式系统内部流转的时候，框架始终保持传递该唯一标 识，直到返回给请求方为止，这个唯一标识就是前文中提到的 Trace ID。通过 Trace ID 的记 录，我们就能将所有请求过程日志关联起来
+2. 为了统计各处理单元的时间延迟，当请求达到各个服务组件时，或是处理逻辑到达某个状态 时，也通过一个唯一标识来标记它的开始、具体过程以及结束，该标识就是我们前文中提到 的 Span ID，对于每个 Span 来说，它必须有开始和结束两个节点，通过记录开始 Span 和结 束 Span 的时间戳，就能统计出该 Span 的时间延迟，除了时间戳记录之外，它还可以包含一 些其他元数据，比如：事件名称、请求信息等
+3. 在 Spring Boot 应用中，通过在工程中引入 spring-cloudstarter-sleuth 依赖之后， 它会自动的为当前应用构建起各通信通道的跟踪机制
+
+
+
+
+
+## 服务熔断
+
+服务雪崩效应是因“服务提供者”的不可用导致“服务消费者”的不可用,并将不可用逐渐放大的过程
+
+熔断器如同电力过载保护器,可以实现快速失败，如果它在一段时间内侦测到许多类似的错误，会强迫其以后的多个调用快速失败，不再访问远程服务器，从而防止应用程序不断地尝试执行可能会失败的操作，或者浪费 CPU 时间去等到长时间的超时产生
+
+熔断器能**自行诊断**错误是否已经修正，定期尝试重新调用
+
+
+
+1. 当Hystrix的请求失败比例大于50%(默认), 断路器会切换到开路状态(Open). 这时所有请求会直接失败而不会发送到后端服务
+
+2. 保持在开路状态一段时间后5秒(默认), 自动切换到半开路状态(HALF-OPEN). 这时会判断下一次请求的返回情况.请求成功, 断路器切回闭路状态(CLOSED), 否则重新切换到开路状态(OPEN)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -249,36 +320,7 @@ protected AutoConfigurationEntry getAutoConfigurationEntry(
 
 
 
-## @ComponentScan
 
-扫描[被注册的bean](#注册bean),默认会扫描启动类所在的包下所有的类，可以通过excludeFilters自定义不扫描的 bean
-
-
-
-只有启动类所在包外的才需要用``@CompmentScan(basePackage={“”,””})``
-
-
-
-@Component:标准一个普通的spring Bean类
-
-@Service:标注一个业务逻辑组件类
-@Repository:标注一个DAO组件类
-
-
-
-@Controller	标注一个控制器组件类,返回页面
-
-@RestController 数据直接以 JSON 或 XML 形式写入 HTTP Response中
-
-
-
-Bean实例的名称默认是Bean类的首字母小写，其他部分不变
-
-
-
-
-
-@Resource
 
 
 
@@ -874,119 +916,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 
 
-## 参数校验
 
-
-
-**JSR(Java Specification Requests）** 是一套 JavaBean 参数校验的标准，它定义了很多常用的校验注解，我们可以直接将这些注解加在我们 JavaBean 的属性上面，这样就可以在需要校验的时候进行校验了，非常方便！
-
-校验的时候我们实际用的是 **Hibernate Validator** 框架。Hibernate Validator 是 Hibernate 团队最初的数据校验框架，Hibernate Validator 4.x 是 Bean Validation 1.0（JSR 303）的参考实现，Hibernate Validator 5.x 是 Bean Validation 1.1（JSR 349）的参考实现，目前最新版的 Hibernate Validator 6.x 是 Bean Validation 2.0（JSR 380）的参考实现。
-
-SpringBoot 项目的 spring-boot-starter-web 依赖中已经有 hibernate-validator 包，不需要引用相关依赖。如下图所示（通过 idea 插件—Maven Helper 生成）：
-
-![](image.assets/c7bacd12-1c1a-4e41-aaaf-4cad840fc073.png)
-
-
-
-👉 **所有的注解，推荐使用 JSR 注解，即`javax.validation.constraints`，而不是`org.hibernate.validator.constraints`**
-
-### 常用的验证注解
-
-- `@NotEmpty` 被注释的字符串的不能为 null 也不能为空
-- `@NotBlank` 被注释的字符串非 null，并且必须包含一个非空白字符
-- `@Null` 被注释的元素必须为 null
-- `@NotNull` 被注释的元素必须不为 null
-- `@AssertTrue` 被注释的元素必须为 true
-- `@AssertFalse` 被注释的元素必须为 false
-- `@Pattern(regex=,flag=)`被注释的元素必须符合指定的正则表达式
-- `@Email` 被注释的元素必须是 Email 格式。
-- `@Min(value)`被注释的元素必须是一个数字，其值必须大于等于指定的最小值
-- `@Max(value)`被注释的元素必须是一个数字，其值必须小于等于指定的最大值
-- `@DecimalMin(value)`被注释的元素必须是一个数字，其值必须大于等于指定的最小值
-- `@DecimalMax(value)` 被注释的元素必须是一个数字，其值必须小于等于指定的最大值
-- `@Size(max=, min=)`被注释的元素的大小必须在指定的范围内
-- `@Digits (integer, fraction)`被注释的元素必须是一个数字，其值必须在可接受的范围内
-- `@Past`被注释的元素必须是一个过去的日期
-- `@Future` 被注释的元素必须是一个将来的日期
-
-### 验证Body
-
-```java
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class Person {
-    @NotNull(message = "classId 不能为空")
-    private String classId;
-
-    @Size(max = 33)
-    @NotNull(message = "name 不能为空")
-    private String name;
-
-    @Pattern(regexp = "((^Man$|^Woman$|^UGM$))", message = "sex 值不在可选范围")
-    @NotNull(message = "sex 不能为空")
-    private String sex;
-
-    @Email(message = "email 格式不正确")
-    @NotNull(message = "email 不能为空")
-    private String email;
-}
-```
-
-我们在需要验证的参数上加上了`@Valid`注解，如果验证失败，它将抛出`MethodArgumentNotValidException`。
-
-```java
-@RestController
-@RequestMapping("/api")
-public class PersonController {
-
-    @PostMapping("/person")
-    public ResponseEntity<Person> getPerson(@RequestBody @Valid Person person) {
-        return ResponseEntity.ok().body(person);
-    }
-}
-```
-
-### 验证请求参数(Path Variables 和 Request Parameters)
-
-**一定一定不要忘记在类上加上 `Validated` 注解了，这个参数可以告诉 Spring 去校验方法参数**
-
-```java
-@RestController
-@RequestMapping("/api")
-@Validated
-public class PersonController {
-
-  @GetMapping("/person/{id}")
-  public ResponseEntity<Integer> getPersonByID(@Valid @PathVariable("id") @Max(value = 5,message = "超过 id 的范围了") Integer id) {
-    return ResponseEntity.ok().body(id);
-  }
-}
-```
-
-
-
-
-
-
-
-
-
-## mvc 工作原理
-
-
-
-> 流程说明
->
-> http请求先经过Servlet的filter进行过滤，之后进入MVC流程
-
-1. 客户端（浏览器）发送请求，直接请求到 DispatcherServlet
-2. DispatcherServlet 根据请求信息调用 HandlerMapping，解析请求对应的 Handler (Controller）
-3. 解析到Handler后，由 HandlerAdapter 适配器调用Controller来处理请求，并处理相应的业务逻辑。调用handler的时候，如果有继承HandlerInterceptor接口，就对应拦截处理
-4. 处理器处理完业务后，会返回一个 ModelAndView 对象，Model 是返回的数据对象，View 是个逻辑上的 View。
-5. ViewResolver 会根据逻辑 View 查找实际的 View。
-6. DispatcherServlet 把返回的 Model 传给 View Resolver（视图渲染）
-7. 把 View 返回给浏览器
 
 
 
@@ -1135,50 +1065,26 @@ Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态�
 
 
 
-## @Scope
-
-
-
-| singleton | prototype        | request                                           | session                                             | ~~global-session~~                                           |
-| --------- | ---------------- | ------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------ |
-| 单例      | 每次请求创建新的 | 每次HTTP请求创建新的，该bean仅在当前request内有效 | 每次HTTP请求创建新的，该bean仅在当前 session 内有效 | 全局session作用域，仅仅在基于portlet的web应用中才有意义，Spring5已经没有了 |
-
-
-
-**单例bean的线程安全问题**
-
-一般情况下， `Controller`、`Service`、`Dao` 这些 Bean 是无状态的。无状态的 Bean 不能保存数据，因此线程安全
-
-
-
-但若出现bean需要保存数据的场景
-
-1. 将需要的可变成员变量保存在 `ThreadLocal`
-2. 改变 Bean 的作用域为 “prototype”：每次请求都会创建一个新的 bean 实例，线程安全
-
 
 
 ## 注册bean
 
 
 
-- `@Component` ：通用注解，标注任意类为 `Spring` 组件。如果不知道这个Bean属于哪个层，可以使用`@Component`
-- @Configuration 声明配置类
-- `@Repository`
+- `@Component` ：通用注解. 默认扫描启动类所在的目录,也可以通过`@ComponentScan`指定扫描的目录
+- `@Configuration` 声明配置类
+- `@Repository`: 将类标记为数据访问组件，即DAO组件
 - `@Service`
-- `@Controller` : 对应 Spring MVC 控制层
+- `@Controller` 将类标记为 Spring Web MVC 控制器
+- **@Bean**: 唯一一个作用于方法的注解,很多地方只能通过 `@Bean` 来注册bean。比如将第三方库中的类装配到`Spring`容器
 
 `@RestController`=`@Controller和`+@`ResponseBody`,表示这是个控制器 bean,并且是将函数的返回值直接填入 HTTP 响应体中
 
 
 
-**@Component VS @Bean**
 
-| @Component                                           | @Bean                                                        |
-| ---------------------------------------------------- | ------------------------------------------------------------ |
-| 作用于类                                             | 作用于方法                                                   |
-| 配合`@ComponentScan`类路径扫描来自动装配到Spring容器 | 在方法中定义产生bean,`@Bean`告诉了Spring这是某个类的示例     |
-|                                                      | 自定义性更强,很多地方只能通过 `@Bean` 来注册bean。比如引用第三方库中的类需要装配到`Spring`容器 |
+
+
 
 
 
@@ -1297,15 +1203,26 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 
 
-## 5个作用域
+## 5个作用域 @Scope
 
-1. Singleton **默认**
-2. Prototype 每次注入都是新的
-3. Request 每个http请求
-4. Session
-5. GlobalSession 用于 Portlet 有单独的 Session
+| singleton      | prototype        | request              | session | ~~global-session~~                                           |
+| -------------- | ---------------- | -------------------- | ------- | ------------------------------------------------------------ |
+| 单例(**默认**) | 每次请求创建新的 | 每次HTTP请求创建新的 |         | 全局session作用域，仅仅在基于portlet的web应用中才有意义，Spring5已经没有了 |
 
 
+
+
+
+**单例bean的线程安全问题**
+
+一般情况下， `Controller`、`Service`、`Dao` 这些 Bean 是无状态的。无状态的 Bean 不能保存数据，因此线程安全
+
+
+
+但若出现bean需要保存数据的场景
+
+1. 将需要的可变成员变量保存在 `ThreadLocal`
+2. 改变 Bean 的作用域为 “prototype”：每次请求都会创建一个新的 bean 实例，线程安全
 
 
 
@@ -1373,16 +1290,6 @@ ApplicationContext的优缺点：
 
 ## 注入方式
 
-
-
-1、`@Configuration`与`@Bean`
-
-2、`@Controller`、`@Service`、`@Repository`、`@Component` 注解标注该类，然后启用`@ComponentScan`自动扫描
-
-3、使用`@Import` 方法。使用@Import注解把bean导入到当前容器中
-
-
-
 @Autowired 默认byType注入,是spring的注解
 
 @Resource 默认byName注入,是J2EE的注解 有name/type两个属性,可以根据这个自定义注入策略
@@ -1426,44 +1333,6 @@ ApplicationContext的优缺点：
 
 
 
-## @Bean Vs @Compoment
-
-@Bean用 Java 代码装配 Bean，@Component 是自动装配 Bean
-
-@Bean 作用在方法上，表示这个方法会返回一个 Bean。@Bean 需要在配置类中使用，即类上需要加上@Configuration注解
-
-@Compoment作用在类上, 告知Spring要为这个类创建bean，每个类对应一个 Bean
-
-
-
-## @Component、@Controller、@Repositor和@Service
-
-@Component：最普通的组件，可以被注入到spring容器进行管理
-
-@Controller：将类标记为 Spring Web MVC 控制器
-
-@Service：将类标记为业务层组件
-
-@Repository：将类标记为数据访问组件，即DAO组件
-
-
-
-
-
-## 单例bean的线程不安全
-
-bean最好是无状态的
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1498,11 +1367,11 @@ bean最好是无状态的
 
 1. 客户端发送请求到 `DispatcherServlet`
 
-2. `DispatcherServlet#getHandler` 根据请求url调用 `HandlerMapping`，得到对应的 `Handler`
+2. `DispatcherServlet#getHandler` 根据请求url调用 `HandlerMapping`得到对应的 `Handler`（`Controller`）
 
-3. 解析到对应的 `Handler`（`Controller`）后，开始由 `HandlerAdapter` 适配器处理
+3. 解析到对应的 `Handler`后，开始由 `HandlerAdapter` 适配器处理
 
-   早期的mvc支持实现`Controller#handleRequest`来当作一个handler,现在都是通过@RequestMapping. Adapter兼容这两种
+   早期的mvc支持实现`Controller#handleRequest`来当作handler,现在都是通过@RequestMapping   Adapter兼容这两种handler
 
 4. 调用`HandlerAdapter#handler`, 处理业务并返回`ModelAndView` ，`Model` 是返回的数据对象，`View` 是个逻辑上的 `View`
 
@@ -1512,7 +1381,11 @@ bean最好是无状态的
 
 7. 把 `View` 返回给客户端
 
-# Spring的设计模式
+
+
+
+
+# Spring设计模式
 
 - **工厂模式** : BeanFactory 可以通过ApplicationContext 创建 bean 对象
 - **代理设计模式** : AOP有两种方式`JdkDynamicAopProxy`和`Cglib2AopProxy`
@@ -1526,39 +1399,25 @@ bean最好是无状态的
 
 
 
-# 动态代理的两种方式
 
-
-
-**JDK动态代理**
-
-如果目标类实现了接口，Spring AOP会选择使用JDK动态代理目标类。代理类根据目标类实现的接口动态生成，不需要自己编写，生成的动态代理类和目标类都实现相同的接口。JDK动态代理的核心是`InvocationHandler`接口和`Proxy`类
-
-缺点：如果**类没有实现接口，就不能用JDK动态代理**
-
-
-
-**CGLIB动态代理** Code Generation Library
-
-通过继承实现。如果目标类没有实现接口，那么Spring AOP会选择使用CGLIB来动态代理目标类。CGLIB可以在运行时动态生成类的字节码，动态创建目标类的子类对象，在子类对象中增强目标类
-
-**通过继承实现代理,如果类被标记为`final`，就不能用CGLIB**
-
-优点：目标类不需要实现特定的接口，更加灵活
-
-
-
-
-
-什么时候采用哪种动态代理？
-
-1. 如果目标对象实现接口，默认情况下会采用JDK的动态代理实现AOP
-2. 如果目标对象实现接口，可以强制使用CGLIB实现AOP
-3. 如果目标对象没有实现接口，必须采用CGLIB库
 
 
 
 # AOP
+
+
+
+1、切面（aspect）：类是对物体特征的抽象，切面就是对横切关注点的抽象 
+
+2、横切关注点：对哪些方法进行拦截，拦截后怎么处理，这些关注点称之为横切关注点。 
+
+3、连接点（joinpoint）：被拦截到的点，因为 Spring 只支持方法类型的连接点，所以在 Spring 中连接点指的就是被拦截到的方法，实际上连接点还可以是字段或者构造器。 
+
+4、切入点（pointcut）：对连接点进行拦截的定义 
+
+5、通知（advice）：所谓通知指的就是指拦截到连接点之后要执行的代码，通知分为前置、后置、 异常、最终、环绕通知五类。
+
+6、目标对象：代理的目标对象 7、织入（weave）：将切面应用到目标对象并导致代理对象创建的过程
 
 
 
@@ -1587,6 +1446,25 @@ try {
   //@AfterThrowing
 }
 ```
+
+
+
+
+
+## 动态代理的两种方式
+
+
+
+| JDK动态代理                        | CGLIB                                                        |
+| ---------------------------------- | ------------------------------------------------------------ |
+| 类实现了**接口**,默认用jdk动态代理 | 未实现接口,则通过**修改字节码生成子类**,是通过**继承**实现代理,不能代理final类 |
+| 创建代理对象效率高，执行效率较低   | 创建代理对象效率低，执行效率高                               |
+| 不需要依赖第三方库                 | **必须依赖于CGLib的类库**                                    |
+| 核心类:Proxy InvocationHandler     |                                                              |
+
+
+
+
 
 
 
@@ -1624,24 +1502,6 @@ spring会扫描bean方法上是否包含@Transactional，如果包含则为这�
 事务开始时，会通过**AOP**机制，生成数据库的代理连接对象
 
 
-
-**如果对象实现了接口，默认用JDK动态代理，否则用 CGLIB 动态代理**
-
-- **JDK代理**使用的是**反射机制生成**一个实现代理接口的匿名类，在调用具体方法前调用InvokeHandler来处理。
-- **CGLIB代理使用字节码处理框架ASM**，对代理对象类的class文件加载进来，**通过修改字节码生成子类。**
-- JDK创建代理对象效率较高，执行效率较低；
-  CGLIB创建代理对象效率较低，执行效率高。
-- JDK动态代理机制是委托机制，只能对实现接口的类生成代理，通过反射动态实现接口类；
-  CGLIB则使用的继承机制，针对类实现代理，被代理类和代理类是继承关系，所以代理类是可以赋值给被代理类的，因为是继承机制，不能代理final修饰的类。
-
-JDK代理是不需要依赖第三方的库，只要JDK环境就可以进行代理，需要满足以下要求：
- **1.实现InvocationHandler接口，重写invoke()
- 2.使用Proxy.newProxyInstance()产生代理对象
- 3.被代理的对象必须要实现接口**
-
-CGLib 必须依赖于CGLib的类库,需要满足以下要求：
- **1.实现MethodInterceptor接口，重写intercept()
- 2.使用Enhancer对象.create()产生代理对象**
 
 
 
@@ -1900,11 +1760,47 @@ finishBeanFactoryInitialization(beanFactory);
 
 
 
+# SpringBoot
+
+1. 通过starter和依赖管理解决依赖问题
+
+2. 通过自动配置，解决配置复杂问题
+
+3. 通过内嵌tomcat来解决部署运行问题
+
+Cloud就是基于boot的三大魔法,将各种微服务组件整合在一起
 
 
 
 
 
+# Nacos
+
+
+
+
+
+# OpenFegin
+
+声明式WebService客户端
+
+
+
+RestTemplate可对http请求进行封装。但是**在实际开发中,一个接口会被多处调用，所以通常都会针对每个微服务自行封装一些客户端类来包装这些依赖服务的调用**。所以，Feign在此基础上做了进一步封装，由它来帮助我们定义和实现依赖服务接口的定义。在Feign的实现下，我们只需要创建一个接口并使用注解的方式来配置它，即可完成对服务提供方的接口绑定
+
+
+
+> 接口类上：@FeignClient("被调用的服务器名")
+>
+> 启动类上：@EnableFeignClients
+>
+> 然后在需要使用的地方@Resource注入
+
+
+
+
+
+# Kafka
 
 
 

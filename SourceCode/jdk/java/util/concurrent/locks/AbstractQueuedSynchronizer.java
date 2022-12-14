@@ -491,7 +491,7 @@ public abstract class AbstractQueuedSynchronizer
          *
          * @return the predecessor of this node
          */
-        final Node predecessor() throws NullPointerException {
+        final Node predecessor() throws NullPointerException { //返回前一个结点
             Node p = prev;
             if (p == null)
                 throw new NullPointerException();
@@ -705,7 +705,7 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node
      * @param propagate the return value from a tryAcquireShared
      */
-    private void setHeadAndPropagate(Node node, int propagate) {
+    private void setHeadAndPropagate(Node node, int propagate) {  //将node设置为头节点, propagate>0还会通知后续节点尝试获取资源
         Node h = head; // Record old head for check below
         setHead(node);
         /*
@@ -726,7 +726,7 @@ public abstract class AbstractQueuedSynchronizer
          */
         if (propagate > 0 || h == null || h.waitStatus < 0 ||
             (h = head) == null || h.waitStatus < 0) {
-            Node s = node.next;
+            Node s = node.next; //依次唤醒后面的线程，称之为传播
             if (s == null || s.isShared())
                 doReleaseShared();
         }
@@ -984,16 +984,16 @@ public abstract class AbstractQueuedSynchronizer
         try {
             for (;;) {
                 final Node p = node.predecessor();
-                if (p == head) {
+                if (p == head) { //只有头节点能开始竞争资源, 体现公平性
                     int r = tryAcquireShared(arg);
-                    if (r >= 0) {
+                    if (r >= 0) { //r>0代表拿到锁
                         setHeadAndPropagate(node, r);
                         p.next = null; // help GC
                         failed = false;
                         return;
                     }
                 }
-                if (shouldParkAfterFailedAcquire(p, node) &&
+                if (shouldParkAfterFailedAcquire(p, node) && //对节点进行检查和更新状态，如果线程应该阻塞,返回 true
                     parkAndCheckInterrupt())
                     throw new InterruptedException();
             }
@@ -1300,7 +1300,7 @@ public abstract class AbstractQueuedSynchronizer
             throws InterruptedException {
         if (Thread.interrupted())
             throw new InterruptedException();
-        if (tryAcquireShared(arg) < 0)
+        if (tryAcquireShared(arg) < 0) //小于0代表获取锁失败。加入到AQS等待队列中
             doAcquireSharedInterruptibly(arg);
     }
 
