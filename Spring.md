@@ -34,7 +34,7 @@ API Gateway 是一个服务器，也是进入系统的唯一节点。这跟面�
 
 1. 为了实现请求跟踪，当请求发送到分布式系统的入口端点时，只需要服务跟踪框架为该请求 创建一个唯一的跟踪标识，同时在分布式系统内部流转的时候，框架始终保持传递该唯一标 识，直到返回给请求方为止，这个唯一标识就是前文中提到的 Trace ID。通过 Trace ID 的记 录，我们就能将所有请求过程日志关联起来
 2. 为了统计各处理单元的时间延迟，当请求达到各个服务组件时，或是处理逻辑到达某个状态 时，也通过一个唯一标识来标记它的开始、具体过程以及结束，该标识就是我们前文中提到 的 Span ID，对于每个 Span 来说，它必须有开始和结束两个节点，通过记录开始 Span 和结 束 Span 的时间戳，就能统计出该 Span 的时间延迟，除了时间戳记录之外，它还可以包含一 些其他元数据，比如：事件名称、请求信息等
-3. 在 Spring Boot 应用中，通过在工程中引入 spring-cloudstarter-sleuth 依赖之后， 它会自动的为当前应用构建起各通信通道的跟踪机制
+3. 在 Spring Boot 应用中，通过在工程中引入 spring-cloud-starter-sleuth 依赖之后， 它会自动的为当前应用构建起各通信通道的跟踪机制
 
 
 
@@ -413,22 +413,6 @@ public Object unauthorized() {
 
 
 
-## 自动注入
-
-
-
-### @Autowired VS @Resource
-
-| Autowired                                                 | Resource                                       |
-| --------------------------------------------------------- | ---------------------------------------------- |
-| Spring,按类型注入                                         | JDK,按名字注入                                 |
-| 默认要求依赖对象必须存在,设置required=false开启允许null值 |                                                |
-| AutoWiredAnnotationBeanPostProcessor处理@AutoWired        | CommonAnnotationBeanPostProcessor处理@Resource |
-
-
-
-
-
 
 
 ## @PathVariable
@@ -492,14 +476,6 @@ String wuhan2020;
 @Component
 @ConfigurationProperties(prefix = "library")
 class LibraryProperties {
-  private String location;
-  private List<Book> books;
-
-  @Data
-  static class Book {
-    String name;
-    String description;
-  }
 }
 ```
 
@@ -953,77 +929,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 
 
-# 配置文件优先级
-
-
-
-@ConfigurationProperties
-
-```java
-//application.properties中配置  test.topAppKey=123456
-@Configuration
-@ConfigurationProperties("test")
-public class TestConfig {
-
-  private String topAppKey = "001234";
-
-  public String getTopAppKey() {
-    return topAppKey;
-  }
-
-  public void setTopAppKey(String topAppKey) {
-    this.topAppKey = topAppKey;
-  }
-}
-```
-
-
-
-
-
-## IOC
-
-Ioc—Inversion of Control 控制反转
-
-
-
-主动创建依赖对象会导致类与类之间高耦合
-
-把**创建和查找依赖对象的控制权交给容器**，依赖对象的获取被反转,由容器注入对象，低耦合
-
-
-
-IoC 容器实际上就是存放各种对象的Map
-
-
-
-### DI
-
-DI—Dependency Injection 依赖注入
-
-组件间依赖关系由容器在运行期决定，即由容器动态的将依赖关系注入到组件之中
-
-应用程序的对象 需要IoC容器提供对象需要的 外部资源(对象、资源、常量数据)
-
-
-
-IoC和DI是同一个概念的不同角度描述
-
-
-
-## AOP
-
-Aspect-Oriented Programming 面向切面编程
-
-
-
-**基于动态代理**，如果要代理的对象实现了某个接口，那么Spring AOP会使用**JDK Proxy**，去创建代理对象，而对于没有实现接口的对象，就无法使用 JDK Proxy 去进行代理了，这时候Spring会使用 **Cglib** 生成一个被代理对象的子类来作为代理
-
-
-
-JDK Proxy	代理实现**接口**的类
-
-Cglib Proxy	生成被代理对象的**子类**进行代理
 
 
 
@@ -1035,11 +940,8 @@ Cglib Proxy	生成被代理对象的**子类**进行代理
 
 
 
-### Spring AOP VS AspectJ AOP
 
-**Spring AOP 属于运行时增强，而 AspectJ 是编译时增强。** Spring AOP 基于代理(Proxying)，而 AspectJ 基于字节码操作(Bytecode Manipulation)。
 
-Spring AOP 已经集成了 AspectJ  ，AspectJ  应该算的上是 Java 生态系统中最完整的 AOP 框架了。AspectJ  相比于 Spring AOP 功能更加强大，但是 Spring AOP 相对来说更简单，
 
 
 
@@ -1290,9 +1192,13 @@ ApplicationContext的优缺点：
 
 ## 注入方式
 
-@Autowired 默认byType注入,是spring的注解
 
-@Resource 默认byName注入,是J2EE的注解 有name/type两个属性,可以根据这个自定义注入策略
+
+| Autowired                                                 | Resource                                       |
+| --------------------------------------------------------- | ---------------------------------------------- |
+| Spring,默认byType                                         | JDK,默认byName                                 |
+| 默认要求依赖对象必须存在,设置required=false开启允许null值 |                                                |
+| AutoWiredAnnotationBeanPostProcessor处理@AutoWired        | CommonAnnotationBeanPostProcessor处理@Resource |
 
 
 
@@ -1405,7 +1311,19 @@ ApplicationContext的优缺点：
 
 # AOP
 
+Aspect-Oriented Programming 面向切面编程
 
+
+
+> Aop相关依赖
+>
+> spring-boot-starter-aop
+>
+> spring-context
+>
+> aspectjweaver
+
+​	
 
 1、切面（aspect）：类是对物体特征的抽象，切面就是对横切关注点的抽象 
 
@@ -1417,7 +1335,9 @@ ApplicationContext的优缺点：
 
 5、通知（advice）：所谓通知指的就是指拦截到连接点之后要执行的代码，通知分为前置、后置、 异常、最终、环绕通知五类。
 
-6、目标对象：代理的目标对象 7、织入（weave）：将切面应用到目标对象并导致代理对象创建的过程
+6、目标对象：代理的目标对象
+
+7、织入（weave）：将切面应用到目标对象并导致代理对象创建的过程
 
 
 
@@ -1425,27 +1345,31 @@ ApplicationContext的优缺点：
 
 ## 5种通知类型
 
-1. before
-2. after
-3. after-returning
-4. after-throwing
-5. around
+
+
+1. around 环绕通知,方法执行前后,比before更早执行,**异常时不会在方法后执行**
+2. before 前置通知,方法执行前
+3. after-returning 后置通知,方法正常执行后
+4. after-throwing 异常通知,方法异常后
+5. after 最终通知,不论方法正常/异常,都会执行
+
+方法正常执行时: 1->2->3->5->1
+
+方法异常执行时: 1->2->4->5
 
 
 
-```java
-try {
-  try {
-    //@Before
-    method.invoke(..);
-  } finally {
-    //@After
-  }
-  //@AfterReturning
-} catch() {
-  //@AfterThrowing
-}
-```
+## 多切面执行顺序
+
+按类名决定执行顺序,并且是A.around->B.around->A.Before->B.beofre,因为方法只会执行一次
+
+
+
+也可以加@Order注解,定义执行顺序
+
+
+
+
 
 
 
@@ -1458,6 +1382,7 @@ try {
 | JDK动态代理                        | CGLIB                                                        |
 | ---------------------------------- | ------------------------------------------------------------ |
 | 类实现了**接口**,默认用jdk动态代理 | 未实现接口,则通过**修改字节码生成子类**,是通过**继承**实现代理,不能代理final类 |
+| 基于代理,运行时增强                | 基于字节码,编译时增强                                        |
 | 创建代理对象效率高，执行效率较低   | 创建代理对象效率低，执行效率高                               |
 | 不需要依赖第三方库                 | **必须依赖于CGLib的类库**                                    |
 | 核心类:Proxy InvocationHandler     |                                                              |
@@ -1674,8 +1599,6 @@ public interface TransactionStatus {
 
 
 
-### 数据库引擎不支持事务
-
 
 
 
@@ -1727,9 +1650,23 @@ public interface TransactionDefinition {
 
 # IOC
 
-spring是一个ioc容器，容器就是放数据的，ioc容器实际上就是个map（key，value），里面存的是各种对象（在xml里配置的bean节点||repository、service、controller、component），在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里；扫描到打上上述注解的类还是通过反射new对象放到map里。
+Ioc—Inversion of Control 控制反转
 
-这个时候map里就有各种对象了，接下来我们在代码里需要用到里面的对象时，再通过DI注入（autowired、resource等注解，xml里bean节点内的ref属性，项目启动的时候会读取xml节点ref属性根据id注入，也会扫描这些注解，根据类型或id注入；id就是对象名）
+IoC 容器实际上就是存放各种对象的Map，在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里，再通过DI注入
+
+
+
+## DI
+
+DI—Dependency Injection 依赖注入
+
+组件间依赖关系由容器在运行期决定，即由容器动态的将依赖关系注入到组件之中
+
+应用程序的对象 需要IoC容器提供对象需要的 外部资源(对象、资源、常量数据)
+
+
+
+IoC和DI是同一个概念的不同角度描述
 
 
 
