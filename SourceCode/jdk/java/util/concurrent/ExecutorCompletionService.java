@@ -117,7 +117,7 @@ public class ExecutorCompletionService<V> implements CompletionService<V> {
             super(task, null);
             this.task = task;
         }
-        protected void done() { completionQueue.add(task); }
+        protected void done() { completionQueue.add(task); } //重写,将Future加入队列
         private final Future<V> task;
     }
 

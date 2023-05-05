@@ -916,9 +916,9 @@ class Thread implements Runnable {
             checkAccess();
 
         synchronized (blockerLock) {
-            Interruptible b = blocker;
+            Interruptible b = blocker; //阻塞该线程的对象
             if (b != null) {
-                interrupt0();           // Just to set the interrupt flag
+                interrupt0();           //置中断标志
                 b.interrupt(this);
                 return;
             }
@@ -1842,7 +1842,7 @@ class Thread implements Runnable {
      * @since 1.5
      */
     @FunctionalInterface
-    public interface UncaughtExceptionHandler {
+    public interface UncaughtExceptionHandler { //异常处理器
         /**
          * Method invoked when the given thread terminates due to the
          * given uncaught exception.

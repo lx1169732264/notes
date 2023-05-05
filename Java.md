@@ -6,45 +6,7 @@
 
 
 
-# 暂定
-
-#### JDK 和 JRE
-
-Java Development Kit是功能齐全的 Java SDK。拥有 JRE 所拥有的一切，还有编译器（javac）和工具（如 javadoc 和 jdb）。能够创建和编译程序
-
-JRE 是 Java 运行时环境。它是运行已编译 Java 程序所需的所有内容的集合，包括 Java 虚拟机（JVM），Java 类库，java 命令和其他的一些基础构件。但是，它不能用于创建新程序。
-
-如果你只是为了运行一下 Java 程序的话，那么你只需要安装 JRE 就可以了。如果你需要进行一些 Java 编程方面的工作，那么你就需要安装 JDK 了。但是，这不是绝对的。有时，即使您不打算在计算机上进行任何 Java 开发，仍然需要安装 JDK。例如，如果要使用 JSP 部署 Web 应用程序，那么从技术上讲，您只是在应用程序服务器中运行 Java 程序。那你为什么需要 JDK 呢？因为应用程序服务器会将 JSP 转换为 Java servlet，并且需要使用 JDK 来编译 servlet。
-
-## char型变量中能不能存贮一个中文汉字?为什么?
-
-char型变量是用来存储Unicode编码的字符的，可以存储汉字。不过，如果某个特殊的汉字没有被包含在unicode编码字符集中，那么，这个char型变量中就不能存储这个特殊汉字。补充说明：unicode编码占用两个字节，所以，char类型的变量也是占用两个字节。
-
-
-
-
-
-## switch语句能否作用在byte上，能否作用在long上，能否作用在String上?
-
-在switch（expr1）中，expr1只能是一个整数表达式或者枚举常量，整数表达式可以是int基本类型或Integer包装类型，由于byte,short,char都可以隐含转换为int，所以这些类型以及这些类型的包装类型也是可以的
-
-switch 不支持 long 类型；从1.7开始 switch 开始支持 String，这是 Java 的语法糖
-
-
-
-## .java源文件中是否可以包括多个类（不是内部类）？有什么限制？
-
-可以有多个类，但只能有一个public的类，并且public的类名必须与文件名相一致
-
-
-
-## &和&&的区别
-
-&和&&都可以用作逻辑与的运算符
-
-&&还具有短路的功能
-
-&还可以用作位运算符
+# 细碎的知识
 
 
 
@@ -72,7 +34,7 @@ Java的解释	[JIT](#JIT)
 
 
 
-静态方法属于类,在[加载](加载)时根据.class在堆中创建class对象 -> 支持通过类名直接访问
+静态方法属于类,在[加载](加载)时根据.class文件在堆中创建class对象 -> 支持通过类名直接访问
 
 非静态成员属于实例,此时内存中还不存在实例,也不存在实例的方法,所以无法被静态访问
 
@@ -96,10 +58,10 @@ Java虽然传地址的值,但不是引用调用
 
 ### 成员变量 VS 局部变量
 
-1. 从语法形式上看，成员变量是属于类的，而局部变量是在代码块或方法中定义的变量或是方法的参数；成员变量可以被 `public`,`private`,`static` 等修饰符所修饰，而局部变量不能被访问控制修饰符及 `static` 所修饰；但是，**成员变量和局部变量都能被 `final` 修饰**
+1. 从语法形式上看，成员变量是属于类的，而局部变量是在代码块或方法中定义的变量或是方法的参数；成员变量可以被 `public`,`private`,`static` 等修饰符所修饰，而局部变量不能被访问控制修饰符及 `static` 所修饰；但**成员变量和局部变量都能被 `final` 修饰**
 2. 从变量在内存中的存储方式来看,如果成员变量是使用 `static` 修饰的，那么这个成员变量是属于类的，如果没有使用 `static` 修饰，这个成员变量是属于实例的。而对象存在于堆内存，局部变量则存在于栈内存
-3. 从变量在内存中的生存时间上看，成员变量是对象的一部分，它随着对象的创建而存在，而局部变量随着方法的调用而自动消失。
-4. 从变量是否有默认值来看，成员变量如果没有被赋初，则会自动以类型的默认值而赋值（一种情况例外:被 `final` 修饰的成员变量也必须显式地赋值），而局部变量则不会自动赋值
+3. 从变量在内存中的生存时间上看，成员变量是对象的一部分，它随着对象的创建而存在，而局部变量随着方法的调用而存在。
+4. 从变量是否有默认值来看，成员变量会自动赋初始值（被`final`修饰的成员变量则必须显式地赋值），而局部变量则不会自动赋值
 
 
 
@@ -141,22 +103,12 @@ map.entrySet().stream();
 
 **筛选与分片**
 
-```
+```java
 forEach	无序		forEachOrdered	原序
 limit
 skip
 distinct   去重
-filter
 range() -> [ , )      rangeClosed() -> [ , ]
-
-
-  * map      将流中的元素映射到另一个流
-
-​```java
-Stream<String> stream = list.stream().map(e -> e.substring(2));
-​```
-
-* flatMap
 ```
 
 
@@ -217,21 +169,6 @@ reduce ： 66
 
 
 **分组**	Collectors.groupingBy()
-
-```java
- public static void main(String[] args) {
-        List<User> users = Arrays.asList(new User("张三", 19, 1000),
-                new User("张三", 58, 2000),
-                new User("李四", 38, 3000),
-                new User("赵五", 48, 4000)
-        );
-        Map<String, List<User>> collect3 = users.stream().collect(Collectors.groupingBy(x -> x.getName()));
-        System.out.println(collect3);
-
-输出：{李四=[User{name='李四', age=38, salary=3000}], 张三=[User{name='张三', age=19, salary=1000}, User{name='张三', age=58, salary=2000}], 赵五=[User{name='赵五', age=48, salary=4000}]}
-```
-
-
 
 
 
@@ -478,16 +415,15 @@ get/put等加了synchronized**锁住整个table**,导致性能低
 
 ### HashMap
 
-通过hash将搜索的时间复杂度降低为O(1),
+通过hash将搜索的时间复杂度降低为O(1)
 
 
 
 **基本类型不能做为键值**
 
-* 泛型约束为Object
-  * map.put(1, “Java”)，实际上是将1进行了自动装箱操作,变为了 Integer类型
+* 泛型约束为Object,map.put(1, “Java”)，实际上是将1自动装箱为了Integer
 
-* 引用数据类型重写了HashCode()/equals()两个方法，能==保证key的唯一==
+* 引用类型有hashCode()/equals()方法，能==保证key的唯一==
 
 
 
@@ -526,6 +462,8 @@ hash&(length-1)
 #### hash
 
 把高位的数据右移到低位的16位，然后与自己做异或. 这样让高低位的数据进行混合,同时参与hash的计算,加大低位的随机性
+
+若不进行右移,在高位相同低位不同的的hashCode参与hash运算时,容易出现碰撞
 
 ```shell
 #按位异或,计算hash
@@ -967,7 +905,15 @@ CAS + synchronized + Node + 红黑树
 
 1.7- 锁定Segment
 
-jdk1.8+ 锁定Node头节点，减小锁粒度;还支持CAS,在CAS失败时使用内置锁 synchronized
+jdk1.8+ 锁定Node头节点，减小锁粒度;还支持CAS,在CAS失败时使用内置锁 synchronized. **不支持加锁独占访问**
+
+
+
+对于在整个map上进行计算的size(),isEmpty(),并不会锁住整个map进行计算,所以它的返回值在计算过程中可能已经过期了,只能当做一个近似值
+
+而HashTable,synchronizedMap则提供了获得Map的锁来访问map的方式,这种情况下能获得精确值,但损失了性能.只有在需要对整个Map进行加锁独占访问时才考虑使用
+
+
 
 
 
@@ -1893,6 +1839,34 @@ public final class ConcurrentCache<K, V> {
 
 
 
+### Multimap
+
+Multimap是guava包下的一个接口，是(key, collection) 类型的集合
+
+Multimap.get(key) 并不会返回null，而是空集合
+
+
+
+```java
+ArrayListMultimap<String, Long> multimap = ArrayListMultimap.create();
+multimap.put("a", 1L);
+multimap.put("a", 1L);
+multimap.put("a", 2L);
+System.out.println(multimap.get("a"));//[1, 1, 2]
+multimap.remove("a", 1L);
+System.out.println(multimap.get("a"));//[1, 2]
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2317,9 +2291,9 @@ select，poll，epoll都是IO多路复用机制。I/O多路复用就通过监视
 
 **连接:线程 = 1:1**,服务器:客户端 = 1:n
 
-应用程序发起 read 调用后，会一直阻塞，直到在内核把数据拷贝到用户空间，线程切换也会带来额外开销
+应用程序调用`read`后，会一直阻塞，直到在内核把数据拷贝到用户空间，线程切换也会带来额外开销
 
-![](image.assets/6a9e704af49b4380bb686f0c96d33b81~tplv-k3u1fbpfcp-watermark.image)
+<img src="image.assets/6a9e704af49b4380bb686f0c96d33b81~tplv-k3u1fbpfcp-watermark.image" style="zoom:50%;" />
 
 select 允许应用程序监视一组文件描述符，等待1~N个描述符成为就绪状态，从而完成 I/O 操作
 
@@ -3239,7 +3213,9 @@ public abstract class SelectionKey {
 
 
 
-**进程**：操作系统上独立运行的程序，**资源分配的基本单位**。运行程序 = 进程创建 -> 运行 -> 消亡 的过程
+
+
+**进程**：操作系统上独立运行的程序。运行程序 = 进程创建 -> 运行 -> 消亡 的过程
 
 **线程**：进程的**执行单位**，也被称为轻量级进程,**共享堆和方法区**，但**有独立的程序计数器、栈**，所以线程间上下文切换负担比进程小
 
@@ -3261,12 +3237,10 @@ public abstract class SelectionKey {
 
 
 
-
-
 **并发vs并行**
 
-- **并发**：n个作业在同一 **时间段** 内执行
-- **并行**：n个作业在同一 **时刻** 执行
+- **并发**：n个作业在同一**时间段**内执行
+- **并行**：n个作业在同一**时刻**执行
 
 
 
@@ -3276,7 +3250,7 @@ public abstract class SelectionKey {
 
 一条java线程将对应多条操作系统OS的线程(例如守护线程)
 
-**守护线程的生命周期与JVM一致**, JVM中所有的线程都是守护线程的时候，JVM 就可以退出了
+**守护线程的生命周期与JVM一致**, JVM中只剩守护线程时，JVM将关闭
 
 
 
@@ -3288,12 +3262,12 @@ CPU给每个线程分配CPU时间片,时间片结束后切换线程，当前状�
 
 **创建线程3种方式**
 
-继承Java.lang.Thread类，重写run()  **Thread本身继承了Runnable**
+继承Thread，重写run()  **Thread本身继承了Runnable**
 
 * 优势：编写简单
 * 劣势：单继承,无法继承其它父类
 
-实现 Java.lang.Runnable 的 run()
+实现Runnable.run()
 
 * 优势：可继承其它类
 * 劣势：较复杂，如需访问当前线程，需Thread.currentThread()
@@ -3301,6 +3275,14 @@ CPU给每个线程分配CPU时间片,时间片结束后切换线程，当前状�
 实现Callable接口  (有返回值,可抛出异常)
 
 
+
+**原子性**: 一组语句作为一个不可分割的单元被执行
+
+32位的jvm在操作long/double这种64位的基本类型时,采用的是高32位和低32位分成2次进行操作,这是无法保证原子性的.而64位的jvm则不会出现这个问题.不管采用的是32位还是64位的jvm,都应该用volatile来修饰long/double
+
+
+
+**重入性**意味着锁的粒度是线程,而不是调用
 
 
 
@@ -3361,13 +3343,13 @@ AbstractQueuedSynchronizer 抽象队列式同步器,**无锁**
 
 核心思想:
 
-如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效，并且将共享资源设置为锁定状态。
+如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效，并且将共享资源设置为锁定状态
 
 如果被请求的共享资源占用，则执行线程阻塞等待以及被唤醒时锁分配的机制，这个机制由CLH队列锁实现，即将暂时获取不到锁的线程加入到队列中
 
 
 
-CLH队列	Craig,Landin,Hagersten(剔除该锁概念的几位大佬)
+CLH队列
 
 虚拟的双向队列,不存在队列实例，仅存在结点间的关联。**将线程封装成Node，实现锁分配**，线程通过CAS改变volatile的state，失败则进入CLH双向等待队列，等待唤醒
 
@@ -3380,7 +3362,7 @@ CLH队列	Craig,Landin,Hagersten(剔除该锁概念的几位大佬)
 ```java
 public final void acquire(int arg) {
   if (!tryAcquire(arg) &&
-      acquireQueued(addWaiter(Node.EXCLUSIVE), arg))//加锁失败时addWaiter()独占加入CLH等待队列
+      acquireQueued(addWaiter(Node.EXCLUSIVE), arg));//加锁失败时addWaiter()独占加入CLH等待队列
     selfInterrupt();
 }
 
@@ -3397,9 +3379,7 @@ public final boolean release(int arg) {
 
 
 
-AQS基于==模板方法==
-
-**围绕state提供get/set + 双向队列存放阻塞线程 + 预设的获取/释放锁方法**
+AQS基于==模板方法==,**围绕state提供get/set + 双向队列存放阻塞线程 + 预设的获取/释放锁方法**
 
 在自定义AQS同步器时,需要重写:
 
@@ -3595,6 +3575,40 @@ private Node addConditionWaiter() {
 
 
 
+### 同步容器类的问题
+
+对同步容器进行的复合操作依然是线程不安全的,例如迭代,条件运算等等
+
+
+
+在并发调用getLast和deleteLast时,可能会因Vector长度变动而抛出ArrayIndexOutOfBoundsException
+
+```java
+public static Object getLast(Vector list) {
+	int lastlndex = list.size()
+	return list.get(lastlndex);
+}
+
+public static void deleteLast(Vector list)
+	int lastlndex = list.size() - 1;
+	list.remove(lastlndex);
+}
+```
+
+客户端在对同步容器进行复合操作时需要**加锁**, 在代码块中加入synchronized(list){}就能避免这个问题
+
+
+
+同理,在迭代容器时,也会抛出ConcurrentModificationException,但这种场景不适合加锁,当容器元素过多时,可能导致持有锁的时间过长.另一种替代方法是**克隆容器**
+
+
+
+
+
+
+
+
+
 ### fail-safe
 
 
@@ -3708,8 +3722,6 @@ countDownLatch.countDown();
 
 
 ### CyclicBarrier
-
-
 
 可循环(Cyclic)屏障(barrier)
 
@@ -4192,6 +4204,32 @@ public interface BlockingQueue<E> extends Queue<E> {
 
 
 
+### ExecutorCompletionService
+
+将Executor和BlockingQueue的功能融合在一起
+
+内部维护了BlockingQueue和Executor,调用submit()后,任务将被Executor执行,执行结果Future被保存到BlockingQueue,并且支持take()/poll()获取结果
+
+**多个ExecutorCompletionService可以共享同一个Executor**
+
+
+
+ExecutorCompletionService和都支持提交一批任务后,获取任务结果,不同点在于:
+
+|                   | ExecutorCompletionService                                    | ExecutorService.invokeAll()                   |
+| ----------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| 任务提交/获取结果 | **单个**                                                     | 批量                                          |
+| 获取结果的时机    | 任务执行完毕马上把结果存入队列.take非阻塞,poll阻塞,利用了poll来支持超时机制.**不需要等待所有任务都执行完毕** | 阻塞地等待所有任务执行完后才返回,支持超时机制 |
+|                   |                                                              |                                               |
+
+另外,**invokeAny**则也是支持**任意一个**任务执行完毕后立马返回结果的,其余未执行完的任务则会被**取消**
+
+
+
+
+
+
+
 
 
 
@@ -4233,9 +4271,9 @@ new和terminated实际上并不是线程的状态,而是Thread对象的状态,�
 
 
 
-### 为什么JVM不把RUNNABLE区分为ready/running
+### 为什么不区分ready/running
 
-目前操作系统架构通常用“时间分片方式进行抢占调度时间. 这个时间片短到10ms,区分为ready/running是意义不大的.
+目前操作系统架构通常用“时间分片方式进行抢占调度时间. 这个时间片短到10ms,区分为ready/running是意义不大的
 
 这也使得RUNNABLE的线程, 可能正在运行,也可能处于等待时间片的状态
 
@@ -4305,61 +4343,34 @@ public final synchronized void join(long millis) throws InterruptedException {	/
 
 ### interrupt
 
-[Future.cancel也可以实现中断](Future)
-
-
-
-
-interrupt通过修改标记为终止,通知线程需要中断，**由被通知的线程决定是否中断,不一定能中断线程**
-
-
-
-interrupt时,线程阻塞状态（sleep/wait/join） -> 抛出InterruptedException -> 阻塞中断
-
-interrupt时,线程活跃状态 -> 中断标志置true -> 在运行中通过isInterrupted检查中断标志位，发现true自行停止
-
-==当子线程活跃 && 没有isInterrupted => interrupt无法中断==
-
-
-
-若线程阻塞在Object类的wait方法、Thread类自己的join和sleep方法调用上，那么中断状态会被清除，线程收到InterruptedException；
-
-若线程阻塞在InterruptibleChannel的IO操作上，那么通道会被关闭，中断状态会被置位，线程会收到ClosedByInterruptException；
-
-若线程阻塞在Selector上，那么中断状态会被置位，select操作会立即返回，返回值可能是一个非零值；
-
-其他情况下中断状态都会被置位
-
-
-
 ```java
-public void interrupt() {
-  if (this != Thread.currentThread())	checkAccess();
-  synchronized (blockerLock) {
-    Interruptible b = blocker;	//阻塞该线程的对象
-    if (b != null) {	//如果有阻塞该线程的对象,先interrupt0 再interrupt
-      interrupt0(); 	//在interrupt0中只做了置为终止标记
-      b.interrupt(this);
-      return;
-    }
-  }
-  interrupt0();	//否则直接interrupt0
+public class Thread {
+    public void interrupt(){...}; // 中断目标线程
+    public boolean isInterrupted(){...}; // 返回目标线程的中断状态
+    public static boolean interrupted(){...}; //清除当前线程的中断状态
 }
-private native void interrupt0();
-
-public static boolean interrupted() {
-  return currentThread().isInterrupted(true);
-}
-
-public boolean isInterrupted() {
-  return isInterrupted(false);
-}
-private native boolean isInterrupted(boolean ClearInterrupted);
 ```
 
+java的中断是一种协作机制,能够使一个线程提醒另一个线程终止(**不一定能中断成功**)
+
+每个线程都有一个boolean类型的中断状态。当中断线程时,这个线程的中断状态将被置为true
 
 
-**interrupted类方法	isInterrupted实例方法**	都能判断线程是否做了终止标记
+
+1. 线程a中断线程b,b的中断标志置true
+2. b处于**阻塞**状态（sleep/wait/join） -> 抛出**InterruptedException**实现阻塞中断
+
+3. b处于活跃状态,若**运行过程中调用isInterrupted()**并自行停止,则中断成功. 否则b**感知不到**中断的请求
+
+sleep/wait/join等内置方法是支持中断的,如果执行的方法不支持中断,则interrupt()失效
+
+
+
+
+
+
+
+
 
 
 
@@ -5115,119 +5126,6 @@ public synchronized static void fun() {}	//锁class对象
 
 public synchronized void func () {}	//锁类的实例对象
 synchronized (xxx) {}	//锁实例对象
-```
-
-
-
-### 如何访问共享的可变数据
-
-
-
-```java
-private static boolean stopRequested;
-
-public static void main(String[] args) throws InterruptedException {
-  new Thread(() -> {
-    int i = 0;
-    while (!stopRequested) { //死循环
-      i++;
-    }
-  }).start();
-  TimeUnit.SECONDS.sleep(1);
-  stopRequested = true; //主线程对变量的改动不会被上一条线程得知
-}
-```
-
-
-
-在没有同步时，jvm无法保证后台线程何时感知主线程中对变量的改动,所以`while`中的代码将被优化为:
-
-```java
-if (!stopRequested) { //尽管主线程将stopRequested的值变更,但工作线程并无感知
-  while (true) {
-    i++;
-  }
-}
-```
-
-
-
-第一种方法是加**volatile**关键词
-
-```java
-private static volatile boolean stopRequested;
-```
-
-
-
-第二种方法是读写方法都加**synchronized**
-
-```java
-private static synchronized boolean getStopRequested() {
-  return stopRequested;
-}
-
-private static synchronized void setStopRequested() {
-  stopRequested = true;
-}
-```
-
-
-
-只在读/写一个方法上加锁,会导致同步不一定生效
-
-假设共享变量v,只在读方法加锁:  a+b的结果为2, a+c的结果为3
-
-| 线程a              | 线程b              | 线程c              |
-| ------------------ | ------------------ | ------------------ |
-| 加锁读到v=1,释放锁 |                    |                    |
-|                    | 加锁读到v=1,释放锁 | 加锁读到v=1,释放锁 |
-|                    | 写入v=3            |                    |
-| 写入v=2            |                    |                    |
-|                    |                    | 写入v=3            |
-
-
-
-假设共享变量v,只在写方法加锁:  a+b的结果为3, a+c的结果为2
-
-| 线程a       | 线程b       | 线程c       |
-| ----------- | ----------- | ----------- |
-| 读到v=1     | 读到v=1     | 读到v=1     |
-|             |             | 加锁写入v=3 |
-| 加锁写入v=2 |             |             |
-|             | 加锁写入v=3 |             |
-
-
-
-第三种方法是使用**AtomicLong**,避免了加锁同步
-
-```java
-private static final AtomicLong nextSealNum = new AtomicLong();
-```
-
-
-
-
-
-#### println会自动进行变量的同步
-
-如果上述的代码增加一行打印代码,将打破死循环
-
-```java
-while (!stopRequested) { 
-  while (!getStopRequested()) {
-    i++;
-    System.out.println(i); //println()会对变量进行同步
-  }
-}
-```
-```java
-public void println(int x) {
-  synchronized (this) { //同步了PrintStream的实例
-    print(x);
-    newLine();
-  }
-}
 ```
 
 
@@ -6540,6 +6438,24 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
+### 异常处理
+
+如果没有提供异常处理方案,默认将栈追踪信息输出到System.err
+
+> @see LxThreadPoolExceptionHandler
+
+
+
+1. 在线程池的ThreadFactory中设置**异常处理器**,并用**execute**提交任务
+
+   如果**用submit(),异常将会封装进Future,不会被异常处理器捕获**
+
+2. submit提交任务,处理Future返回的异常
+
+3. 重写ThreadPoolExecutor#afterExecute
+
+
+
 
 
 
@@ -7217,11 +7133,19 @@ void interruptIfStarted() {
 
 ### Future
 
-Future是异步编程的一种方式,可以理解成：我有一个任务，提交给了Future，Future替我完成这个任务。期间我自己可以去做任何想做的事情。一段时间后,可以从Future取出结果
+Future是异步编程的一种方式：任务提交给了Future，Future替我完成这个任务。期间我自己可以去做任何想做的事情。一段时间后,可以从Future取出结果
 
-通常会通过ExecutorService的submit方法执行Callable，并返回FutureTask,
+通常会通过ExecutorService的submit方法执行Callable，并返回FutureTask
 
 ![](image.assets/FutureTask.jpg)
+
+
+
+
+
+
+
+
 
 
 
@@ -7283,6 +7207,184 @@ public static CompletableFuture<Void> runAsync(Runnable runnable,Executor execut
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 如何访问共享的可变数据
+
+
+
+```java
+private static boolean stopRequested;
+
+public static void main(String[] args) throws InterruptedException {
+  new Thread(() -> {
+    int i = 0;
+    while (!stopRequested) { //死循环
+      i++;
+    }
+  }).start();
+  TimeUnit.SECONDS.sleep(1);
+  stopRequested = true; //主线程对变量的改动不会被上一条线程得知
+}
+```
+
+
+
+在没有同步时，jvm无法保证后台线程何时感知主线程中对变量的改动,所以`while`中的代码将被优化为:
+
+```java
+if (!stopRequested) { //尽管主线程将stopRequested的值变更,但工作线程并无感知
+  while (true) {
+    i++;
+  }
+}
+```
+
+
+
+第一种方法是加**volatile**关键词
+
+```java
+private static volatile boolean stopRequested;
+```
+
+
+
+第二种方法是读写方法都加**synchronized**
+
+```java
+private static synchronized boolean getStopRequested() {
+  return stopRequested;
+}
+
+private static synchronized void setStopRequested() {
+  stopRequested = true;
+}
+```
+
+
+
+只在读/写一个方法上加锁,会导致同步不一定生效
+
+假设共享变量v,只在读方法加锁:  a+b的结果为2, a+c的结果为3
+
+| 线程a              | 线程b              | 线程c              |
+| ------------------ | ------------------ | ------------------ |
+| 加锁读到v=1,释放锁 |                    |                    |
+|                    | 加锁读到v=1,释放锁 | 加锁读到v=1,释放锁 |
+|                    | 写入v=3            |                    |
+| 写入v=2            |                    |                    |
+|                    |                    | 写入v=3            |
+
+
+
+假设共享变量v,只在写方法加锁:  a+b的结果为3, a+c的结果为2
+
+| 线程a       | 线程b       | 线程c       |
+| ----------- | ----------- | ----------- |
+| 读到v=1     | 读到v=1     | 读到v=1     |
+|             |             | 加锁写入v=3 |
+| 加锁写入v=2 |             |             |
+|             | 加锁写入v=3 |             |
+
+
+
+第三种方法是使用**AtomicLong**,避免了加锁同步
+
+```java
+private static final AtomicLong nextSealNum = new AtomicLong();
+```
+
+
+
+
+
+### println会自动进行变量的同步
+
+如果上述的代码增加一行打印代码,将打破死循环
+
+```java
+while (!stopRequested) { 
+  while (!getStopRequested()) {
+    i++;
+    System.out.println(i);
+  }
+}
+```
+
+```java
+public void println(int x) {
+  synchronized (this) { //同步了当前实例
+    print(x);
+    newLine();
+  }
+}
+```
+
+
+
+
+
+## 如何设计线程安全
+
+
+
+分析对象的状态
+
+找出构成对象状态的所有成员变量,包括这个对象引用了的其他对象(例如List)
+
+**可变状态越少**,对象的构成越简单.尽量将域声明为final/Imutable,将成员变量转为本地变量
+
+
+
+校验对象的状态
+
+在操作前后**校验状态迁移是否有效**, 比如计数器的后置校验:自增后状态加一, 或者是非负数的校验
+
+需要对这些底层的状态变量进行封装,否则客户代码可能会使对象处于无效的状态. 如果状态是由多个状态变量组成的,这些变量必须在单个原子操作中进行读取/更新
+
+
+
+依赖其他线程状态的操作
+
+等待某个条件为真后执行后续方法,这种前置条件的状态会被其他线程修改. 更合理的方式是通过Blocking Queue,Semaphore这类的同步工具类来实现
+
+
+
+封装实现实例封闭
+
+将同步机制封装在对象中,更有利于对代码的分析
+
+通常会加锁访问被封装的状态,当存在多个状态时,要使用同一把锁,但**不推荐使用对象的内置锁,而是另外定义一个私有的锁对象**. 对象内置锁是公开的,很难去验证公开访问的锁在程序中是否被正确的使用
+
+
+
+执行复合操作期间,需要持有锁
+
+
+
+将设计同步的思路进行文档化
+
+最基本的是标注这个类是不是线程安全的,还可以写明哪些锁保护了了哪些变量,哪些操作必须是原子性的
 
 
 
@@ -8997,6 +9099,10 @@ loader1变量和obj变量 间接引用 代表Sample类的class对象，而objCla
 
 # 类
 
+源文件中可以有多个类，但只能有一个public的类，并且public的类名必须与文件名一致
+
+
+
 
 
 ## 基本类型
@@ -9006,10 +9112,10 @@ loader1变量和obj变量 间接引用 代表Sample类的class对象，而objCla
 | 基本类型                           | 引用类型                                      |
 | ---------------------------------- | --------------------------------------------- |
 | 长度固定.不随机器变化,移植能力强   |                                               |
-| 栈,传值,效率高                     | 堆,传引用                                     |
+| ==栈==,传值,效率高                 | ==堆==,传引用                                 |
 | 声明时分配空间/赋值,存在局部变量表 | 声明时分配引用空间,实例化在堆中开辟空间后赋值 |
 | 非面向对象（没有属性、方法）       |                                               |
-| 没有null                           |                                               |
+| **没有null**                       |                                               |
 |                                    | 可能值相同但不相等                            |
 
 
@@ -9024,6 +9130,7 @@ loader1变量和obj变量 间接引用 代表Sample类的class对象，而objCla
 | double              | 1符号+11指数+52尾数=8 | 0.0d           | Double    | -1.79e^308^ ~ +1.79e^308^ |
 | [boolean](#boolean) | 1                     | false          | Boolean   |                           |
 | **char**            | **2**                 | \u0000  (null) | Character |                           |
+| **void**            |                       |                | Void      |                           |
 
 
 
@@ -9031,9 +9138,11 @@ loader1变量和obj变量 间接引用 代表Sample类的class对象，而objCla
 
 
 
-==浮点类型不能用==进行比较==
+==浮点类型不能用====进行比较
 
 
+
+因为java是强类型语言,void也有对应的类Void,并且被final修饰,表示不可被继承;构造方法私有,表示不能在堆上分配空间,是一开始就在栈中分配好了空间
 
 
 
@@ -9060,17 +9169,9 @@ float f =(float)3.4	或 float f =3.4F		//正确
 
 ### char无法代表所有字符
 
-JVM内部使用UTF-16编码。char将被无视编码地转化为UTF-16,且只用两个字节
+char型是用来存储**Unicode编码**的字符,且只用两个字节,这也意味着char无法代表所有字符,例如不在Unicode编码中的特殊汉字
 
-但2字节无法代表所有字符,4字节的空间利用率低
-
-
-
-Unicode将16位的字符集做了延申，并规定每2^16^为一个plane, 第一个plane称作 Basic Multilingual Plane（BMP）
-
-UTF-16只能表示Unicode中第一层（BMP）中的字符，对于其他字符会报错：Invalid Character Constant, 而String中是可以的
-
-
+JVM内部使用UTF-16编码。char将被无视编码地转化为**UTF-16**,
 
 
 
@@ -10226,25 +10327,15 @@ null -> Optional.empty()
 
 ## 内部类
 
-
-
-内部类对象可以访问创建外部类对象的内容，包括私有变量
+内部类对象可以访问/赋值外部类对象的成员变量(**包括私有**)
 
 
 
 ### 非静态内部类
 
+非静态内部类无法脱离外部类独立存在 -> **创建非静态内部类的实例之前,需要先创建外部类实例**
 
-
-
-
-非静态内部类无法脱离与外部类独立存在 -> 在没有外部类实例的情况下,无法创建非静态内部类的实例
-
-当非静态内部类的实例被创建时,会隐含地建立它与外部类实例的关联,并且这个关联在之后无法被修改 -> 非静态内部类的实例方法内部,可以调用外部类实例的方法
-
-
-
-
+创建非静态内部类的实例时,会隐含地**建立它与外部类实例的关联** -> 非静态内部类的实例方法内部,可以调用外部类实例的方法
 
 
 
@@ -10269,6 +10360,10 @@ null -> Optional.empty()
 ==不依赖外部类而实例==，必须与外部类不同类名,**能访问外部类的所有成员,包括私有**
 
 当静态内部类被声明为private,则只能在外部类中访问
+
+
+
+
 
 
 
@@ -10323,6 +10418,627 @@ null -> Optional.empty()
 1) 静态内部类：不依赖于外部类的实例，直接实例化内部类对象
 
 2) 非静态内部类：通过外部类的对象实例生成内部类对象
+
+
+
+# 反射
+
+==通过堆中的class对象访问到方法区中class文件== 即运行时动态获取类的方法
+
+**动态获取类信息/调用对象方法** 在运行时，对任意类，都能获取到这个类的所有属性和方法,对于任意对象，都能够调用它的任意方法和属性
+
+
+
+对象存在两种类型：编译时类型和运行时类型。编译时的类型由声明对象时实用的类型来决定，运行时的类型由实际赋值给对象的类型决定
+
+```java
+Person p=new Student(); //编译时类型Person，运行时类型Student
+```
+
+* **反射解决了程序如何调用运行时类型方法的问题**
+* 反射让开发人员可以通过外部类的全路径名创建对象，并使用这些类，实现一些扩展的功能。
+* 反射让开发人员可以枚举出类的全部成员，包括构造函数、属性、方法。以帮助开发者写出正确的代码。
+* 测试时可以利用反射 API 访问类的私有成员，以保证测试代码覆盖率。
+
+
+
+
+
+适用场景
+
+* 在编译时不知道该对象或类可能属于哪些类，通过反射可以使程序代码访问装载到JVM中的类的内部信息
+* 反射提高了灵活性和扩展性，**低耦合**。允许**程序创建和控制任何类的对象，无需提前硬编码**目标类
+* 反射是**解释操作**，用于字段和方法接入时效率低
+* 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，带来维护问题
+
+
+
+
+
+## Class
+
+Class类是反射的入口，用于获取与类相关的各种信息和方法
+
+**每个类也可看做是对象**，有共同的Class来存放类的结构信息，能够通过相应方法取出相应信息：类名、属性、方法、构造方法、父类和接口
+
+
+
+==获取class对象4种方式== (反射的实现方式)
+
+1. 类名.class
+
+2. Class.forName("包名")
+
+3. 对象.getClass()
+
+4. 类加载器.loadClass("包名")	类加载器获取class对象不会进行初始化,静态块和静态对象不会得到执行
+
+
+
+| asSubclass(Class<U>  clazz)              | 把传递的类的对象转换成代表其子类的对象 |
+| ---------------------------------------- | -------------------------------------- |
+| getClassLoader()                         | 获得类的加载器                         |
+| getClasses()                             | 返回数组，包含公共类和接口类的对象     |
+| getDeclaredClasses()                     | 返回数组，包含类和接口类的对象         |
+| forName(String  className)               | 根据类名返回类的对象                   |
+| getName()                                | 获得类的完整路径名字                   |
+| newInstance()                            | 创建类的实例                           |
+| getPackage()                             | 获得类的包                             |
+| getSimpleName()                          | 获得类的名字                           |
+| getSuperclass()                          | 获得当前类继承的父类的名字             |
+| getInterfaces()                          | 获得当前类实现的类或是接口             |
+|                                          |                                        |
+| isAnnotation()                           |                                        |
+| isArray()                                |                                        |
+| isEnum()                                 |                                        |
+| isInstance(Object obj)                   | 是该类的实例则返回true                 |
+| isInterface()                            |                                        |
+|                                          |                                        |
+| getAnnotation(Class<A>  annotationClass) | 获得与参数类型匹配的公有注解对象       |
+
+
+
+
+
+## Field
+
+
+
+代表类的成员变量。**成员变量（字段）!=成员属性**。User类中有name变量，则它有name字段。如果**没有get/setName，就没有name属性**。**如果有get/set,不管字段是否存在，都认为有这个属性**
+
+
+
+| getField(String name)          | 获得1个public字段  |
+| ------------------------------ | ------------------ |
+| getFields()                    | 获得所有public字段 |
+| getDeclaredField(String  name) | 获得某个字段       |
+| getDeclaredFields()            | 获得所有字段       |
+| setAccessible(true)            | 忽略访问权限修饰符 |
+
+
+
+getDeclaredField()访问非public字段时,会报错
+
+```
+can not access a member of class  with modifiers "private"
+```
+
+setAccessible(true)忽略访问修饰符
+
+
+
+```java
+@Test
+public void testSet() throws Exception {
+  User user = new User("张三", 23, "220202202002022222");
+  Class<? extends User> userClass = user.getClass();
+
+  Field idNumberField = userClass.getField("idNumber");
+  // set方法：给对象的字段设置值。需要传入当前被操作的user对象
+  idNumberField.set(user, "123456");
+}
+```
+
+
+
+
+
+## Method
+
+
+
+| **方法**                           | **用途**                                 |
+| ---------------------------------- | ---------------------------------------- |
+| invoke(Object obj, Object... args) | 传递object对象及参数调用该对象对应的方法 |
+| getName                            | 获取方法名                               |
+| SetAccessible(true)                | 暴力反射，忽略访问权限修饰符             |
+
+
+
+Invoke方法的用处：SpringAOP在切面方法执行的前后进行某些操作，就是使用的invoke方法。
+
+| **方法**                                                    | **用途**               |
+| ----------------------------------------------------------- | ---------------------- |
+| getMethod(String name,  Class...<?> parameterTypes)         | 获得该类某个公有的方法 |
+| getMethods()                                                | 获得该类所有公有的方法 |
+| getDeclaredMethod(String name,  Class...<?> parameterTypes) | 获得该类某个方法       |
+| getDeclaredMethods()                                        | 获得该类所有方法       |
+
+
+
+## ~~Constructor~~
+
+
+
+| **方法**                                            | **用途**                                          |
+| --------------------------------------------------- | ------------------------------------------------- |
+| getConstructor(Class...<?>  parameterTypes)         | 获得该类中与参数类型匹配的公有构造方法            |
+| getConstructors()                                   | 获得该类的所有公有构造方法                        |
+| getDeclaredConstructor(Class...<?>  parameterTypes) | 获得该类中与参数类型匹配的构造方法                |
+| getDeclaredConstructors()                           | 获得该类所有构造方法                              |
+| ==newInstance(Object... initargs)==                 | 根据传递的参数创建类的对象(**弱引用,容易被回收**) |
+
+
+
+* Class类的newInstance()只能无参构造
+* Constructor的newInstance()能传递构造参数
+
+```java
+Class<Session> sessionClass = Session.class;
+Constructor<Session> declaredConstructor = sessionClass.getDeclaredConstructor();
+declaredConstructor.setAccessible(true);
+Session session2 = declaredConstructor.newInstance();
+```
+
+
+
+Constructor类违背了Java思想
+
+* 可以无视private的构造方法,强行创建对象
+* 破坏单例
+
+
+
+# 关键词
+
+## 4种访问权限
+
+
+
+![img](image.assets/wps3-1603184298721.jpg)
+
+对于顶层的类/接口,应当设置 包级私有/公有
+
+private	声明该类成员的顶层类内部
+
+default	包内部的任何类
+
+protected	声明该类的子类可访问
+
+public	任何地方
+
+
+
+public类的非final实例域决不能是公有的,这将放弃在这个域中存储的能力限制,任何地方都可以修改域中的值
+
+
+
+
+
+
+
+### 继承的访问权限
+
+==重写的访问修饰符只能比父类大==
+
+Public继承	    不改变父类的访问权限
+
+protected          private不变,其余都变为protected
+
+private            都改成private
+
+
+
+### 子类成员在外部的访问权限
+
+**父类的private     只有父类能访问**
+
+private方式继承的非private成员    只有子类的成员函数能访问,子类的子类/外部不能访问
+
+protected方式继承的非private成员 	只有子类及子类的子类(非private继承) 能访问
+
+
+
+## null
+
+==null不是对象==，内存中并没有为它分配空间。赋值null表明这个引用没有指向任何一个对象。Java虚拟机的规范中也没有规定null的具体值
+
+
+
+null也可以被强转,这样是编译通过的;	但null不能被赋值给基本类型
+
+```java
+String s = (String) null; //√
+int i = null; //×
+
+Integer j = null;
+int k = j; //这样能绕过编译器的检测,不过会在运行时抛出NPE
+
+String s1 = null;
+s1 instanceof String; // false		instanceof为true的条件: 不为null && 没有触发ClassCastException
+```
+
+
+
+
+
+## final
+
+不能修饰构造方法
+
+天生的==线程安全==
+
+
+
+==private方法会被隐式地指定为final==
+
+子类方法 和 基类private方法签名相同，则是在子类中定义了新方法,而不是重写
+
+
+
+| 类       | 方法     | 基本类型   | 引用类型                                                 |
+| -------- | -------- | ---------- | -------------------------------------------------------- |
+| 不能继承 | 不能重写 | 不能改变值 | 不能指向新对象,引用对象的所有成员方法被隐式地指定为final |
+
+
+
+```java
+ final Dog dog = new Dog("aa");
+ dog.name = "bb";//正确
+ dog = new Dog("cc");//错误
+```
+
+
+
+
+
+## static
+
+1. **修饰成员变量和成员方法:** 被 static 修饰的成员属于类，不属于单个这个类的某个对象，被类中所有对象共享，可以并且建议通过类名调用。被static 声明的成员变量属于静态成员变量，静态变量 存放在 Java 内存区域的方法区
+2. **静态代码块:** 静态代码块在非静态代码块之前执行(静态代码块—>非静态代码块—>构造方法)。 不管创建多少对象，静态代码块只执行一次
+3. **静态内部类（static修饰类的话只能修饰内部类）：**静态内部类与非静态内部类之间存在一个最大的区别: 非静态内部类在编译完成之后会隐含地保存着一个引用，该引用是指向创建它的外围类，但是静态内部类却没有。没有这个引用就意味着：1. 它的创建是不需要依赖外围类的创建。2. 它不能使用任何外围类的非static成员变量和方法。
+4. **静态导包(1.5+新特性):**
+
+
+
+- 在外部调用静态方法时，可以使用”类名.方法名”的方式，也可以使用”对象名.方法名”的方式。而实例方法只有后面这种方式。也就是说，调用静态方法可以无需创建对象。 
+- 静态方法在访问本类的成员时，只允许访问静态成员（即静态成员变量和静态方法），而不允许访问实例成员变量和实例方法；实例方法则无此限制 
+
+
+
+### static VS 成员变量
+
+
+
+|          | static变量       | 成员变量             |
+| -------- | ---------------- | -------------------- |
+| 生命周期 | 类加载 -> 类卸载 | 对象创建 -> 对象回收 |
+| 调用方式 | 对象/类调用      | 对象调用             |
+| 存储位置 | 方法区,1个       | 堆,多个              |
+|          |                  |                      |
+
+
+
+static不代表不可修改,它是能够时刻保持最新的值的静态变量
+
+==静态是指不会随着函数的调用/退出发生变化==。下次调用时，这个值与上次调用一致
+
+==static final全局常量才不能修改==
+
+
+
+static方法从类加载便存在,所以必须有实现
+
+
+
+
+
+## this / super
+
+this	指向引用类的当前实例
+
+this()	只能用于构造方法中调用其他构造方法
+
+外部类名.this.属性/方法	表示在内部类中调用的是外部类的属性/方法
+
+
+
+
+
+super指向父类对象,构造器中使用super需要放在首行
+
+
+
+**this和super不能在static方法中使用**,都是指向了对象,而static属于类
+
+
+
+
+
+## native
+
+
+
+```
+@Documented
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.SOURCE)
+public @interface Native {}
+```
+
+native是**java调用非java代码的接口**,定义Native Method时,**并不需要提供实现**
+
+调用者不知道它所调用的是一个本地方法。JVM将控制调用本地方法的所有细节
+
+子类可以继承本地方法并用java重写	**本地方法被fianl标识，继承后不能被重写**
+
+
+
+==native可以与所有修饰符连用，除abstract==,与abstract的无实现相违背
+
+==native method可以返回任何java类型，包括非基本类型==，可以进行异常控制。这些方法的实现体可以制一个异常并且将其抛出。当native method接收到非基本类型,可以访问非基本类型的内部，**但这将使native method依赖于所访问的java类的实现**
+
+
+
+==JVM怎样使Native Method跑起来==
+当类第一次被使用时，这个类的字节码会被加载到内存。在这个被加载的字节码入口,维持着该类所有方法描述符的list，这些方法描述符包含：方法代码存储地址，参数，修饰符等
+native修饰符将有指向该方法实现的指针。这些实现在一些DLL文件内，会被操作系统加载到java程序的地址空间。当带有本地方法的类被加载时，其相关的DLL并未被加载，因此指向方法实现的指针并不会被设置。**当本地方法被调用之前，这些DLL才会被加载**，通过调用java.system.loadLibrary()实现
+
+
+
+
+
+## Switch
+
+
+
+1.5前，只能是byte，short，char，int类型(或其包装类)的常量表达式
+
+1.5后，引入枚举enum
+
+1.7后，支持String,底层调用String.hashCode(),所以==必须先判空==
+
+**long在所有版本都不行**
+
+
+
+switch底层都是用int进行比对,byte，short，char,enum都可以隐式转换为int,而string则是转换成了hashCode()
+
+```java
+//在编译后的class中
+String string = "Hello";
+String s;
+switch ((s = string).hashCode()){
+  case 2301506: 
+    //用equals进行安全检查（避免hash相同值不同）
+    if (!s.equals("Java"))
+```
+
+
+
+每个case要么通过continue/break/return等来终止，要么注释说明程序将继续执行到哪一个case为止
+
+必须包含一个default语句并且放在最后
+
+
+
+## transient
+
+阻止变量被序列化；在反序列化时,赋默认值
+
+transient只能修饰变量
+
+
+
+# 注解
+
+注解本身并不起任何作用,只作为标识	通过反射来获取注解,再根据注解的参数执行业务
+
+
+
+* 作用分类：
+  * 编写文档：通过代码中标识的注解生成文档（Swagger）
+  * 代码分析：通过代码里的注解对代码进行分析（逻辑判断）
+  * 编译检查：通过代码里对应的注解让编译器实现基本的编译检查（Override，Deprecated，FunctionalInterface）
+
+* JDK中预定义的一些注解
+  * Override：检测该注解标识的方法是否继承自父类
+  * Deprecated：标识方法、类、字段等已经过时，后续的版本可能会将其移除
+  * SuppressWarnings：压制警告
+
+
+
+## 元注解
+
+
+
+==用于描述注解的适用范围==
+
+
+
+* @Target	作用范围
+
+* ```shell
+  Type：作用于类
+  METHOD：作用于方法
+  FIELD：作用于字段
+  PACKAGE
+  ElementType取值
+  PARAMETER
+  TYPE_PARAMETER  标注类型参数
+  CONSTRUCTOR
+  LOCAL_VARIABLE  局部变量
+  ANNOTATION_TYPE  注解类
+  TYPE_USE  所有类型
+  ```
+
+* @Retention：描述注解被保留的阶段
+
+  * RetentionPolicy.RUNTIME：当前描述的注解，会保留到class字节码文件中，并被jvm读取到	**默认**
+
+  * RetentionPolicy.SOURCE：注解只保留在源文件，当Java文件编译成class文件的时候，注解被遗弃
+
+  * RetentionPolicy.CLASS：注解被保留到class文件，但jvm加载class文件时候被遗弃
+
+    生命周期长度 SOURCE < CLASS < RUNTIME
+
+    需要在运行时动态获取注解信息，那只能用RUNTIME注解，比如@Deprecated使用RUNTIME注解
+    在编译时进行预处理操作，比如生成一些辅助代码（如 ButterKnife），就用 CLASS注解；
+    只是检查性的操作，比如 @Override 和 @SuppressWarnings，使用SOURCE 注解。
+
+* @Documented：描述注解是否被抽取到javadoc中
+
+* @Inherited：描述注解是否可以被继承
+
+* @Repeatable:指明注解为可重复注解，可以在同一个地方多次使用
+
+* @Scheduled
+
+  ```shell
+  #Cron 定时时间		允许正则表达式
+  @Scheduled(cron = "0 0 5 * * ?")      [秒] [分] [小时] [日] [月] [周] [年]
+  ?    不指定值
+  \-    区间
+  ,    指定多个值
+  /    递增触发。秒”5/15” 表示从5秒开始，每增15秒触发
+  L    最后。对于日字段，表示当月的最后一天.对于周字段上设置”6L”这样的格式,则表示“本月最后一个星期五”
+  W   离指定日期的最近的工作日(周一至周五). 例如在日字段上置”15W”，表示离每月15号最近的那个工作日触发。如果15号正好是周六，则找最近的周五(14号)触发, 如果15号是周未，则找最近的下周一(16号)触发.如果15号正好在工作日(周一至周五)，则就在该天触发。如果指定格式为 “1W”,它则表示每月1号往后最近的工作日触发。如果1号正是周六，则将在3号下周一触发。(注，”W”前只能设置具体的数字,不允许区间”-“)。
+  \#    序号(表示每月的第几个周几)，例如在周字段上设置”6#3”表示在每月的第三个周六.注意如果指定”#5”,正好第五周没有周六，则不会触发该配置
+  ’L’和‘W’组合使用。在日字段上设置”LW”,则表示在本月的最后一个工作日触发；周字段的设置，若使用英文字母是不区分大小写的，即MON与mon相同
+  
+  # zone时区.一般留空
+  fixedDelay上一次执行完毕后多长时间再执行
+  @Scheduled(fixedDelay = 5000) //上一次执行完毕时间点之后5秒再执行
+  
+  fixedDelayString 同上的字符串形式,支持占位符
+  @Scheduled(fixedDelayString = "5000") //上一次执行完毕时间点之后5秒再执行
+   fixedRate上一次开始执行后多长时间再执行
+  
+  @Scheduled(fixedRate = 5000) //上一次开始执行时间点之后5秒再执行
+  
+  fixedRateString同上的字符串形式。支持占位符
+  
+  initialDelay第一次延迟多长时间后再执行
+  
+  @Scheduled(initialDelay=1000, fixedRate=5000) //第一次延迟1秒后执行，之后按fixedRate的规则每5秒执行一次
+  
+  initialDelayString同上的字符串形式。支持占位符
+  ```
+
+
+
+
+
+
+
+
+
+
+
+## 自定义注解
+
+
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface MyAnnotation {
+    String name() default "lx";
+    int value();
+}
+```
+
+
+
+```
+@MyAnnotation(123)
+public class User{}
+```
+
+
+
+```java
+public void testAnnotation() {
+  Class<User> userClass = User.class;
+  // 获取注解
+  MyAnnotation myAnnotation = userClass.getAnnotation(MyAnnotation.class);
+  // 注解不为空的时候进行处理
+  if (myAnnotation != null) {
+    // 获取打在User类上的注解的两个属性
+    System.out.println(myAnnotation.name() + ":" + myAnnotation.value());
+  }
+}
+```
+
+
+
+==注解本质上是一个接口，默认继承自Annotation接口==
+
+* 如果定义了属性，在使用属性的时需要赋值
+
+* ==只有一个属性且名称value，则可以省略==
+
+* 数组赋值时用{}封装
+
+* ==属性中的返回值==类型有下列取值：
+  * 基本数据类型
+  * String
+  * 枚举
+  * 注解
+  * 以上类型的数组
+
+
+
+# 泛型
+
+
+
+## 限定/非限定通配符
+
+**限定通配符**
+
+<? extends T>	?必须是T的子类
+
+<? super T>	?必须是T的父类
+
+
+
+**非限定通配符**
+
+<?>	任意类型
+
+
+
+```java
+List listOfRawTypes = new ArrayList();
+listOfRawTypes.add(“abc”);
+listOfRawTypes.add(123); //编译器校验正常 – 运行时却会出现异常
+```
+
+
+
+## 泛型擦除
+
+泛型擦除是为了确保能和Java5之前的版本开发二进制类库进行兼容
+
+```java
+List<User> list= new ArrayList<>();
+Class<? extends List> listClass = list.getClass();
+Method add = listClass.getDeclaredMethod("add", Object.class);
+add.setAccessible(true);
+//通过invoke()避免了编译时的泛型检验
+add.invoke(list, 5);
+```
 
 
 

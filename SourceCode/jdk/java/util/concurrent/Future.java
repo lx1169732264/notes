@@ -116,7 +116,7 @@ public interface Future<V> {
      * typically because it has already completed normally;
      * {@code true} otherwise
      */
-    boolean cancel(boolean mayInterruptIfRunning);//入参true表示可以取消正在执行的任务		取消失败/任务完成返回false
+    boolean cancel(boolean mayInterruptIfRunning);//true:可以中断正在执行的任务(不代表任务能否检测并处理中断)		取消失败/任务完成返回false
 
     /**
      * Returns {@code true} if this task was cancelled before it completed

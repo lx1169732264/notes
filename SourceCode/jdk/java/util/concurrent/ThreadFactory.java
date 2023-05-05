@@ -62,8 +62,8 @@ public interface ThreadFactory {
      * priority, name, daemon status, {@code ThreadGroup}, etc.
      *
      * @param r a runnable to be executed by new thread instance
-     * @return constructed thread, or {@code null} if the request to
-     *         create a thread is rejected
+     * @return constructed thread, or {@code null} if the request to create a thread is rejected
+     * @see java.lang.Thread.UncaughtExceptionHandler
      */
-    Thread newThread(Runnable r);
+    Thread newThread(Runnable r); //可以在线程里设置异常处理器
 }
