@@ -92,17 +92,9 @@ API Gateway 是一个服务器，也是进入系统的唯一节点。这跟面�
 
 ```java
 @Retention(RetentionPolicy.CLASS)
-@Mapping(target = "id", ignore = true)
-@Mapping(target = "version", ignore = true)
-@Mapping(target = "dxCreated", ignore = true)
-@Mapping(target = "dxModified", ignore = true)
 public @interface ToEntity {
 }
 ```
-
-
-
-
 
 
 
@@ -124,7 +116,33 @@ public @interface SpringBootApplication {
 
 
 
-## EnableAutoConfiguration
+## 自动装配
+
+
+
+从以下几个方面回答：
+
+1. 什么是 SpringBoot 自动装配？
+2. SpringBoot 是如何实现自动装配的？如何实现按需加载？
+3. 如何实现一个 Starter？
+
+
+
+SpringBoot启动时会扫描外部引用 jar 包中的META-INF/**spring.factories**文件，将文件中配置的类型信息加载到 Spring 容器，并执行类中定义的各种操作。对于外部 jar 来说，只需要按照 SpringBoot 定义的标准，就能将自己的功能装置进 SpringBoot
+
+
+
+
+
+
+
+1. 主要通过@SpringBootApplication 中@EnableAutoConfiguration注解实现
+2. 注解中@Import(AutoConfigurationImportSelector.class) 的类。借助@Import的支持，收集和注册特定场景相关的bean定义
+3. AutoConfigurationImportSelector.getAutoConfigurationEntry()会扫描所有包下spring-autoconfigure-metadata.properties的属性
+4. 通过@ConditionOn对比过滤符合当前配置的配置项，重新进行config的注解扫描添加需要的bean配置到BenDefinition中
+5. 再执行初始化方法
+
+
 
 ```java
 @Target(ElementType.TYPE)
@@ -134,12 +152,11 @@ public @interface SpringBootApplication {
 @Import(AutoConfigurationImportSelector.class) //加载自动装配类 xxxAutoconfiguration
 public @interface EnableAutoConfiguration {
 
-   String ENABLED_OVERRIDE_PROPERTY = "spring.boot.enableautoconfiguration";
+  String ENABLED_OVERRIDE_PROPERTY = "spring.boot.enableautoconfiguration";
 
-   Class<?>[] exclude() default {};
+  Class<?>[] exclude() default {};
 
-   String[] excludeName() default {};
-
+  String[] excludeName() default {};
 }
 ```
 
@@ -154,9 +171,9 @@ public @interface EnableAutoConfiguration {
 @Import(AutoConfigurationPackages.Registrar.class)
 public @interface AutoConfigurationPackage {
 
-   String[] basePackages() default {};
+  String[] basePackages() default {};
 
-   Class<?>[] basePackageClasses() default {};
+  Class<?>[] basePackageClasses() default {};
 
 }
 ```
@@ -369,45 +386,11 @@ public Object unauthorized() {
 
 
 
-@InitBinder   在其执行之前初始化数据绑定器
-
-```
-@InitBinder
-    public void initBinder(WebDataBinder binder) {}
-```
 
 
 
 
 
-
-
-
-
-
-
-## 自动装配
-
-
-
-从以下几个方面回答：
-
-1. 什么是 SpringBoot 自动装配？
-2. SpringBoot 是如何实现自动装配的？如何实现按需加载？
-3. 如何实现一个 Starter？
-
-
-
-> SpringBoot 定义了一套接口规范，这套规范规定：SpringBoot 在启动时会扫描外部引用 jar 包中的`META-INF/spring.factories`文件，将文件中配置的类型信息加载到 Spring 容器，并执行类中定义的各种操作。对于外部 jar 来说，只需要按照 SpringBoot 定义的标准，就能将自己的功能装置进 SpringBoot
->
-
-
-
-1. 主要通过@SpringBootApplication 中@EnableAutoConfiguration注解实现
-2. 注解中@Import(AutoConfigurationImportSelector.class) 的类。借助@Import的支持，收集和注册特定场景相关的bean定义
-3. AutoConfigurationImportSelector.getAutoConfigurationEntry()会扫描所有包下spring-autoconfigure-metadata.properties的属性
-4. 通过@ConditionOn对比过滤符合当前配置的配置项，重新进行config的注解扫描添加需要的bean配置到BenDefinition中
-5. 再执行初始化方法
 
 
 
@@ -973,20 +956,170 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 
 
-- `@Component` ：通用注解. 默认扫描启动类所在的目录,也可以通过`@ComponentScan`指定扫描的目录
-- `@Configuration` 声明配置类
+### xml
+
+Spring有以下主要的命名空间：context、beans、jdbc、tx、aop、mvc和aso
+
+```xml
+<beans>
+  <bean id="restTemplate" class="org.springframework.web.client.RestTemplate"/>
+</beans>
+```
+
+
+
+### @Configuration
+
+自带了@Component,所以会被作为bean放入容器
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Component
+public @interface Configuration {
+  String value() default "";
+  boolean proxyBeanMethods() default true;
+}
+```
+
+
+
+1. **声明bean**
+
+```java
+@Configuration
+public class AppConfig{
+  @Bean
+  public Object myBean() {
+  }
+}
+```
+
+
+
+==为什么声明bean不推荐用@Component==
+
+将上面的@Configuration替换为@Component,bean依然能被注册到容器中
+
+但@Component配置类中,声明bean的方法`myBean`可能被**显式调用**,导致bean的**单例被破坏**
+
+@Configuraton注解底层是通过==cglib代理==去实现@Bean方法不被用户显式调用,bean只会被实例化一次
+
+
+
+
+
+
+
+
+
+
+
+2. 配合**@ComponentScan进行组件扫描**
+
+```java
+@Configuration
+@ComponentScan(basePackages = "com.")
+```
+
+
+
+3. 注入配置文件属性
+
+@EnableConfigurationProperties可以让@ConfigurationProperties生效,在**配置类上不需要加@Compoment**
+
+```java
+@Configuration
+@EnableConfigurationProperties(xxx.class)
+public class AppConfiguration {
+  @Bean
+  public xxx myBean() {
+  }
+}
+
+//这里不需要加@Compoment
+@ConfigurationProperties(prefix = "")
+public class xxx {
+}
+```
+
+
+
+也可以不用@Configuration,直接在配置类上加@Compoment
+
+```java
+@Compoment
+@ConfigurationProperties(prefix = "")
+public class xxx {
+}
+```
+
+
+
+
+
+
+
+### 注解注册
+
+- `@Component`：通用注解. 默认扫描启动类所在的目录,也可以通过`@ComponentScan`指定扫描的目录
 - `@Repository`: 将类标记为数据访问组件，即DAO组件
 - `@Service`
 - `@Controller` 将类标记为 Spring Web MVC 控制器
+- `@RestController`=`@Controller和`+@`ResponseBody`,表示这是个控制器 bean,并且是将函数的返回值直接填入 HTTP 响应体中
 - **@Bean**: 唯一一个作用于方法的注解,很多地方只能通过 `@Bean` 来注册bean。比如将第三方库中的类装配到`Spring`容器
 
-`@RestController`=`@Controller和`+@`ResponseBody`,表示这是个控制器 bean,并且是将函数的返回值直接填入 HTTP 响应体中
 
 
 
 
 
 
+## 注入方式
+
+
+
+| Autowired                                                 | Resource                                       |
+| --------------------------------------------------------- | ---------------------------------------------- |
+| Spring,默认byType                                         | JDK,默认byName                                 |
+| 默认要求依赖对象必须存在,设置required=false开启允许null值 |                                                |
+| AutoWiredAnnotationBeanPostProcessor处理@AutoWired        | CommonAnnotationBeanPostProcessor处理@Resource |
+
+
+
+**在构造器注入时,优先byType进行注入,否则byName**
+
+
+
+
+
+### 注入时有多个实现类
+
+
+
+1. @Resource指定beanName
+
+   ```java
+   @Service("xxxService")
+   @Resource(name = "xxxService")
+   ```
+
+2. @Autowired指定beanName
+
+   ```java
+   @Service("xxxService")
+   @Autowired("xxxService")
+   ```
+
+3. 注入的地方@Qualifier
+
+   ```java
+   @Autowired
+   @Qualifier(value = "manService")
+   ```
+
+4. 实现类加 @Primary
 
 
 
@@ -994,13 +1127,119 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 ## bean生命周期
 
-在传统的Java应用中，用new实例化,一旦bean不再被使用，则由Java自动进行垃圾回收
+在传统的Java应用中，用new实例化bean,通过GC回收
 
 而spring应用中bean的生命周期是由Ioc容器托管的
 
 
 
-**5个阶段** 反射创建bean工厂 创建bean实例化 依赖注入 容器缓存 销毁实例
+**5个阶段** 创建前准备 创建实例 依赖注入 容器缓存 销毁实例
+
+![](image.assets/v2-17e3aa4a90b84f7ab6ac8574341d11da_r.jpg)
+
+
+
+
+
+### 创建前准备
+
+在开始Bean加载之前，从Spring上下文和相关配置中解析并查找Bean有关的配置内容以及回调方法
+
+1. 实例化BeanFactoryPostProcessor   beanFactory后置处理器
+2. BeanFactoryPostProcessor.postProcessBeanFactory()
+3. 实例化BeanPostProcessor   bean后置处理器
+4. 实例化InstantiationAwareBeanPostProcessorAdapter实现类   实例化感知的bean后置处理器
+5. InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation()
+
+
+
+
+
+### 创建实例
+
+通过反射来创建Bean的实例对象，并且扫描和解析Bean声明的一些属性
+
+1. 执行InstantiationAwareBeanPostProcessor.postProcessProperties()
+
+
+
+
+
+### 依赖注入
+
+1. BeanNameAware.setBeanName()
+2. BeanFactoryAware.setBeanFactory()
+3. BeanPostProcessor.postProcessBeforeInitialization()  bean初始化前的回调
+4. InitializingBean.afterPropertiesSet()  bean属性赋值
+
+
+
+### 容器缓存
+
+Bean保存到IoC容器中缓存起来,此时bean才能被开发者使用
+
+1. 调用bean的`init-method`   ==@PostConstruct==
+2. BeanPostProcessor.postProcessAfterInitialization()  bean初始化后的回调
+3. InstantiationAwareBeanPostProcessor.postProcessAfterInstantiation()
+
+
+
+### 销毁实例
+
+完成Spring应用上下文关闭时，将销毁Spring上下文中所有的Bean
+
+1. 调用bean的`destroy-method`   ==@PreDestory==
+2. DisposableBean.destroy()
+
+
+
+
+
+### 自定义初始化和销毁方法
+
+
+
+1. 通过@Bean指定init-method和destroy-method；
+
+```
+@Bean(initMethod = "init",destroyMethod = "destroy")
+```
+
+2. Bean实现InitializingBean（定义初始化逻辑) / DisposableBean（定义销毁逻辑）
+
+```java
+@Component
+public class Cat implements InitializingBean, DisposableBean {
+
+  public void destroy() throws Exception {
+  }
+
+  public void afterPropertiesSet() throws Exception {
+  }
+}
+```
+
+3. @PostConstruct @PreDestroy
+
+
+
+4. 实现BeanPostProcessor.postProcessBeforeInitialization / postProcessAfterInitialization
+
+```java
+@Component
+public class MyBeanPostProcessor implements BeanPostProcessor {
+
+  public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+    return bean;
+  }
+
+  public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+    return bean;
+  }
+}
+```
+
+
 
 
 
@@ -1050,13 +1289,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 
 
-### 生命周期行为
 
-只会被执行一次,哪怕在web容器在其内部中多次实例化bean
 
-@PostConstruct	bean初始化前的方法	注解类的构造方法之后 && Servlet.init()前执行
 
-@PreDestory	bean销毁前的方法	Servlet.destroy()前执行
 
 
 
@@ -1113,18 +1348,10 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 
 
-
-
-**单例bean的线程安全问题**
-
-一般情况下， `Controller`、`Service`、`Dao` 这些 Bean 是无状态的。无状态的 Bean 不能保存数据，因此线程安全
-
-
-
-但若出现bean需要保存数据的场景
+**单例bean在有状态时,存在线程安全问题**
 
 1. 将需要的可变成员变量保存在 `ThreadLocal`
-2. 改变 Bean 的作用域为 “prototype”：每次请求都会创建一个新的 bean 实例，线程安全
+2. 改变 Bean 的作用域为prototype
 
 
 
@@ -1132,9 +1359,9 @@ B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面�
 
 ## BeanFactory和FactoryBean的区别
 
-BeanFactory：管理Bean的容器，Spring中生成的Bean都是由这个接口的实现来管理的。
+BeanFactory：管理Spring中生成的Bean的容器
 
-FactoryBean：用来创建比较复杂的bean，一般的bean 直接用xml配置即可，但如果一个bean的创建过程中涉及到很多其他的bean 和复杂的逻辑，直接用xml配置比较麻烦，这时可以考虑用FactoryBean，可以隐藏实例化复杂Bean的细节
+FactoryBean：用来创建比较复杂的bean
 
 当配置文件中bean标签的class属性配置的实现类是FactoryBean时，通过 getBean()方法返回的不是FactoryBean本身，而是调用FactoryBean#getObject()方法所返回的对象，相当于FactoryBean#getObject()代理了getBean()方法。如果想得到FactoryBean必须使用 '&' + beanName 的方式获取。
 
@@ -1146,15 +1373,14 @@ FactoryBean：用来创建比较复杂的bean，一般的bean 直接用xml配置
 
 
 
-| BeanFactory | ApplicationContext |
+|      | BeanFactory             | ApplicationContext       |
+| ---- | ----------------------- | ------------------------ |
+|      | 懒加载(调用getBean()时) | 启动容器时一次性创建全部 |
+|      |                         | 支持国际化               |
+|      | 不支持基于依赖的注解    | 支持基于依赖的注解       |
+|      |                         | 统一的资源文件读取方式   |
 
-它使用懒加载 它使用即时加载 
 
-它使用语法显式提供资源对象 它自己创建和管理资源对象 
-
-不支持国际化 支持国际化 
-
-不支持基于依赖的注解 支持基于依赖的注解 
 
 BeanFactory和ApplicationContext的优缺点分析：
 
@@ -1187,53 +1413,6 @@ ApplicationContext的优缺点：
 
 
 
-
-
-
-## 注入方式
-
-
-
-| Autowired                                                 | Resource                                       |
-| --------------------------------------------------------- | ---------------------------------------------- |
-| Spring,默认byType                                         | JDK,默认byName                                 |
-| 默认要求依赖对象必须存在,设置required=false开启允许null值 |                                                |
-| AutoWiredAnnotationBeanPostProcessor处理@AutoWired        | CommonAnnotationBeanPostProcessor处理@Resource |
-
-
-
-**在构造器注入时,优先byType进行注入,否则byName**
-
-
-
-
-
-### 注入时有多个实现类
-
-
-
-1. @Resource指定beanName
-
-   ```java
-   @Service("xxxService")
-   @Resource(name = "xxxService")
-   ```
-
-2. @Autowired指定beanName
-
-   ```java
-   @Service("xxxService")
-   @Autowired("xxxService")
-   ```
-
-3. 注入的地方@Qualifier
-
-   ```java
-   @Autowired
-   @Qualifier(value = "manService")
-   ```
-
-4. 实现类加 @Primary
 
 
 

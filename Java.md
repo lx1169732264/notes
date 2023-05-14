@@ -3219,6 +3219,10 @@ public abstract class SelectionKey {
 
 **线程**：进程的**执行单位**，也被称为轻量级进程,**共享堆和方法区**，但**有独立的程序计数器、栈**，所以线程间上下文切换负担比进程小
 
+==cpu资源的最小调度单位是线程,系统资源(比如内存)的最小分配单元是进程==,当线程想要操作进程共享变量值的时候,会先从共享内存中load到自己的工作内存,并在工作内存进行读写,但是此时并没有直接写回内存中,如果这个时候其他线程需要读取或者操作这个变量的时候,读取到的数据就不是最新的内容,造成数据的不可见
+
+
+
 
 
 线程**对变量的操作在工作内存中进行**（线程安全问题的根本原因）
@@ -4769,19 +4773,69 @@ ReentrantLock,synchronized
 
 
 
-- **定时锁**
+- 增加超时机制
 
 * 无锁函数（cas）或 重入锁（ReentrantLock）
 
-* **避免嵌套同步**
+* 按相同的顺序加锁
 
-  synchronized (对象) { 
 
-  ​	synchronized (对象) { }
 
+
+==相同加锁顺序,动态的锁对象导致的死锁问题==
+
+> 场景: a,b两个账户之间转账,同时发生了a->b,b->a两次转账
+
+```java
+public void transferMoney(Object fromAccount, Object toAccount, Double money) {
+  synchronized (fromAccount) {
+    synchronized (toAccount) {
+      //转账逻辑
+    }
   }
+}
+```
 
-　
+表面上看,加锁顺序都是先fromAccount再toAccount,但这两个线程的入参分别是(a,b)和(b,a),这依然会有死锁的可能性
+
+
+
+由于无法控制入参的顺序,可以**将获取锁的循序改为按对象的hashCode排序**.由于存在**hash碰撞**的可能性,在碰撞时还需要借助另一把锁来保证加锁顺序
+
+如果加锁对象包含唯一的,不可变的键值(账户名),那么就不需要借助hash了,也不需要考虑hash碰撞的问题
+
+```java
+private static final Object lock = new Object();
+
+public void transferMoney(Object fromAccount, Object toAccount, Double money) {
+  int fromHash = System.identityHashCode(fromAccount);
+  int toHash = System.identityHashCode(toAccount);
+
+  if (fromHash == toHash) {
+    synchronized (lock) { //当hash碰撞时,需要借助另一把锁来保证加锁顺序
+      //......
+    }
+  } else if (fromHash > toHash) {
+    synchronized (fromAccount) {
+      synchronized (toAccount) {
+        //转账逻辑
+      }
+    }
+  } else {
+    synchronized (toAccount) {
+      synchronized (fromAccount) {
+        //转账逻辑
+      }
+    }
+  }
+}
+```
+
+
+
+
+
+
 
 ### 活锁
 
@@ -4795,11 +4849,11 @@ ReentrantLock,synchronized
 
 线程一直获取不到资源
 
-优先级太低 或 某一线程一直占着某种资源不放
+**优先级**太低 或 某一线程一直占着某种资源不放
 
 
 
-与死锁相比，饥饿有可能在一段时间之后恢复执行。**设置优先级尽量避免饥饿**
+与死锁相比，饥饿有可能在一段时间之后恢复执行
 
 
 
@@ -5030,7 +5084,7 @@ wait + notify
 
 ## volatile
 
-[只保证变量的可见性,不保证操作的原子性](#原子性) -> ==针对变量弱同步，不保证线程安全==	static不是可见的
+[只保证变量的可见性,不保证操作的原子性](#JMM三大特性) -> ==针对变量弱同步，不保证线程安全==,static不是可见的
 
 ==修饰引用变量时,引用不变不刷新至主内存==
 
@@ -6373,8 +6427,7 @@ public ThreadPoolExecutor(int corePoolSize,
 
 
 
-### 设置线程数
->>>>>>> e6a7a07 (21.7.28)
+
 
 
 ### 线程池参数
@@ -6418,7 +6471,6 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
-<<<<<<< HEAD
 
 
 
@@ -6428,7 +6480,8 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 
 
 
-=======
+
+
 ### 拒绝策略
 
 1. AbortPolicy **默认** 丢弃任务并抛出异常
@@ -6455,6 +6508,40 @@ BlockingQueue getQueue() 当前线程池的任务队列，据此可以获取积�
 3. 重写ThreadPoolExecutor#afterExecute
 
 
+
+### 控制提交任务的速率
+
+用Semaphore实现
+
+> @see ThreadPoolSemaphore
+
+
+
+
+
+
+
+### 不适合线程池的任务
+
+
+
+依赖性任务	当任务的执行存在先后顺序时,除非线程池足够的大,不然很容易造成**饥饿死锁**(任务a等待任务b的执行,但任务b阻塞在工作队列中)
+
+
+
+线程封闭机制的任务	有些任务只能在单线程下运行,此时要强制使用newSingleThreadExecutor
+
+
+
+对响应时间敏感的任务	通常是用户在页面上的操作
+
+
+
+使用ThreadLocal的任务	线程池的线程会被复用,使用ThreadLocal会导致不同线程之间互相传值
+
+
+
+**执行时间相差过大**的任务被放入同一个线程池	当多个执行时间长的任务被同时执行时,其他任务将堆积在工作队列中阻塞住,甚至可能造成死锁
 
 
 
@@ -9531,8 +9618,6 @@ public native String intern();
 
 ### BigDecimal
 
-
-
 针对浮点类型运算,创建BigDecimal的入参为string,避免精度丢失
 
 
@@ -9541,7 +9626,13 @@ public native String intern();
 a.compareTo(b)	-1 : a<b
 
 setScale	保留几位小数
+
+stripTrailingZeros 去除尾部的0
 ```
+
+**toString** 科学计数法
+
+**toPlainString** 非科学计数法
 
 
 
@@ -9776,7 +9867,13 @@ Cloneable只决定clone()的实现方式 -> Cloneable ? 返回对象的逐域拷
 
 
 
-### finalize
+### ~~finalize~~
+
+文件句柄和套接字句柄无法被GC直接回收,在回收器释放对象的空间后,会调用它们的finalize(),从而保证一些持久性的资源被释放
+
+终结器不能保证将在何时运行甚至是是否运行,应当尽量避免使用
+
+
 
 
 

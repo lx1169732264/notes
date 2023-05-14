@@ -15,23 +15,20 @@ DBMS	Database Management System 数据库管理系统
 
 
 
-# 架构
+# Mysql架构
 
 ![](image.assets/Mysql架构.png)
 
-| Sever  | 存储引擎(可替换的插件式架构) |
-| ------ | ---------------------------- |
-| 连接器 |                              |
-| 解析器 | InnoDB独有的redo日志模块     |
-|        |                              |
+
+
+
 
 
 
 ### 连接器
 
-身份认证
-
-如果用户账户密码已通过，连接器会到权限表中查询该用户的所有权限，后续的权限逻辑判断都是会依赖此时读取到的权限数据，即使管理员修改用户的权限，该用户也不受影响
+1. 验证用户账号密码
+2. 验证通过后,去权限表中查询用户的所有权限，后续的权限判断都是依赖此时读取到的数据(修改权限只会在重新连接时生效)
 
 
 
@@ -49,25 +46,11 @@ DBMS	Database Management System 数据库管理系统
 
 
 
-**额外的消耗:**
-
-1. 读查询开始前先检查是否命中缓存(加排它锁)
-
-2. 在执行完成后检查是否可以被缓存,若能则放入缓存,**当查询语句包含不确定的数据时,不会被缓存**	函数Now()/Current_Date()/用户自定义变量/临时表
-
-3. 执行的是修改操作,将对应表的所有缓存设置失效
-
-InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之前,表的相关查询无法被缓存(长时间运行的事务将降低缓存命中率)
-
-大量缓存的失效将成为性能瓶颈,这个操作被全局锁保护,检查缓存命中和缓存失效都需要阻塞等待锁
-
-
-
 ### 解析器
 
 ==词法分析== 提取关键字解析sql,**生成解析树**
 
-验证关键字是否错误,关键字顺序,符号的匹配
+验证关键字顺序,符号的匹配
 
 
 
@@ -75,15 +58,17 @@ InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之�
 
 ==语法分析==
 
-检查解析树是否合法,检查表/列是否存在
+检查表/列是否存在,字段名是否存在歧义
 
-解析名字/别名是否存在歧义
+
+
+### 优化器
+
+选择它认为的最优的方案去执行,例如走哪个索引,调整关联表的顺序
 
 
 
 ### 执行器
-
-
 
 根据执行计划给出的指令逐步执行,执行每条sql前都将**校验用户权限**,随后**调用存储引擎实现的接口**
 
@@ -93,11 +78,84 @@ InnoDB多版本特性会暂时将修改对其他事务屏蔽,在事务提交之�
 
 
 
-[InnoDB架构](InnoDB架构)
-
-![](image.assets/InnoDB 架构.png)
 
 
+
+
+## 存储引擎
+
+存储引擎采用的是**插件式架构**,并且是**基于表**的,可以为不同表设计不同的存储引擎
+
+```mysql
+show engines; #查看mysql支持的所有引擎
+
+create table xxx( ) ENGINE = InnoDB;
+```
+
+
+
+|             | InnoDB                              | MyISAM                                  |
+| ----------- | ----------------------------------- | --------------------------------------- |
+| 锁          | **自增长行级锁**,表级锁             | 只支持表级锁,读取共享，写入排它         |
+| 日志        | 支持redolog,支持灾难恢复            |                                         |
+|             | MVCC,性能高                         |                                         |
+| 索引        | B+Tree索引,数据文件本身就是索引文件 | B+Tree索引,数据和索引**分两个文件存储** |
+| 外键        | √                                   | ×                                       |
+| 热备份      | √                                   | ×                                       |
+| 空间函数GIS |                                     | √                                       |
+|             |                                     |                                         |
+|             |                                     |                                         |
+|             |                                     |                                         |
+
+
+
+
+
+
+
+#### InnoDB
+
+* 内部的优化:预读,在内存中创建hash索引以加速自适应hash索引,加速插入操作的插入缓冲区insert buffer
+* **可预测性预读**,自动在内存中创建hash索引以加速读操作的自适应哈希索引
+
+InnoDB会把表空间作为虚拟的文件系统,在其中管理所有表内容,从而支持超出文件系统存储长度
+
+
+
+
+
+#### MyISAM
+
+每个MyISAM在磁盘上存储成三个文件
+
+* frm文件：表的定义
+* MYD文件：数据
+* MYI文件：索引  **多个索引保存在同一文件中**
+
+数据行保存在MYD,索引保存在MYI,使得一张表可以有多个索引
+
+
+
+三种支持数据的类型
+
+**静态固定长度表   默认**,占空间大,效率高，容易缓存，损坏后容易修复
+
+动态可变长表	空间小,出错恢复麻烦
+
+==压缩表==
+
+
+
+
+
+#### Memory
+
+* 将数据存在**内存**(数据丢失问题)
+* 每个表和一个磁盘frm文件关联,表过大时会转化为磁盘表
+* 支持的数据类型有限，不支持TEXT和BLOB类型，==字符串只支持固定长度，VARCHAR->CHAR==
+* 锁粒度为**表级锁**,性能低
+* 查询时，如果用到临时表且有BLOB，TEXT字段，临时表转化为MyISAM引擎，性能急剧降低
+* **默认用hash索引**
 
 
 
@@ -444,132 +502,6 @@ cascade 和 set null容错能力较强，并不是很严格，但可能会出导
 | 龟       | 数百岁    | unsigned smallint | 2    |
 | 恐龙化石 | 数千万岁  | unsigned int      | 4    |
 | 太阳     | 约50亿年  | unsigned bigint   |      |
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### 关键字
-
-
-
-
-
-
-
-### 存储引擎
-
-
-
-```mysql
-show engines;
-
-create table xxx( ) ENGINE = InnoDB;
-```
-
-
-
-#### InnoDB
-
-
-
-* **自增长行级锁**，支持更高并发,支持事务。**可重复读，通过MVCC实现**
-* redo/undo支持灾难恢复
-* 表基于聚簇索引建立,主键查询效率高  支持外键,但增加了表的耦合度
-* 二级索引必须包含主键列,导致主键列很大将导致其他索引都会很大 -> 主键尽可能地小
-* 内部的优化:预读,在内存中创建hash索引以加速自适应hash索引,加速插入操作的插入缓冲区insert buffer
-* **可预测性预读**,自动在内存中创建hash索引以加速读操作的自适应哈希索引
-* 支持热备份，**MySQL的其他存储引擎不支持热备份**，要获取一致性视图需要停止对所有表的写入，而在读写混合场景中，停止写入可能也意味着停止读取
-* 自适应hash索引
-
-把表集中存储在一个系统表空间内,而不像其他引擎为不同的表创建不同的文件
-
-表空间由多个文件构成,并可以包含多个原始分区
-
-InnoDB会把表空间作为虚拟的文件系统,在其中管理所有表内容,从而支持超出文件系统存储长度
-
-
-
-##### Insert Buffer
-
-如果一个索引记录需要被插入到非唯一二级索引，InnoDB检查二级索引页是否在缓冲池 ? 插入到索引页 : 插入到Insert Buffer
-
-插入缓冲周期地被合并到二级索引,并将**同一页的插入索引操作合并**，节省磁盘I/O
-
-在插入事务提交后，插入缓冲合并将立即发生
-
-当许多二级索引被更新时，插入缓冲合并可能需要数个小时。在这个时间内，磁盘I/O将会增加，这样会导致磁盘读缓慢,purge线程活跃
-
-
-
-##### 自适应hash索引
-
-能够让InnoDB在具有适当工作负载和足够缓冲池内存的系统上，像内存数据库一样执行操作
-
-如果表几乎完全配合主内存，在其上执行查询最快的方法就是使用hash索引
-
-**hash索引总是基于表上已存在的B+索引来建立**,InnoDB监视索引上的搜索,查询会从建立哈希索引中获益，就自动为该B树定义的任何长度的键的前缀上建立哈希索引
-
-哈希索引可以是部分的：不要求整个B树索引被缓存在缓冲池。InnoDB根据需要对被经常访问的索引的那些页面建立哈希索引
-
-InnoDB通过自适应哈希索引来剪裁自己，更加靠近主内存数据库的架构
-
-
-
-
-
-#### MyISAM
-
-
-
-不支持事务  **只支持表级锁**,读取时共享锁，写入时排它锁
-
-支持空间函数GIS
-
-
-
-每个MyISAM在磁盘上存储成三个文件
-
-* frm文件：表的定义
-* MYD文件：数据
-* MYI文件：索引  **多个索引保存在同一文件中**
-
-数据行保存在MYD,索引保存在MYI,使得一张表可以有多个索引,
-
-
-
-三种支持数据的类型
-
-**静态固定长度表   默认**,占空间大,效率高，容易缓存，损坏后容易修复
-
-动态可变长表	空间小,出错恢复麻烦
-
-==压缩表==
-
-
-
-
-
-#### Memory
-
-
-
-* 将数据存在**内存**(数据丢失问题)
-* 每个表和一个磁盘frm文件关联,表过大时会转化为磁盘表
-* 支持的数据类型有限，不支持TEXT和BLOB类型，==字符串只支持固定长度，VARCHAR->CHAR==
-* 锁粒度为**表级锁**,性能低
-* 查询时，如果用到临时表且有BLOB，TEXT字段，临时表转化为MyISAM引擎，性能急剧降低
-* **默认用hash索引**
 
 
 
@@ -1929,117 +1861,11 @@ MERGE_THRESHOLD定义的过大 -> 索引占用空间↓ 页空间利用率过高
 
 
 
-#### Compact格式数据页
-
-<pre>
-CREATE TABLE t_btree (
-  i INT NOT NULL,
-  s CHAR(10) NOT NULL,
-  PRIMARY KEY(i)
-) ENGINE=InnoDB;
-
-
-
-+------+---+
-| i    | s |
-+------+---+
-|    1 | A |
-|    2 | B |
-|    3 | C |
-|    4 | A |
-|    5 | B |
-|    6 | C |
-...
-|  997 | A |
-|  998 | B |
-|  999 | C |
-| 1000 | A |
-+------+—+
-
-页3：根页
-0000c000  4a 50 91 ea 00 00 00 03  ff ff ff ff ff ff ff ff  |JP..............|
-0000c010  00 00 0f 83 02 82 cf 2a  45 bf 00 00 00 00 00 00  |.......*E.......|
-0000c020  00 00 00 01 05 3c 00 02  00 9f 80 05 00 00 00 00  |...............|
-0000c030  00 97 00 02 00 02 00 03  00 00 00 00 00 00 00 00  |................|
-0000c040  00 01 00 00 00 00 00 01  f2 a9 00 01 05 3c 00 00  |...............|
-0000c050  00 02 00 f2 00 01 05 3c  00 00 00 02 00 32 01 00  |............2..|
-0000c060  02 00 1a 69 6e 66 69 6d  75 6d 00 04 00 0b 00 00  |...infimum……|        
-0000c070  73 75 70 72 65 6d 75 6d  10 00 11 00 0d 80 00 00  |supremum........|
-0000c080  01 00 00 00 04 00 00 19  00 0d 80 00 00 e4 00 00  |................|
-0000c090  00 05 00 00 21 ff d9 80  00 02 aa 00 00 00 06 00  |....!...........|
-0000c0a0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |…………….|
-
-1. 页3位根页，页偏移量=16384*3=49152(0xC000)
-2. Infimum位置：49152+94=49246，0xC000+0x5E=0xC05E
-
-01 00 02 00 1a                          页面Infimum记录的额外信息，第一条用户记录：c05e+001a=c078
-69 6e 66 69 6d 75 6d 00           Infimum记录
-04 00 0b 00 00                          页面Supremum记录的额外信息
-73 75 70 72 65 6d 75 6d           Supremum记录
-
-记录1
-10 00 11 00 0d       记录头信息，下一条记录：c078+000d=c085
-80 00 00 01            主键值：1
-00 00 00 04            页号：page4
-
-00 00 19  00 0d      记录头信息，下一条记录：c085+000d=c092  
-80 00 00 e4            主键值：228
-00 00 00 05            叶子页号：page5
-
-00 00 21 ff d9         记录头信息，下一条记录：c092+ffd9=1c06b (第7页)
-80  00 02 aa           主键值：682
-00 00 00 06            叶子叶号：page6
-
-页4：
-00010000  0e 9f ae 99 00 00 00 04  ff ff ff ff 00 00 00 05  |................|
-00010010  00 00 0f 83 02 82 cf 2a  45 bf 00 00 00 00 00 00  |.......*E.......|
-00010020  00 00 00 01 05 3c 00 3a  3a fe 81 c8 1d c1 1d 43  |......::......C|
-00010030  00 00 00 05 00 00 00 e3  00 00 00 00 00 00 00 00  |................|
-00010040  00 00 00 00 00 00 00 01  f2 a9 00 00 00 00 00 00  |................|
-00010050  00 00 00 00 00 00 00 00  00 00 00 00 00 00 01 00  |................|
-00010060  02 00 1b 69 6e 66 69 6d  75 6d 00 04 00 0b 00 00  |...infimum......|
-00010070  73 75 70 72 65 6d 75 6d  0a 00 00 10 00 21 80 00  |supremum.....!..|
-00010080  00 01 00 03 a7 96 37 55  bf 00 13 00 32 01 10 41  |......7U....2..A|
-00010090  20 20 20 20 20 20 20 20  20 0a 00 00 18 00 21 80  |         .....!.|
-000100a0  00 00 02 00 03 a7 96 37  55 bf 00 13 00 32 01 1e  |.......7U....2..|
-000100b0  42 20 20 20 20 20 20 20  20 20 0a 00 00 20 00 21  |B         ... .!|
-000100c0  80 00 00 03 00 03 a7 96  37 55 bf 00 13 00 32 01  |........7U....2.|
-000100d0  2c 43 20 20 20 20 20 20  20 20 20 0a 04 00 28 00  |,C         ...(.|
-
-01 00 02 00 1b                           页面Infimum记录的额外信息，第一条用户记录：1005e+001b=10079
-69 6e 66 69 6d 75 6d 00         Infimum记录
-04 00 0b 00 00                           页面Supremum记录的额外信息
-73 75 70 72 65 6d 75 6d         Supremum记录
-
-记录1：
-00 00 10 00 21                                     记录头信息，下一条记录：10079+0021=1009a
-80 00 00 01                                           i=1
-00 03 a7 96 37 55                               事务ID
-bf 00 13 00 32 01 10                          回滚指针
-41 20 20 20 20 20 20 20 20 20        s=‘A'，不足填充空格
-
-记录2：
-00 00 18 00 21          记录头信息，下一条记录：1009a+0021=100bb
-80 00 00 02          i=2
-00 03 a7 96 37 55          事务ID
-bf 00 13 00 32 01 1e          回滚指针
-42 20 20 20 20 20 20 20 20 20          s=‘B'，不足填充空格
-
-
-
-
-
-
-
 # 事务
 
-
-
-**不要在一次事务中使用多种存储引擎**
+**一次事务中使用多种存储引擎会导致无法回滚**
 
 MySQL服务器层不管理事务，由下层的存储引擎实现
-
-事务中混合使用了事务/非事务的表,**回滚时非事务表无法撤销**
 
 
 
@@ -2082,15 +1908,19 @@ InnoDB通过 ⽇志和锁 来保证的事务的 ACID特性
 
 ## 隔离级别
 
+mysql的隔离级别是基于锁和MVCC共同实现的
 
+基于MVCC:RC,RR的快照读	基于锁:RC的当前读,SERIALIZABLE
 
 ```mysql
-SET [GLOBAL|SESSION] TRANSACTION ISOLATION LEVEL {level};	#设置隔离等级
+#设置隔离等级
+SET [GLOBAL|SESSION] TRANSACTION ISOLATION LEVEL {level};
+#[READ UNCOMMITTED|READ COMMITTED|REPEATABLE READ|SERIALIZABLE]
 ```
 
 
 
-|   隔离级别    |   脏读 select    |        不可重复读 update         |       幻读 insert/delete       |
+|               |   脏读 select    |        不可重复读 update         |       幻读 insert/delete       |
 | :-----------: | :--------------: | :------------------------------: | :----------------------------: |
 | Read Uncommit |                  |                                  |                                |
 |  Read Commit  |        ×         |                                  |                                |
@@ -2104,24 +1934,16 @@ SET [GLOBAL|SESSION] TRANSACTION ISOLATION LEVEL {level};	#设置隔离等级
 
 
 
-**如何保证repeatable read不会幻读**
-
-在SQL中加⼊ for update (排他锁) 或 lock in share mode (共享 锁)语句。锁住可能造成幻读的数据，阻⽌数据的写⼊操作
-
-
-
-
-
 
 
 ### 避免幻读
 
 Mysql提供两种事务隔离技术避免幻读
 
-| MVCC                              | NK锁==真正避免幻读== |
-| --------------------------------- | -------------------- |
-| 不加锁,生成读视图,并发高          | 加锁                 |
-| 不是即时数据,依靠历史数据避免幻读 | 即时数据             |
+| MVCC(乐观)                        | NK锁==真正避免幻读==(悲观) |
+| --------------------------------- | -------------------------- |
+| 不加锁,生成读视图,并发高          | 加锁                       |
+| 不是即时数据,依靠历史数据避免幻读 | 即时数据                   |
 
 
 
@@ -2132,20 +1954,6 @@ Mysql提供两种事务隔离技术避免幻读
 | select -> 结果集B == A                              |                  |
 | 对所有行记录update -> 所有行的**事务id被更新**      |                  |
 | **select -> 结果集C 包含了事务B插入的数据 -> 幻读** |                  |
-
-
-
-### 丢失更新(ABA)
-
-
-
-#### 回滚覆盖
-
-属于第一类丢失更新,**所有的数据库都不允许回滚覆盖**
-
-事务的回滚操作影响了另已提交的事务
-
-![img](image.assets/706730614.png)
 
 
 
@@ -2294,8 +2102,6 @@ InnoDB通过如下两种方式来判断一个事务是否为只读事务
 
 ## mini transaction
 
-
-
 保证并发事务下数据页中数据的一致性,主要用于redo / undo log写入
 
 
@@ -2393,7 +2199,7 @@ Lock-Based Concurrent Control	基于锁的并发控制
 - 读未提交（Read Uncommitted）：事务读不阻塞其他事务读和写，事务写阻塞其他事务写但不阻塞读；通过对写操作加 “持续X锁”，对读操作不加锁 实现
 - 读已提交（Read Committed）：事务读不会阻塞其他事务读和写，事务写会阻塞其他事务读和写；通过对写操作加 “持续X锁”，对读操作加 “临时S锁” 实现；不会出现脏读；
 - 可重复读（Repeatable Read）：事务读会阻塞其他事务事务写但不阻塞读，事务写会阻塞其他事务读和写；通过对写操作加 “持续X锁”，对读操作加 “持续S锁” 实现；
-- 序列化（Serializable）：为了解决幻读问题，行级锁做不到，需使用表级锁。
+- 序列化（Serializable）：为了解决幻读问题，行级锁做不到，需使用表级锁
 
 
 
@@ -2403,21 +2209,17 @@ Lock-Based Concurrent Control	基于锁的并发控制
 
 Multi-Version Concurrency Control 多版本并发控制
 
+对一份数据会存储多个版本,通过可见性来保证事务能看到自己应该看到的版本。通常会有一个全局的版本分配器来为每一行数据设置版本号
 
 
-==隐式字段 + undo日志 + Read View==
 
-访问版本链实现不加锁的并发读,只适用于RR和RC隔离级别的普通SELECT	RU总是读最新的行,串行化会加锁
+==隐式字段 + undo log + Read View==,只适用于RR和RC隔离级别的普通SELECT,RU总是读最新的行,串行化会加锁
 
 **修改的提交都不会直接覆盖，而是新老版本共存，使读取时不加锁**
 
 
 
 ==解决快照读的幻读==,[但无法完全避免](#幻读).除了这个案例,单纯的快照/当前读都不存在幻读
-
-==但快照/当前读混合使用,将无法避免幻读==
-
-
 
 
 
@@ -2433,7 +2235,7 @@ Multi-Version Concurrency Control 多版本并发控制
 
 
 
-### Purge
+### Purge线程
 
 1. MVCC的update/delete都只改动deleted_bit，在提交后由purge线程清理deleted记录
 2. 清除undo页中的无用信息
@@ -2445,8 +2247,6 @@ Multi-Version Concurrency Control 多版本并发控制
 ### 快照/当前读
 
 每个事务对同一张表/同一时刻,看到的数据可能不一致
-
-
 
 | 快照读                                                       | 当前读                           |
 | ------------------------------------------------------------ | -------------------------------- |
@@ -2607,11 +2407,7 @@ T = 2 * t2
 
 # Log
 
-
-
-日志的写入形式是顺序,循环的	logfile0写完从logfile1继续，logfile3写完则logfile0继续
-
-
+日志的写入形式是==顺序,循环==的	logfile0写完从logfile1继续，logfile3写完则logfile0继续
 
 ```shell
 innodb_max_undo_log_size#控制最大undo tablespace文件的大小，启动innodb_undo_log_truncate 时，undo tablespace 超过innodb_max_undo_log_size 阀值时才会尝试truncate。该值默认大小为1G，truncate后的大小默认为10M
@@ -2621,22 +2417,62 @@ innodb_undo_tablespaces	#undo的独立表空间个数,当DB写压力大时，通
 
 
 
+**为什么只有InnoDb记录了redo**
+
+Mysql的Server层并没有记录redo日志,redo是在引擎层实现的
+
+而引擎层是插件式的,只有InnoDb实现了redo.这也导致了存储引擎中只有InnoDb支持事务
+
+| Server层 | InnoDb存储引擎 |
+| -------- | -------------- |
+| binlog   | redo           |
+| relay    |                |
+| error    |                |
+| undo     |                |
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 一条DML语句记录的日志
+
 ![](image.assets/5652417-a5f90ca64ed10d4d.png)
 
 1. 原始数据从磁盘读入内存，修改数据的内存拷贝
-2. 生成重做日志写入redo log buffer，记录的数据被修改后的值
-3. 当事务commit时，将redo log buffer中的内容追加到 redo log file，对 redo log file采用追加写的方式
-4. 定期将内存中修改的数据刷新到磁盘
+
+2. 由多个[mini transaction](#mini transaction)将数据**修改后**的值写入mini-transaction**私有Buffer**中
+
+   所有mini-transaction结束后,将私有buffer写入**redo log buffer**
+
+4. **根据刷盘策略定期将Buffer写入Redo Log File**,这个过程是异步的,这也是mysql宕机时,redo file可能存在缺失的原因
+
+4. 所有sql执行完后,==redo进入prepare状态==,然后通知执行器提交事务
+
+   执行器记录binlog,==redo置为commit状态==,最后将整个事务提交
+
+5. 定期将内存中修改的数据刷新到磁盘
+
+
+
+## 数据恢复
 
 
 
 
 
-| Server | InnoDb存储引擎 专属 |
-| ------ | ------------------- |
-| binlog | undo                |
-| relay  | redo                |
-| error  |                     |
+
+
+
+
+
 
 
 
@@ -2658,14 +2494,6 @@ innodb_undo_tablespaces	#undo的独立表空间个数,当DB写压力大时，通
 
 
 
-
-
-
-
-
-
-
-
 <a name="doublewrite">DoubleWrite</a>
 
 InnoDB使用doublewrite的文件刷新技术。在之前，首先将它们写入称为 doublewrite 缓冲区的存储区域。仅在对双写缓冲区的写入和刷新完成之后，才将 **页** 写入 **数据文件** 。如果在页面写入过程中发生宕机，则可以在“崩溃恢复”期间从 doublewrite 缓冲区中找到该页面的良好副本
@@ -2676,11 +2504,11 @@ InnoDB使用doublewrite的文件刷新技术。在之前，首先将它们写入
 
 
 
-## bin
+## binlog
 
 记录表结构变更（CREATE、ALTER TABLE…）,数据修改（INSERT、UPDATE、DELETE…）,未命中的数据更改（不匹配任何行的DELETE）
 
-不记录不修改数据的SELECT/SHOW
+主要用于**主从同步的复制**, 所以SELECT/SHOW这一类不影响数据的sql,并不会被记录biglog
 
 **事务提交时一次性落盘**
 
@@ -2718,9 +2546,9 @@ binlog-format
 
 ## undo
 
-逻辑日志
+逻辑日志,**随机IO**
 
-维护数据修改前的值,保证==原子性==,undo log`默认存放`在`共享表空间`中。5.6+如果开启`innodb_file_per_table` ，将放在每个表的`.ibd`文件中	**随机IO**
+**记录相反的DML语句**,维护数据==修改前==的值,保证==原子性==,undo log`默认存放`在`共享表空间`中。5.6+如果开启`innodb_file_per_table` ，将放在每个表的`.ibd`文件中
 
 快照无需保存事务开启前行记录历史状态 -> 记录`相反的DML语句`,根据undo进行回滚，`非锁定一致性`读 -> ==MVCC==
 
@@ -2859,7 +2687,7 @@ update emp set sal = 4000 where empno = 02
 
 物理日志
 
-记录相反的DML语句,**顺序IO**,运行时对redo**只写不读**
+,**顺序IO**,运行时对redo**只写不读**
 
 
 
@@ -2880,83 +2708,6 @@ update emp set sal = 4000 where empno = 02
 [Force Log at commit](#ForceLogAtCommit) 提交前先将redo log buffer写入到redo log file进行持久化,然后调用[fsync](#fsync落盘方式);数据本身不需要在提交时完成持久化 -> ==持久性==
 
 [Write-Ahead Log](#WriteAheadLog) 在InnoDB的实现中，并不严格按照WAL规则，而是通过一种事务的序列编号LSN保证逻辑上的WAL
-
-
-
-
-
-### redo结构
-
-Innodb中各种不同的操作有着不同类型的重做日志，类型数量有几十种，但记录条目的基本格式可以如下表示：
-
-![img](image.assets/360077-20200103202310809-148368254.png)
-
-
-
-在存储结构上，redo log文件以block块来组织，每个block大小为512字节。每个文件的开头有一个2k大小的File Header区域用来保存一些控制信息，File Header之后就是连续的block。虽然每个redo log文件在头部划出了File Header区域，但实际存储信息的只有group中第一个redo log文件。
-
-![img](image.assets/360077-20200103202741021-1479399536.png)
-
- 
-
-当redo log实际由mtr（Mini transaction）产生时，首先位于mtr的cache，之后输出到redo log 缓冲区，再从缓冲区写入到磁盘。Log buffer与文件中的block大小对应，以512字节为单位对齐，一个mtr日志可能不足一个block，也可能跨block。
-
- 
-
-**File Header**
-File Header位于每个redo log文件的开始，大小为2k，格式如下：
-![img](image.assets/360077-20200103203032242-1722062623.png)
-
-
-
-log group中的第一个文件实际存储这些信息，其他文件仅保留了空间。在写入日志时，除了完成block部分，还要更新File Header里的信息，这些信息对Innodb引擎的恢复操作非常关键。
-
-
-
-**Block**
-一个block块有512字节大小，每块中还有块头和块尾，中间是日志本身。其中块头Block Header占有12字节大小，块尾Block Trailer占有4字节大小，中间实际的日志存储容量为496字节(512-12-4)：
-
-![img](image.assets/360077-20200103203319731-2109921920.png)
-
-
-
-
-LOG_BLOCK_HDR_NO
-在log buffer内部，可以看成是单位大小是512字节的log block组成的数组，LOG_BLOCK_HDR_NO就用来标记数组中的位置。其根据该块的LSN计算转换而来，递增且循环使用，占有4个字节，第一位用来判断是否flush bit，所以总容量是2G。(LSN在之后一段说明)
-
-LOG_BLOCK_HDR_DATA_LEN
-标识写入本block的日志长度，占有2个字节，当写满时用0X200表示，即有512字节。
-
-LOG_BLOCK_FIRST_REC_GROUP
-占有2个字节，记录本block中第一个记录的偏移量。如果该值与LOG_BLOCK_HDR_DATA_LEN
-相同，说明此block被单一记录占有，不包含新的日志。如果有新日志写入，LOG_BLOCK_FIRST_REC_GROUP就是新日志的位置。
-
-![img](image.assets/360077-20200103203502621-1542672235.png)图2.5
-
- 
-
-LOG_BLOCK_CHECKPOINT_NO
-占有4字节，记录该block最后被写入时检查点第4字节值。
-
-LOG_BLOCK_TRL_NO
-Block trailer中只由这1个部分组成。记录本block中的checksum值，与LOG_BLOCK_HDR_NO值相同。
-
- 
-
-**LSN**
-LSN是Log Sequence Number的缩写，占有8字节，单调递增，记录重做日志写入的字节总量，也表示日志序列号。
-
-LSN除了记录在redo日志中，还存于每个页中。页的头部有一个FIL_PAGE_LSN用于记录该页的LSN，反应的是页的当前版本。
-
-LSN同样也用于记录checkpoint的位置。使用SHOW ENGINE INNODB STATUS命令查看LSN情况时，Log sequence number是当前LSN，Log flushed up to 是刷新到重做日志文件的LSN，Last checkpoint at 是刷新到磁盘的LSN。
-
-由于LSN具有单调增长性，如果重做日志中的LSN大于当前页中LSN，说明页是滞后的，如果日志记录的LSN对应的事务已经提交，那么当前页需要重做恢复。
-如果页被新事务修改了，页中LSN记录的是新写入的结束点的LSN，大于重做日志中的LSN，那么当前页是新数据，是脏页。
-脏页根据提交情况可能需要加入flush list中，此时flush list上的所以脏页也是以LSN排序。
-
-写redo log时是追加写，需要保证写入顺序，或者说应保证LSN的有序。当并发写时可以通过加锁来控制顺序但效率低下，8.0中使用了无锁的方式完成并发写，mtr写时已经提前知道自己在log buffer上的区间位置，不必等待直接写入log buffer就可。这样大的LSN值可能先写到log buffer上，而小的LSN还没写入，即log buffer上有空洞。所以有一个单独的线程log_write，负责不断的扫描log buffer，检测新的连续内容并进行刷新，是真正的写线程
-
-
 
 
 
@@ -3129,7 +2880,7 @@ mysql路径/var/lib/mysql/下,ib_logfile0/1两个文件用于redo的持久化,�
 
 
 
-## IO影响
+### IO影响
 
 
 
@@ -3263,8 +3014,6 @@ Redo Log只进行顺序追加，事务回滚不删除Redo
 
 # Lock
 
-
-
 服务器在需要时自动创建/释放隐式锁,并传给存储引擎,由存储引擎自动转换为特定类型的锁
 
 
@@ -3321,7 +3070,7 @@ REPLACE INTO或者INSERT ON DUPLICATE
 ```mysql
 SELECT * FROM information_schema.INNODB_TRX;	#活跃事务
  
-SELECT * FROM information_schema.INNODB_LOCKs;	#当前锁
+SELECT * FROM information_schema.INNODB_LOCKs;	#查看阻塞住每个事务的锁
 lock_id：锁 ID。
 lock_trx_id：拥有锁的事务 ID。可以和 INNODB_TRX 表 JOIN 得到事务的详细信息。
 lock_mode：行级锁包括：S、X、IS、IX。表级锁包括：S_GAP、X_GAP、IS_GAP、IX_GAP 和 AUTO_INC
@@ -3618,7 +3367,7 @@ show variables like 'innodb_autoinc_lock_mode';	#查看自增锁模式
 
 lock_mode: X locks rec but not gap [ , ]
 
-==存储引擎层实现==,通过索引项加锁实现 -> ==走索引才行锁，不走索引则表锁==
+==只有InnoDb存储引擎层实现==,通过索引项加锁实现 -> ==走索引才行锁，不走索引则表锁==(即使走索引,优化器也有可能决定锁表)
 
 主键更新索引值时，首先锁住主键，然后检查二级索引是否冲突，如果无冲突就不对二级索引加锁
 
@@ -3742,23 +3491,31 @@ c1主键	c2二级索引
 
 ## next-key lock (,]
 
-LOCK_ORDINARY
+> A next-key lock is a combination of a record lock on the index record and a gap lock on the gap before the index record
 
-==查询专用==	行锁 + 行前间隙锁
+==查询专用==	行锁 + **行前**间隙锁
 
-每页一个锁对象，锁对象里有个位图，每位代表页内的一条记录，对记录加锁等同于置位。相当于是以页锁的位图来实现行级锁
+每页对应一个锁对象，锁对象里有个位图，每位代表页内的一条记录，对记录加锁等同于位图置位。相当于是以页锁的位图来实现行级锁
 
 相较于为每个记录创建锁对象，减少内存资源消耗
 
 
 
-唯一索引等值查询：索引项存在时，next-key lock退化为record lock -> [ , ]	索引项不存在时，默认next-key lock，访问到不满足条件的第一个值后next-key lock退化成grap lock -> ( , )
+==在RR的隔离级别下,优先会使用nk锁==,但会对nk锁进行优化,减少锁的范围
 
-唯一索引范围查询：默认 next-key lock，(特殊’<=’ 范围查询直到访问不满足条件的第一个值为止)
+1. 唯一索引等值查询
 
-非唯一索引等值查询：默认next-key lock，访问到不满足条件的第一个值后next-key lock退化成rap lock
+   索引项存在时: 退化为record lock -> 只锁一行数据
 
-非唯一索引范围查询：默认 next-key lock，向右访问到不满足条件的第一个值为止
+   索引项不存在时: 退化为grap lock -> ( , )
+
+2. 唯一索引范围查询: 退化为grap lock -> ( , )
+
+   **8.0-的bug:** 唯一索引的范围查询对最后一个不满足的记录也加锁, 导致实际加的是nk lock而不是grap
+
+3. 非唯一索引等值查询：默认next-key lock，访问到不满足条件的第一个值后next-key lock退化成grap lock
+
+4. 非唯一索引范围查询：默认 next-key lock，向右访问到不满足条件的第一个值为止
 
 
 
@@ -3852,21 +3609,17 @@ lock in share model 读锁，不回表则不会对聚簇索引(主键索引)加�
 
 ## Intention
 
-==支持InnoDB的多重粒度锁定,兼容行锁和表锁,申请意向锁由数据库内部实现==,外部应用无感知
+**意向锁只会阻塞表锁**,只在**添加行锁前**额外申请意向锁,加锁由mysql内部控制,外部应用无感知
+
+意向锁的出现兼容了Mysql的行锁和表锁,**避免锁表时,需要遍历检查是否存在行锁**
 
 
 
-行锁前申请意向锁,==意向锁只阻塞表级锁,与行锁不冲突==,后续**添加表锁时,若发现意向锁,则表锁阻塞** -> 使得表锁无需遍历行锁情况
-
-意向锁之间相互兼容(各个行级的读写锁都会申请意向锁,但不会互相阻塞)
+**意向锁之间相互兼容**(各个行级的读写锁都会申请意向锁,但不会互相阻塞)
 
 
 
 **存在意向锁,但可能对应的S/X锁已经释放或还未申请成功**
-
-
-
-
 
 
 
@@ -4045,7 +3798,7 @@ latch coupling 除了上面提到的从父节点到子节点遍历的情况，�
 ### 主键命中
 
 ```
-UPDATE students SET score = 100 WHERE id = 15;
+UPDATE student SET score = 100 WHERE id = 15;
 ```
 
 RR / RC 对主键索引的id=15行记录 排它锁
@@ -4055,7 +3808,7 @@ RR / RC 对主键索引的id=15行记录 排它锁
 ### 主键未命中
 
 ```
-UPDATE students SET score = 100 WHERE id = 16;
+UPDATE student SET score = 100 WHERE id = 16;
 ```
 
 RR (15,18)间隙锁
@@ -4067,32 +3820,31 @@ RC 不加锁
 ### 二级唯一命中
 
 ```
-UPDATE students SET score = 100 WHERE no = 'S0003';
+UPDATE student SET score = 100 WHERE no = 'S0003';
 ```
 
-RR / RC 二级索引的索引项加行锁,主键索引的行记录加排它锁
+RR / RC **二级索引+主键索引加行锁**. 通过在主键索引加锁,可以避免多个二级索引之间出现重复加锁的情况
 
-
-
-不需要在主键索引加锁,即使在加Gap后,主键索引插入了 no = 'S0003'的数据,MVCC也能够让这条数据不可见
-
-
+二级唯一索引命中时,==不加GAP锁==	索引项唯一 -> 不会幻读 -> 无需Gap
 
 
 
 ### 二级唯一未命中
 
-```
-UPDATE students SET score = 100 WHERE no = 'S0008';
+```mysql
+UPDATE student SET score = 100 WHERE no = 'S0008';
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE|LOCK_DATA             |
+----------+---------+---------+----------------------+
+          |TABLE    |IX       |                      |
+t_un      |RECORD   |X        |supremum pseudo-record|
 ```
 
-RR (50,[Supremum Record](##间隙锁))间隙锁
+RR (50,[Supremum Record](##间隙锁))间隙锁,不需要在主键索引加锁	当另一个事务插入no ='S0008'时,会先锁主键,再去检查二级索引,此时就被Gap阻塞
 
 RC 不加锁
 
-二级唯一索引未命中时,==不加GAP锁==	索引项唯一 -> 不会幻读 -> 无需Gap
 
-不需要在主键索引加锁	当另一个事务插入no = 'S0008'时,会先锁主键,再去检查二级索引,此时就被Gap阻塞
 
 ![](image.assets/1874377945.png)
 
@@ -4100,15 +3852,20 @@ RC 不加锁
 
 ### 二级非唯一命中
 
+```mysql
+UPDATE student SET score = 100 WHERE name = 'Tom';
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE    |LOCK_DATA             |
+----------+---------+-------------+----------------------+
+          |TABLE    |IX           |                      |
+t_name    |RECORD   |X            |supremum pseudo-record|
+t_name    |RECORD   |X            |'Tom', 37             |
+t_name    |RECORD   |X            |'Tom', 49             |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|37                    |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|49                    |
 ```
-UPDATE students SET score = 100 WHERE name = 'Tom';
-```
 
-RR [37],[49]行锁+行记录排它锁,(30,37),(37,49),(49,50)间隙锁
-
-RC [37],[49]行锁+行记录排它锁
-
-二级非唯一索引未命中时,==加Gap==
+二级索引加nk锁,聚簇索引加行锁
 
 ![](image.assets/412778305.png)
 
@@ -4116,37 +3873,58 @@ RC [37],[49]行锁+行记录排它锁
 
 ### 二级非唯一未命中
 
-```
-UPDATE students SET score = 100 WHERE name = 'John';
+```mysql
+UPDATE student SET score = 100 WHERE name = 'John';
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE|LOCK_DATA |
+----------+---------+---------+----------+
+          |TABLE    |IX       |          |
+t_name    |RECORD   |X,GAP    |'Rose', 50|
 ```
 
-RR (30,37)间隙锁
-
-RC 不加锁
+RR 加间隙锁	RC 不加锁
 
 
 
 ### 无索引
 
-```
-UPDATE students SET score = 100 WHERE score = 22;
+```mysql
+UPDATE student SET score = 100 WHERE score = 22;
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE|LOCK_DATA             |
+----------+---------+---------+----------------------+
+          |TABLE    |IX       |                      |
+PRIMARY   |RECORD   |X        |supremum pseudo-record|
+PRIMARY   |RECORD   |X        |15                    |
+PRIMARY   |RECORD   |X        |18                    |
+PRIMARY   |RECORD   |X        |30                    |
+PRIMARY   |RECORD   |X        |50                    |
+PRIMARY   |RECORD   |X        |20                    |
+PRIMARY   |RECORD   |X        |49                    |
+PRIMARY   |RECORD   |X        |37                    |
 ```
 
-RR 所有行记录排它锁,所有索引项NK锁
+RR 聚簇索引的所有索引项都加nk锁
 
-RC 所有行记录排它锁,所有索引项行锁
+RC 聚簇索引所有索引项行锁
 
 
 
 ### 主键范围查询
 
-```
-UPDATE students SET score = 100 WHERE id <= 20;
+```mysql
+UPDATE student SET score = 100 WHERE id <= 20;
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE|LOCK_DATA|
+----------+---------+---------+---------+
+          |TABLE    |IX       |         |
+PRIMARY   |RECORD   |X        |15       |
+PRIMARY   |RECORD   |X,GAP    |18       |
 ```
 
-RR 15,18,20 行记录排它锁,(Infimum Record,15],(18,20],[(20,30](#范围查询bug)]() NK锁	**范围查询第一个不满足项也会被加上 NK 锁**
+RR (Infimum Record,15],[(15,18)](#范围查询bug) NK锁	如果是8.0-,则为(15,18]
 
-RC 15,18,20 行记录排它锁+索引项行锁
+RC 15,18,20行锁
 
 ![](image.assets/4271695386.png)
 
@@ -4154,8 +3932,20 @@ RC 15,18,20 行记录排它锁+索引项行锁
 
 ### 二级索引范围查询
 
-```
-UPDATE students SET score = 100 WHERE age <= 23
+```mysql
+UPDATE student SET score = 100 WHERE age <= 23;
+
+INDEX_NAME|LOCK_TYPE|LOCK_MODE    |LOCK_DATA|
+----------+---------+-------------+---------+
+          |TABLE    |IX           |         |
+t_age     |RECORD   |X            |24, 18   |
+t_age     |RECORD   |X            |23, 30   |
+t_age     |RECORD   |X            |22, 37   |
+t_age     |RECORD   |X            |23, 50   |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|18       |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|30       |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|37       |
+PRIMARY   |RECORD   |X,REC_NOT_GAP|50       |
 ```
 
 RR 22,23,23 行记录排它锁,(Infimum Record,22],(22,23],(23,23],(23,24] NK锁	**范围条件是 id <= N，则N后一条记录也会被加上 NK 锁**
@@ -4172,12 +3962,12 @@ RC 22,23,23 行记录排它锁+索引项行锁
 
 修改将同时对原值和新值加锁
 
-UPDATE students SET name = 'John' WHERE id = 15 不仅在 id = 15 记录上加锁之外，还会在 name = 'Bob'（原值）和 name = 'John'（新值） 上加锁
+UPDATE student SET name = 'John' WHERE id = 15 不仅在 id = 15 记录上加锁之外，还会在 name = 'Bob'（原值）和 name = 'John'（新值） 上加锁
 
 
 
 ```mysql
-UPDATE students SET name = 'John' WHERE id = 15;
+UPDATE student SET name = 'John' WHERE id = 15;
 #此处走主键索引,先对主键索引上锁,再检查对应的二级索引上是否存在锁冲突
 ```
 
@@ -4192,7 +3982,7 @@ UPDATE students SET name = 'John' WHERE id = 15;
 当SQL包含多个条件时，需要分析使用了哪个索引
 
 ```
-mysql> DELETE FROM students WHERE name = 'Tom' AND age = 22;
+mysql> DELETE FROM student WHERE name = 'Tom' AND age = 22;
 ```
 
 其中 name 和 age 两个字段都是索引，锁只会加在用于查询的索引Index Key上,非索引谓词起到过滤行Table Filter的作用
@@ -4202,7 +3992,7 @@ mysql> DELETE FROM students WHERE name = 'Tom' AND age = 22;
 Index Key 又分为 First Key 和 Last Key，如果 Index Key 是范围查询的话，如下面的例子：
 
 ```
-mysql> DELETE FROM students WHERE name = 'Tom' AND age > 22 AND age < 25;
+mysql> DELETE FROM student WHERE name = 'Tom' AND age > 22 AND age < 25;
 ```
 
 其中 First Key 为 age > 22，Last Key 为 age < 25
@@ -4295,7 +4085,7 @@ DELETE并没有直接删除记录，而在隐藏字段进行删除标记，通�
 
 
 ```
-insert into students(no, name, age, score) value('S0008', 'John', 26, 87);
+insert into student(no, name, age, score) value('S0008', 'John', 26, 87);
 ```
 
 用 `show engine innodb status\G` 查询事务的锁情况：
@@ -4425,7 +4215,7 @@ replace into 首先尝试插入数据到表中
 MySQL Server 根据 WHERE 条件读取的第一条满足条件的记录，然后 InnoDB 引擎会将第一条记录返回并加锁（current read），待 MySQL Server 收到这条加锁的记录之后，会再发起一个 UPDATE 请求，更新这条记录。一条记录操作完成，再读取下一条记录，直至没有满足条件的记录为止。因此，==批量加锁是一条条进行的==
 
 ```mysql
-update students set level = 3 where score >= 60;
+update student set level = 3 where score >= 60;
 ```
 
 ![innodb-locks-multi-lines.png](image.assets/201797556.png)
@@ -4470,23 +4260,6 @@ VALUES
 | select * from user3 where name = '555' for update; | begin;                                                       |
 |                                                    | insert user3 values (31,'556','556');                        |
 |                                                    | ERROR 1205 (HY000): Lock wait timeout exceeded; try restarting transaction |
-
-
-
-mysql> select * from information_schema.INNODB_LOCKS;
-+----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
-| lock_id        | lock_trx_id | lock_mode | lock_type | lock_table       | lock_index | lock_space | lock_page | lock_rec | lock_data |
-+----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
-| 111661:284:4:4 | 111661      | X,GAP     | RECORD    | `sakila`.`user3` | idx_name   |        284 |         4 |        4 | '999', 30 |
-| 111658:284:4:4 | 111658      | X,GAP     | RECORD    | `sakila`.`user3` | idx_name   |        284 |         4 |        4 | '999', 30 |
-+----------------+-------------+-----------+-----------+------------------+------------+------------+-----------+----------+-----------+
-
-mysql> SELECT * FROM information_schema.INNODB_LOCK_waits;
-+-------------------+-------------------+-----------------+------------------+
-| requesting_trx_id | requested_lock_id | blocking_trx_id | blocking_lock_id |
-+-------------------+-------------------+-----------------+------------------+
-| 111661            | 111661:284:4:4    | 111658          | 111658:284:4:4   |
-+-------------------+-------------------+-----------------+------------------+
 
 
 
