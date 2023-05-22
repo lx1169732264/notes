@@ -58,25 +58,43 @@ API Gateway 是一个服务器，也是进入系统的唯一节点。这跟面�
 
 
 
+# Spring包含的模块
 
 
 
+![](image.assets/20200902100038.png)
 
 
 
+## Core Container
 
+Spring 框架的核心模块，也可以说是基础模块，主要提供 IoC 依赖注入功能的支持。Spring 其他所有的功能基本都需要依赖于该模块，我们从上面那张 Spring 各个模块的依赖关系图就可以看出来。
 
+- **spring-core**：Spring 框架基本的核心工具类。
+- **spring-beans**：提供对 bean 的创建、配置和管理等功能的支持。
+- **spring-context**：提供对国际化、事件传播、资源加载等功能的支持。
+- **spring-expression**：提供对表达式语言（Spring Expression Language） SpEL 的支持，只依赖于 core 模块，不依赖于其他模块，可以单独使用。
 
+## AOP
 
+- **spring-aspects**：该模块为与 AspectJ 的集成提供支持。
+- **spring-aop**：提供了面向切面的编程实现。
+- **spring-instrument**：提供了为 JVM 添加代理（agent）的功能。 具体来讲，它为 Tomcat 提供了一个织入代理，能够为 Tomcat 传递类文 件，就像这些文件是被类加载器加载的一样。没有理解也没关系，这个模块的使用场景非常有限。
 
+## Data Access/Integration
 
+- **spring-jdbc**：提供了对数据库访问的抽象 JDBC。不同的数据库都有自己独立的 API 用于操作数据库，而 Java 程序只需要和 JDBC API 交互，这样就屏蔽了数据库的影响。
+- **spring-tx**：提供对事务的支持。
+- **spring-orm**：提供对 Hibernate、JPA、iBatis 等 ORM 框架的支持。
+- **spring-oxm**：提供一个抽象层支撑 OXM(Object-to-XML-Mapping)，例如：JAXB、Castor、XMLBeans、JiBX 和 XStream 等。
+- **spring-jms** : 消息服务。自 Spring Framework 4.1 以后，它还提供了对 spring-messaging 模块的继承。
 
+## Spring Web
 
-
-
-
-
-
+- **spring-web**：对 Web 功能的实现提供一些最基础的支持。
+- **spring-webmvc**：提供对 Spring MVC 的实现。
+- **spring-websocket**：提供了对 WebSocket 的支持，WebSocket 可以让客户端和服务端进行双向通信。
+- **spring-webflux**：提供对 WebFlux 的支持。WebFlux 是 Spring Framework 5.0 中引入的新的响应式框架。与 Spring MVC 不同，它不需要 Servlet API，是完全异步
 
 
 
@@ -998,24 +1016,6 @@ public class AppConfig{
 
 
 
-==为什么声明bean不推荐用@Component==
-
-将上面的@Configuration替换为@Component,bean依然能被注册到容器中
-
-但@Component配置类中,声明bean的方法`myBean`可能被**显式调用**,导致bean的**单例被破坏**
-
-@Configuraton注解底层是通过==cglib代理==去实现@Bean方法不被用户显式调用,bean只会被实例化一次
-
-
-
-
-
-
-
-
-
-
-
 2. 配合**@ComponentScan进行组件扫描**
 
 ```java
@@ -1072,7 +1072,13 @@ public class xxx {
 
 
 
+==为什么声明bean不推荐用@Component==
 
+将上面的@Configuration替换为@Component,bean依然能被注册到容器中
+
+但@Component配置类中,声明bean的方法`myBean`可能被**显式调用**,导致bean的**单例被破坏**
+
+@Configuraton注解底层是通过==cglib代理==去实现@Bean方法不被用户显式调用,bean只会被实例化一次
 
 
 
@@ -1139,6 +1145,8 @@ public class xxx {
 
 
 
+![](image.assets/b5d264565657a5395c2781081a7483e1.jpg)
+
 
 
 ### 创建前准备
@@ -1149,9 +1157,8 @@ public class xxx {
 2. BeanFactoryPostProcessor.postProcessBeanFactory()
 3. 实例化BeanPostProcessor   bean后置处理器
 4. 实例化InstantiationAwareBeanPostProcessorAdapter实现类   实例化感知的bean后置处理器
-5. InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation()
 
-
+5. 收集Bean的定义,统一转换为BeanDefinition
 
 
 
@@ -1159,7 +1166,10 @@ public class xxx {
 
 通过反射来创建Bean的实例对象，并且扫描和解析Bean声明的一些属性
 
-1. 执行InstantiationAwareBeanPostProcessor.postProcessProperties()
+1. `populateBean`调用set属性赋值
+2. InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation() 前置处理器
+3. `invokeAllAwareMethods`调用**Aware**接口的实现类,设置对象的容器属性
+4. InstantiationAwareBeanPostProcessor.postProcessAfterInstantiation() 后置处理器
 
 
 
@@ -1188,8 +1198,8 @@ Bean保存到IoC容器中缓存起来,此时bean才能被开发者使用
 
 完成Spring应用上下文关闭时，将销毁Spring上下文中所有的Bean
 
-1. 调用bean的`destroy-method`   ==@PreDestory==
-2. DisposableBean.destroy()
+1. DisposableBean.destroy()
+2. 调用bean的`destroy-method`   ==@PreDestory==
 
 
 
@@ -1396,6 +1406,46 @@ ApplicationContext的优缺点：
 
 
 
+## BeanDefinition
+
+
+
+
+
+## BeanFactory
+
+
+
+> The root interface for accessing a Spring bean container
+>
+> 访问spring容器的根接口,applicationContext也实现了beanFactory
+>
+> 
+>
+> Bean factory implementations should support the standard bean lifecycle interfaces, as far as possible. The full set of initialization methods and their standard order is
+>
+> 实现类需要支持标准化的bean生命周期接口,
+>
+>  * <li>BeanNameAware's {@code setBeanName}
+>  * <li>BeanClassLoaderAware's {@code setBeanClassLoader}
+>  * <li>BeanFactoryAware's {@code setBeanFactory}
+>  * <li>EnvironmentAware's {@code setEnvironment}
+>  * <li>EmbeddedValueResolverAware's {@code setEmbeddedValueResolver}
+>  * <li>ResourceLoaderAware's {@code setResourceLoader}
+>  * (only applicable when running in an application context)
+>  * <li>ApplicationEventPublisherAware's {@code setApplicationEventPublisher}
+>  * (only applicable when running in an application context)
+>  * <li>MessageSourceAware's {@code setMessageSource}
+>  * (only applicable when running in an application context)
+>  * <li>ApplicationContextAware's {@code setApplicationContext}
+>  * (only applicable when running in an application context)
+>  * <li>ServletContextAware's {@code setServletContext}
+>  * (only applicable when running in a web application context)
+>  * <li>{@code postProcessBeforeInitialization} methods of BeanPostProcessors
+>  * <li>InitializingBean's {@code afterPropertiesSet}
+>  * <li>a custom init-method definition
+>  * <li>{@code postProcessAfterInitialization} methods of BeanPostProcessors
+
 
 
 
@@ -1436,6 +1486,22 @@ ApplicationContext的优缺点：
 
 
 
+## 核心组件
+
+- **`DispatcherServlet`**：**核心的中央处理器**，负责接收请求、分发，并给予客户端响应。
+- **`HandlerMapping`**：**处理器映射器**，根据 uri 去匹配查找能处理的 `Handler` ，并会将请求涉及到的拦截器和 `Handler` 一起封装。
+- **`HandlerAdapter`**：**处理器适配器**，根据 `HandlerMapping` 找到的 `Handler` ，适配执行对应的 `Handler`；
+- **`Handler`**：**请求处理器**，处理实际请求的处理器。
+- **`ViewResolver`**：**视图解析器**，根据 `Handler` 返回的逻辑视图 / 视图，解析并渲染真正的视图，并传递给 `DispatcherServlet` 响应客户端
+
+
+
+
+
+
+
+
+
 ## 常用注解
 
 @Controller @RequestMapping @ResponseBody @RequestBody @PathVariable @RestController
@@ -1472,10 +1538,10 @@ ApplicationContext的优缺点：
 
 # Spring设计模式
 
-- **工厂模式** : BeanFactory 可以通过ApplicationContext 创建 bean 对象
+- **工厂模式** : BeanFactory / ApplicationContext 创建 bean 对象
 - **代理设计模式** : AOP有两种方式`JdkDynamicAopProxy`和`Cglib2AopProxy`
 - **单例设计模式** : Bean 默认单例
-- **模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式
+- **模板方法模式** : `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类
 - **包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源
 - **观察者模式:** Spring 事件驱动模型
 - **适配器模式** : MVC HandlerAdapter

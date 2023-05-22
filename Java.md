@@ -9225,10 +9225,6 @@ loader1变量和obj变量 间接引用 代表Sample类的class对象，而objCla
 
 
 
-==浮点类型不能用====进行比较
-
-
-
 因为java是强类型语言,void也有对应的类Void,并且被final修饰,表示不可被继承;构造方法私有,表示不能在堆上分配空间,是一开始就在栈中分配好了空间
 
 
@@ -9259,6 +9255,33 @@ float f =(float)3.4	或 float f =3.4F		//正确
 char型是用来存储**Unicode编码**的字符,且只用两个字节,这也意味着char无法代表所有字符,例如不在Unicode编码中的特殊汉字
 
 JVM内部使用UTF-16编码。char将被无视编码地转化为**UTF-16**,
+
+
+
+### float精度问题
+
+标准的浮点数可以通过32位单精度浮点数或者64位的双精度浮点数保证**有限的精度**
+
+浮点数的精度损失是由于不同进制的数据转换导致的,十进制中的0.1,0.2无法用**有限的**二进制来表示,这些精度的误差会在累加之后不断放大
+
+如果要实现0.1+0.2=0.3,可以考虑用更高精度的数据类型(decimal)
+
+```js
+> 0.1 + 0.2
+0.30000000000000004
+> 0.3
+0.3
+```
+
+![](image.assets/2020-04-22-15874875025859-decimal-to-binary.png)
+
+
+
+
+
+
+
+
 
 
 
@@ -9618,7 +9641,24 @@ public native String intern();
 
 ### BigDecimal
 
-针对浮点类型运算,创建BigDecimal的入参为string,避免精度丢失
+BigDecimal提供了无限精度的小数,包含三个关键的成员变量
+
+intVal 整数部分
+
+scale 小数的位数
+
+precision 全部的有效位数(整数位数+小数位数)
+
+```java
+public class BigDecimal extends Number implements Comparable<BigDecimal> {
+    private BigInteger intVal;
+    private int scale;
+    private int precision = 0;
+    ...
+}
+```
+
+
 
 
 

@@ -2,7 +2,7 @@
 
 
 
-安装gcc 
+安装gcc
 
 ```
 yum install gcc-c++ 
@@ -62,6 +62,8 @@ ls
 ```
 which redis-server
 ```
+
+
 
 ## 启动
 
@@ -225,56 +227,29 @@ aof-load-truncated yes
 
 
 
-# Redis的线程
+# Redis线程模型
 
-`Redis`的**网络`IO`**和**键值对读写**是由一个线程来完成的，这也是`Redis`对外提供键值存储服务的主要流程。但`Redis`的其他功能，比如**持久化、异步删除、集群数据同步**等，其实是由额外的线程执行的单线程
+Redis的**网络IO和键值对读写**是由一个线程来完成的，这也是Redis对外提供的主要服务. Redis 通过**IO 多路复用** 来监听来自客户端的大量连接,这让Redis不需要额外创建多余的线程来监听客户端的连接，降低了资源消耗
 
+由于redis并不区分读/写的线程,在高并发环境下进行大数据(IO读写时间长)的操作时,性能会急剧下降
 
-
-1. 单线程编程容易并且更容易维护
-2. 基于内存,省去了cpu将数据从磁盘复制到内存的时间,这使得CPU不是Redis的瓶颈，**Redis的瓶颈是内存/网络带宽**
-3. 单**避免多余的上下文切换和竞争**，不存在加解锁，不存在死锁
+`Redis`的其他功能，比如**持久化、异步删除、集群数据同步**等，其实是由额外的线程执行的
 
 
 
-**Redis6.0 在网络IO耗时操作引入多线程,**执行命令仍然是单线程顺序执行。因此**不需要担心线程安全**
+1. 单线程编程更容易维护
+2. 单线程模型并不意味着程序不能并发地处理任务,Redis使用**I/O复用**机制并发处理客户端的请求
+3. 基于内存,省去了cpu将数据从磁盘复制到内存的时间,**Redis的性能瓶颈是内存/网络带宽**,多线程并不能显著地提升redis的速度,反而会带来**多余的上下文切换和竞争**，死锁等问题
 
 
 
-==多路I/O复用模型，非阻塞IO==,**“多路”指多个网络连接，“复用”指的是复用同一线程**
+Redis在新版本中加入了一些**异步处理的删除操作**
+
+1. 异步删除指令 `UNLINK`、`FLUSHALL ASYNC` 和 `FLUSHDB ASYNC`,适用于删除超大键值对时,不会在释放内存上消耗过多的时间.对于其他操作依然是单线程执行的
+2. 多线程将客户端的数据包反序列化为redis内部模块可以执行的命令
+3. 多线程将执行结果发送回客户端
 
 
-
-
-
-## 单线程模型详解
-
-**Redis 基于 Reactor 模式来设计开发了一套高效的事件处理模型**,这套事件处理模型对应的是 Redis 中的文件事件处理器（file event handler）。由于文件事件处理器（file event handler）是单线程方式运行的，所以我们一般都说 Redis 是单线程模型
-
-**既然是单线程，那怎么监听大量的客户端连接呢？**
-
-Redis 通过**IO 多路复用** 来监听来自客户端的大量连接（socket），它会将感兴趣的事件及类型(读、写）注册到内核中并监听每个事件是否发生
-
-这样的好处非常明显： **I/O 多路复用技术的使用让 Redis 不需要额外创建多余的线程来监听客户端的大量连接，降低了资源的消耗**
-
-另外， Redis 服务器是一个事件驱动程序，服务器需要处理两类事件：1. 文件事件; 2. 时间事件。
-
-时间事件不需要多花时间了解，使用最多的还是 **文件事件**（客户端进行读取写入等操作，涉及一系列网络通信）
-
-
-
-> 当被监听的套接字准备好执行连接应答（accept）、读取（read）、写入（write）、关闭（close）等操作时，与操作相对应的文件事件就会产生，这时文件事件处理器就会调用套接字关联好的事件处理器来处理事件
->
-> **虽然文件事件处理器以单线程方式运行，但通过使用 I/O 多路复用程序来监听多个套接字**，文件事件处理器既实现了高性能的网络通信模型，又可以很好地与 Redis 服务器中其他同样以单线程方式运行的模块进行对接，这保持了 Redis 内部单线程设计的简单性
-
-可以看出，文件事件处理器主要是包含 4 个部分：
-
-- 多个 socket（客户端连接）
-- IO 多路复用程序（支持多个客户端连接的关键）
-- 文件事件分派器（将 socket 关联到相应的事件处理器）
-- 事件处理器（连接应答处理器、命令请求处理器、命令回复处理器）
-
-![](image.assets/redis事件处理器.png)
 
 
 
@@ -308,11 +283,15 @@ Flushall	清空全部库
   * pexpireat key millisecondsTimestamp：某个时间戳（毫秒）之后过期；
   * persist key 	删除过期时间
   * ttl key 		查看还有多少秒过期，-1永不过期，-2已过期
-  * monitor      实时监听并返回redis服务器接收到的所有请求信息。
+  * monitor      实时监听并返回redis服务器接收到的所有请求信息
   
   
 
 ## 底层数据结构
+
+![](image.assets/v2-f79a11556c6a2f103ef7705c38fe2716_720w.webp)
+
+
 
 redis的键值对也是用全局哈希表来存储的,在数据量过大时,也会存在hash冲突和rehash的问题
 
@@ -390,7 +369,7 @@ redis有两个全局哈希表,在表1触发rehash时:
 
 
 
-![](image.assets/v2-f79a11556c6a2f103ef7705c38fe2716_720w.webp)
+
 
 
 
@@ -400,147 +379,178 @@ redis的string是二进制安全的,可以包含任何数据。如**数字，字
 
 
 
-* getrange name 0 -1 		字符串分割  0 -1是全部	其中-1等价于n-1,即末尾下标.
-* getset name new_value 修改key对应值，返回旧值
-* mset k1 v1 k2 v2 		批量设置
-* mget key1 key2 批量获取
-
-* setrange key index value 从index开始替换value
-
-* incr age 递增
-* incrby age 10 递增
-
-* decr age 递减
-* decrby age 10 递减
-
-* incrbyfloat 增减浮点数
-* append 追加(智能分配内存,每次2倍)
-
-* strlen 长度
-* object encoding key  得到key 的类型  string里面有三种编码
-  * int	能够用64位有符号整数表示的字符串
-  * embstr 长度<=39字节的字符串，性能高
-  * raw  用于>=39字节的
+| 命令                           | 介绍                             |
+| ------------------------------ | -------------------------------- |
+| SETNX key value                | 只有在 key 不存在时设置 key 的值 |
+| MSET key1 value1 key2 value2 … | 设置一个或多个指定 key 的值      |
+| MGET key1 key2 ...             | 获取一个或多个指定 key 的值      |
+| STRLEN key                     | 返回 key 所储存的字符串值的长度  |
+| INCR key                       | 将 key 中储存的数字值增一        |
+| DECR key                       | 将 key 中储存的数字值减一        |
+| EXISTS key                     | 判断指定 key 是否存在            |
 
 
 
-## list
+**计数器** `SET`、`GET`、 `INCR`、`DECR`
 
-类似双向链表
-
-
-
-|                                  |                                                              |
-| -------------------------------- | ------------------------------------------------------------ |
-| LPUSH KEY_NAME v1 v2             | 插入列表头部                                                 |
-| BLPUSH                           | 阻塞地插入                                                   |
-| LPOP                             | 弹出第一个元素                                               |
-| linsert KEY_NAME before/after v1 | 在元素前或后插入元素。 当元素不存在或空列表时，不执行任何操作 |
-| LSET key index value             | 指定下标赋值                                                 |
+**分布式锁** `SETNX key value`
 
 
 
-* lrange mylist 0 -1  取出数据集合  0 -1取出所有      0  1取第一个和第二个
-  * 可以用lrange实现分页
-* llen mylist 长度
-* lrem mylist count value 删除
 
-  * count > 0 : 头->尾搜索，移除COUNT个等于VALUE的元素
-  * count < 0 : 尾->头搜索
-  * count = 0 : 移除所有与 VALUE 相等的值。
-* ltrim mylist 0 4    修剪(trim)，不在指定区间之内的元素都将被删除
-  * Java分割是左闭右开,redis是左右闭
-* rpoplpush list list2
-  *  移除列表的最后一个元素，并将该元素添加到另一个列表并返回。
+
+## List
+
+双向链表,list并没有提供`exist`,如果要判断元素是否存在,必须用set
 
 
 
-## hash
+![](image.assets/redis-list.png)
 
-==字段和值必须是字符串==
-
-
-
-- 存储、读取、修改用户属性
-
-
-
-```shell
-    hset myhash name cxx
-         |--字段已经存在，旧值将被覆盖
-    hmget myhash       批量获取
-    hgetall myhash     获取所有
-    hexists myhash name        是否存在
-    hincrby myhash id 1        按1递增
-    hdel myhash name           删除
-    hkeys myhash       只取key
-    hvals myhash       只取value
-    hlen myhash        长度
-```
+| 命令                         | 介绍                                    |
+| ---------------------------- | --------------------------------------- |
+| LPUSH key value1 value2 ...  | 插入列表头部n个元素                     |
+| BLPUSH key value1 value2 ... | 阻塞地插入                              |
+| LPOP                         | 弹出第一个元素                          |
+| LSET key index value         | 指定下标赋值                            |
+| LLEN key                     | 获取列表元素数量                        |
+| lrange key index1 index2     | **分页**取出数据集合,index2=-1时,取所有 |
 
 
 
-## set
+**消息队列** `lpush` + `rpop`
+
+**栈** `lpush` + `lpop`
+
+**最新动态** `lpush` + `lrange`
 
 
 
-```shell
-    sadd myset redis   添加
-    smembers myset     获取所有
-    srem myset set1    删除
-    sismember myset set1 判断是否存在
-    scard key_name     长度
-    sdiff | sinter | sunion    #差|交|并集
-    srandmember 随机获取集合中的元素
-    spop 从集合中弹出一个元素
-```
+## Hash
+
+string类型的键值对映射表 -> ==字段和值必须是字符串==
+
+比较适合存储json,后续可以直接修改指定字段的值
 
 
 
-## zset
+| 命令                                      | 介绍                                                     |
+| ----------------------------------------- | -------------------------------------------------------- |
+| HSET key **field** value                  | 设置指定哈希表中指定字段的值                             |
+| HMSET key field1 value1 field2 value2 ... | 同时将一个或多个 field-value (域-值)对设置到指定哈希表中 |
+| HGET key field                            | 获取指定哈希表中指定字段的值                             |
+| HMGET key field1 field2 ...               | 获取指定哈希表中一个或者多个指定字段的值                 |
+| HGETALL key                               | 获取指定哈希表中所有的键值对                             |
+| HEXISTS key field                         | 查看指定哈希表中指定的字段是否存在                       |
+| HDEL key field1 field2 ...                | 删除一个或多个哈希表字段                                 |
+| HLEN key                                  | 获取指定哈希表中字段的数量                               |
+| HINCRBY key field increment               | 对指定哈希中的指定字段做运算操作（正数为加，负数为减）   |
 
 
 
-Zset增加了一个**权重参数score**，实现有序排列
+## Set
 
 
 
-```shell
-zadd zset 1 one
-zincrby zset 1 one 增长分数
-zscore zset two 获取分数
-zrange zset 0 -1 withscores 范围值
-zrangebyscore zset 10 25 withscores 指定范围的值
-zrangebyscore zset 10 25 withscores limit 1 2 分页
-Zrevrangebyscore zset 10 25 withscores 指定范围的值
-zcard zset 元素数量
-Zcount zset 获得指定分数范围内的元素个数
-Zrem zset one two 删除一个或多个元素
-Zremrangebyrank zset 0 1 按照排名范围删除元素
-Zremrangebyscore zset 0 1 按照分数范围删除元素
-Zrank zset 0 -1 分数最小的元素排名为0
-Zrevrank zset 0 -1 分数最大的元素排名为0
-```
+| 命令                                  | 介绍                                       |
+| ------------------------------------- | ------------------------------------------ |
+| SADD key member1 member2 ...          | 向指定集合添加一个或多个元素               |
+| SMEMBERS key                          | 获取指定集合中的所有元素                   |
+| SCARD key                             | 获取指定集合的元素数量                     |
+| **SISMEMBER** key member              | 判断指定元素是否在指定集合中               |
+| **SINTER** key1 key2 ...              | **交集**                                   |
+| SINTERSTORE destination key1 key2 ... | 将给定所有集合的交集存储在 destination 中  |
+| **SUNION** key1 key2 ...              | **并集**                                   |
+| SUNIONSTORE destination key1 key2 ... | 将给定所有集合的并集存储在 destination 中  |
+| **好友推荐（差集）** key1 key2 ...    | **差集**                                   |
+| SDIFFSTORE destination key1 key2 ...  | 将给定所有集合的差集存储在 destination 中  |
+| SPOP key count                        | **随机**移除并获取指定集合中一个或多个元素 |
+| SRANDMEMBER key count                 | **随机**获取指定集合中指定数量的元素       |
 
 
+
+**网站UV统计** `SCARD`
+
+**共同好友(交集)** `SINTER`
+
+**好友推荐（差集）** `好友推荐（差集）`
+
+**抽奖(随机)** `SPOP` `SRANDMEMBER`
+
+
+
+## Zset
+
+Zset增加了一个**权重参数score**，实现有序排列,还支持通过score范围获取元素
+
+
+
+| 命令                                          | 介绍                                                         |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| ZADD key score1 member1 score2 member2 ...    | 向指定有序集合添加一个或多个元素                             |
+| ZCARD KEY                                     | 获取指定有序集合的元素数量                                   |
+| ZSCORE key member                             | 获取指定有序集合中指定元素的 score 值                        |
+| ZINTERSTORE destination numkeys key1 key2 ... | 将给定所有有序集合的交集存储在 destination 中，对相同元素对应的 score 值进行 SUM 聚合操作，numkeys 为集合数量 |
+| ZUNIONSTORE destination numkeys key1 key2 ... | 求并集，其它和 ZINTERSTORE 类似                              |
+| ZDIFFSTORE destination numkeys key1 key2 ...  | 求差集，其它和 ZINTERSTORE 类似                              |
+| **ZRANGE** key start end                      | 获取指定有序集合 start 和 end 之间的元素（score 从低到高）   |
+| ZREVRANGE key start end                       | 获取指定有序集合 start 和 end 之间的元素（score 从高到底）   |
+| ZREVRANK key member                           | 获取指定有序集合中指定元素的排名(score 从大到小排序)         |
+
+**微信步数排行榜 / 优先级队列** `ZREVRANGE`
 
 
 
 ## bitmap
 
-
-
-```shell
-setbit key offset value #当offset超过位图长度,会触发扩容,key对应的位图不存在,会新建位图
-getbit key offset
-bitcount key start end #统计start-end之间1的个数
-bitop and key1 key2 #位运算 and:与 or:或 not:取反 xor:异或
-
-
-```
+存储连续的01二进制数组,每个元素的下标叫做 offset（偏移量）
 
 
 
+| 命令                                  | 介绍                                                         |
+| ------------------------------------- | ------------------------------------------------------------ |
+| SETBIT key offset value               | 当offset超过位图长度,会触发扩容                              |
+| GETBIT key offset                     |                                                              |
+| BITCOUNT key start end                | 获取[start,end]之间值为1的元素个数                           |
+| BITOP operation destkey key1 key2 ... | 对一个或多个 Bitmap 进行运算，可用运算符有 AND, OR, XOR 以及 NOT |
+
+
+
+**用户签到** `SETBIT`
+
+**签到统计** `BITCOUNT`
+
+
+
+### HyperLogLog
+
+基数计数概率算法,能够**预估**元素的数量,标准误差为0.81%
+
+
+
+| 命令                                      | 介绍                                                         |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| PFADD key element1 element2 ...           | 添加一个或多个元素到 HyperLogLog 中                          |
+| PFCOUNT key1 key2                         | 获取一个或者多个 HyperLogLog 的唯一计数                      |
+| PFMERGE destkey sourcekey1 sourcekey2 ... | 将多个 HyperLogLog 合并到 destkey 中，destkey 会结合多个源，算出对应的唯一计数 |
+
+**每日访问ip数统计 / 帖子uv统计** `PFADD` `PFCOUNT`
+
+
+
+## Geospatial index
+
+地理空间索引，简称 GEO，基于 Sorted Set 实现
+
+
+
+| 命令                                             | 介绍                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| GEOADD key longitude1 latitude1 member1 ...      | 添加一个或多个元素对应的经纬度信息到 GEO 中                  |
+| GEOPOS key member1 member2 ...                   | 返回给定元素的经纬度信息                                     |
+| GEODIST key member1 member2 M/KM/FT/MI           | 返回两个给定元素之间的距离                                   |
+| GEORADIUS key longitude latitude radius distance | 获取指定位置附近 distance 范围内的其他元素，支持 ASC(由近到远)、DESC（由远到近）、Count(数量) 等参数 |
+| GEORADIUSBYMEMBER key member radius distance     | 类似于 GEORADIUS 命令，只是参照的中心点是 GEO 中的元素       |
 
 
 
@@ -549,13 +559,6 @@ bitop and key1 key2 #位运算 and:与 or:或 not:取反 xor:异或
 
 
 
-
-
-
-
-
-
-# 统计模式
 
 
 
@@ -572,6 +575,16 @@ bitop and key1 key2 #位运算 and:与 or:或 not:取反 xor:异或
 ## RDB
 
 Redis DataBase  存储数据==快照==
+
+```shell
+#second秒内,changes个keys发生改变则保存一次
+save <seconds> <changes>
+    save 900 1
+    save 300 10
+    save 60 10000
+```
+
+
 
 
 
@@ -593,25 +606,35 @@ Redis DataBase  存储数据==快照==
 
 
 
-### save配置项
+### 创建RDB文件
 
-> #second秒内,changes个keys发生改变则保存一次
-> save <seconds> <changes>
->        save 900 1
->        save 300 10
->        save 60 10000
+1. `BGSAVE`
 
+Redis会**fork**出一个==子进程==(注意这里不是子线程),然后子进程负责将快照写入硬盘，而父进程则继续处理命令请求
 
+2. `SAVE`
 
-### BGSAVE命令
-
-客户端向Redis发送**BGSAVE命令**(Windows不支持)创建快照，Redis会调用fork来创建一个子进程，然后子进程负责将快照写入硬盘，而父进程则继续处理命令请求
+主线程**阻塞**地创建快照文件. 通常只会在没有足够内存去执行BGSAVE命令的情况下，又或者即使等待持久化操作执行完毕也无所谓的情况下，才会使用这个命令
 
 
 
-### SAVE命令
+### fork
 
-客户端向Redis发送 **SAVE命令** 创建快照，接到SAVE命令的Redis服务器在快照创建完毕之前不会再响应任何其他命令。SAVE命令不常用，我们通常只会在没有足够内存去执行BGSAVE命令的情况下，又或者即使等待持久化操作执行完毕也无所谓的情况下，才会使用这个命令
+`fork`是进程用于创建自己拷贝的操作,子进程几乎是父进程的完整副本,只会存在以下区别:
+
+1. 进程ID不同
+2. 父进程ID不同
+3. 子进程不继承父进程的内存锁
+
+所以==fork子进程的内存和主进程是完全相同的,但又与主进程的内存互相独立==
+
+但并不是在fork时就将主进程的内存进行了全量拷贝,这会导致大量的冗余,甚至是OOM. **fork进程被分配的是虚拟内存,映射到主进程的物理内存**,当主进程进行修改时,主进程才会以页为单位将内存拷贝到fork进程.由于Redis往往是读大于写,所以**写时拷贝**并不会影响redis的性能
+
+
+
+
+
+
 
 
 
@@ -620,6 +643,16 @@ Redis DataBase  存储数据==快照==
 ## AOF
 
 Append Only File 日志记录所有写操作
+
+
+
+默认不开启aof持久化,需要手动改配置文件. 当**同时开启两种持久化方式时,默认使用AOF**文件来恢复原始的数据,确保数据完整
+
+```shell
+appendonly yes
+```
+
+
 
 ```shell
 auto-aof-rewrite-min-size 64MB // 当文件小于64M时不进行重写
@@ -630,69 +663,115 @@ auto-aof-rewrite-min-percenrage 100 // 当文件比上次重写后的文件大10
 
 * 优点
   * **日志只追加不修改**,文件不容易损坏，redis启动时会读取该文件，执行全部指令以完成数据的恢复工作
-  * 如果开启每个写命令都记录日志,就能确保数据的完整性
+  * **实时性高**,如果开启每个写命令都记录日志,就能确保数据的完整性
 
 * 缺点
-  * **文件比RDB大**,文件过大后触发**重写**
+  * **文件比RDB大**,文件过大后会触发**重写**
   * 文件系统本身对文件的大小有限制,无法保存过大的文件
-* `AOF`支持的写`QPS`会比`RDB`支持的写`QPS`低，因为`AOF`一般会配置成每秒`fsync`一次日志文件
-  * 恢复速度慢, 影响性能  **如果是集群,可以选择只在slave上开启持久化**
+  * `appendfsync always`时,写入性能比较差  **如果是集群,可以选择只在slave上开启持久化**
+  * 恢复速度慢
   
 * 修复AOF文件	Redis-check-aof --fix
 
 
 
+### 工作流程
+
+1. **命令追加（append）**：所有的写命令追加到 AOF 缓冲区中
+
+2. **文件写入（write）**：系统调用`write`将 AOF 缓冲区的数据写入到系统内核缓冲区（延迟写）
+
+3. **文件同步（fsync）**：根据对应的持久化方式（`fsync` 策略）,定时系统调用 `fsync` 函数，`fsync` 将阻塞直到写入磁盘完成后返回，保证数据持久化
+
+4. **文件重写（rewrite）**：定期对 AOF 文件进行重写，达到压缩的目的
+
+5. **重启加载（load）**：当 Redis 重启时，可以加载 AOF 文件进行数据恢复
+
+
+
+![AOF 工作基本流程](image.assets/aof-work-process.png)
+
+
+
+
+
 ### AOF 重写
 
+
+
 ```shell
-auto-aof-rewrite-percentage 100 #上次rewrite之后的文件大小/目前大小
+auto-aof-rewrite-percentage 100 #上次rewrite之后的文件大小/目前大小 的百分比,0为禁用自动 AOF 重写
 auto-aof-rewrite-min-size 64mb #触发重写的最小存储大小
 这两条规则是与逻辑
 ```
 
 
 
-1. 主线程fork出子线程执行``BGREWRITEAOF`
+1. 主进程fork出子进程执行``BGREWRITEAOF`
 
-2. 子线程创建新的AOF文件,**基于数据库当前数据**,生成插入语句,作为AOF内容的开头
+2. 子进程创建新的AOF文件,**读取数据库中的所有键值**,生成插入语句,作为AOF内容的开头
 
-   主线程维护**AOF重写缓冲区**，记录重写过程中执行的写命令
+   主进程维护**AOF重写缓冲区**，记录重写过程中执行的写命令
 
-3. 主线程将重写缓冲区中的所有内容追加到新的AOF文件
+3. 主进程将重写缓冲区中的所有内容追加到新的AOF文件
 
 4. 替换掉旧的AOF文件
 
-
+**在重写期间的写命令,会重复写入新/老两个aof文件**
 
 ![](image.assets/v2-f50f63f8d60530db6ed41fc99d966243_720w.webp)
 
 
 
-### 策略
+### fsync策略
 
 
 
-|         选项         |         同步频率         |
-| :------------------: | :----------------------: |
-|  appendfsync always  |     每个写命令都同步     |
-| appendfsync everysec |       每秒同步一次       |
-|    appendfsync no    | 让操作系统来决定何时同步 |
+|         选项         |                 同步频率                 |
+| :------------------: | :--------------------------------------: |
+|  appendfsync always  |                每个写命令                |
+| appendfsync everysec |                   每秒                   |
+|    appendfsync no    | 让操作系统来决定何时同步(Linux一般为30s) |
 
 
 
-同时开启两种持久化方式时,默认**优先载入AOF**文件来恢复原始的数据,确保数据完整
+### 为什么先执行命令再记录日志
+
+Redis并没有MySQL那样的语法检查。所以先写日志在执行命令的话，日志中有可能记录了错误的命令，会影响数据恢复
+
+
+
+## RDB VS AOF
+
+
+
+|          | RDB                                        | AOF                 |
+| -------- | ------------------------------------------ | ------------------- |
+|          | 存储压缩过的二进制数据,文件小,适合数据备份 | 存储写命令,文件较大 |
+| 恢复数据 | 直接解析还原数据,速度快                    | 依次执行命令,速度慢 |
+|          | 没有办法实时或者秒级持久化数据             |                     |
+
+如果丢失短时间内的数据并不会造成太大的影响,可以只用RDB
+
+不建议单独使用AOF,因为时不时地创建一个 RDB 快照可以进行数据库备份、更快的重启以及解决 AOF 引擎错误
+
+如果对数据的安全性要求比较高,可以同时开启AOF和RDB
 
 
 
 
 
-## 4.0对持久化的 优化
+## 混合持久化 4.0+
 
+```shell
+aof-use-rdb-preamble #混合持久化
+```
 
+AOF 重写的时候就直接**把 RDB 的内容写到 AOF 文件开头**
 
-Redis 4.0 开始支持 RDB 和 AOF 的混合持久化（默认关闭，可以通过配置项 `aof-use-rdb-preamble` 开启）。
+好处是可以结合 RDB 和 AOF 的优点, 快速加载同时避免丢失过多的数据
 
-如果把混合持久化打开，AOF 重写的时候就直接把 RDB 的内容写到 AOF 文件开头。这样做的好处是可以结合 RDB 和 AOF 的优点, 快速加载同时避免丢失过多的数据。当然缺点也是有的， AOF 里面的 RDB 部分是压缩格式不再是 AOF 格式，可读性差
+缺点是AOF里面的 RDB 部分是二进制压缩格式，可读性差
 
 
 
@@ -1137,23 +1216,102 @@ user:1 {id:1.name:小明}
 
 # 分布式锁
 
+
+
 ## 单机 setnx
 
 1. 用**setnx**命令 [key,随机数],并设置**过期时间**,防止异常造成死锁. nx: 只有在key不存在才会执行
 
-2. set成功的服务, 就可以执行后续业务
+2. set成功的服务可以执行后续业务
 3. 任务处理完后,用`del`指令删除key,也就是释放锁
    1. key过期了, 在删除前需要判断value是否是自己设置的
    2. key未过期, 直接删除
 
-* 存在单点故障问题,Redis故障将导致整个服务失效
-* ==不能使用主从==
-  * 主从复制是异步的,主节点故障时,锁信息可能未能同步到从节点
-  * 从节点选举成功后,没有锁信息,导致锁被其他服务重新获得
+
+
+**释放锁时误删key的问题**
+
+| 服务1                      | Redis        | 服务2              |
+| -------------------------- | ------------ | ------------------ |
+| set key 1,执行业务         |              |                    |
+| get key 1,准备`del`释放锁  |              |                    |
+|                            | key1自动过期 |                    |
+|                            |              | set key 2,执行业务 |
+| del key,此时删了服务2的key |              |                    |
+
+
+
+**lua脚本保证del的原子性** Redis 在执行 Lua 脚本时，可以以原子性的方式执行，从而保证了锁释放操作的原子性。
+
+```lua
+// 释放锁时，先比较锁对应的 value 值是否相等，避免锁的误释放
+if redis.call("get",KEYS[1]) == ARGV[1] then
+  return redis.call("del",KEYS[1])
+else
+  return 0
+end
+```
+
+
+
+
+
+**单点故障问题** Redis故障将导致整个服务失效
+
+==不能使用主从==
+
+* 主从复制是异步的,主节点故障时,锁信息可能未能同步到从节点
+* 从节点选举成功后,没有锁信息,导致锁被其他服务重新获得
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Redisson锁续期
+
+提供了一个专门用来监控和续期锁的 **Watch Dog（ 看门狗）**，如果操作共享资源的线程还未执行完成的话，Watch Dog 会不断地延长锁的过期时间
+
+
+
+```java
+// 1.获取指定的分布式锁对象
+RLock lock = redisson.getLock("lock");
+// 2.拿锁且不设置锁超时时间，具备 Watch Dog 自动续期机制
+lock.lock();
+// 3.执行业务
+...
+// 4.释放锁
+lock.unlock();
+```
+
+**只有未指定锁超时时间，才会使用到 Watch Dog 自动续期机制**
+
+```java
+// 手动给锁设置过期时间，不具备 Watch Dog 自动续期机制
+lock.lock(10, TimeUnit.SECONDS);
+```
+
+
+
+
 
 
 
 ## 集群 RedLock
+
+由于 Redis 集群数据同步到各个节点是异步的，如果在 Redis 主节点获取到锁后，在没有同步到其他节点时，Redis 主节点宕机了，此时新的 Redis 主节点依然可以获取锁，所以多个应用服务就可以同时获取到锁
+
+![](image.assets/redis-master-slave-distributed-lock.png)
+
+
 
 * 获取当前时间T1
 * 向n个Redis循环发送锁请求信息(使用的是单实例的命令,附带超时时间),==超时时间远小于锁的有效时间==
@@ -1227,29 +1385,64 @@ user:1 {id:1.name:小明}
 
 
 
-## 双写一致性
+## 双写一致性 | 缓存读写策略
 
 无法保证缓存和DB中数据一致
 
 
 
-==Cache Aside Pattern 旁路缓存模式==: 优先读缓存，其次数据库,**更新数据库时,删除缓存**
+### 旁路缓存 Cache Aside Pattern
+
+查询: 优先读缓存,其次数据库
+
+修改: 优先改数据库,其次**删除缓存**
+
+==缓存可能是查询n张表运算出来的数据,计算比较耗时,所以直接删除==
 
 
 
-但还是存在数据库已删除,缓存还没删除时,其他线程访问缓存,导致数据不一致
+存在的问题:
 
-**严格的话还需要将请求加锁,通过序列化保证一致性**
+1. 因为缓存操作的是内存,数据库操作的是磁盘,存在**缓存已更新,数据库还没更新**的情况,不过可能性比较低
 
+2. 如果换成先改缓存,再改数据库,容易出现数据库还没来得及更新,就又被读出来当缓存了
 
-
-### 为什么删缓存而不是更新缓存
-
-缓存有可能是查询n张表运算出来的数据,计算缓存会耗时
-
-通过这种lazy的方式,可以在有需要时才去录入缓存
+3. 首次请求数据不在缓存中,导致大量请求直接到数据库  **热点数据提前缓存**
 
 
+
+方案
+
+1. 如果业务场景允许短暂的数据不一致,可以给缓存加一个比较短的过期时间,使数据不一致的影响时间缩短
+2. 引入分布式锁,保证修改数据库和修改缓存是一个原子性的操作
+
+
+
+### 读写穿透 Read/Write Through Pattern
+
+查询: 优先读缓存,读不到的话,由**cache服务**从db加载数据到缓存后,返回响应
+
+修改: 先查缓存中有没有,有的话更新缓存,并由cache服务同步至db;没有的话直接更新db
+
+==cache服务对数据库的修改是同步的==,所以不会有数据不一致的问题
+
+
+
+把 cache 视为主要数据存储,并定义了cache服务负责将缓存中的数据同步至db,这样减轻了应用程序的职责
+
+旁路缓存是需要应用服务自己去保持数据库和缓存的数据一致,但读写穿透是用cache服务来做这件事
+
+但**Redis并没有提供cache将数据写入db的功能**,所以这个不常用
+
+
+
+### 异步缓存写入 Write Behind Pattern
+
+与读写穿透一样,都是通过**cache服务**来保证数据一致性,但异步缓存写入保证的是**最终一致性**,在异步写入db之前,数据是不一致的
+
+
+
+应用场景: Mysql的Innodb Buffer Pool,消息队列的异步写入磁盘,点赞/浏览量这一类数据变化频繁,但一致性要求不高的数据
 
 
 
