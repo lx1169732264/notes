@@ -4245,42 +4245,82 @@ ExecutorCompletionService和都支持提交一批任务后,获取任务结果,�
 
 ## Thread
 
+**OS线程(内核线程)**	由操作系统内核直接创建、调度和管理, 是CPU调度的基本单位
+
+**用户线程**	由用户空间(例如**JVM**)创建、调度和管理
 
 
-### JVM线程6个状态
+
+**1:1线程模型**
+
+==JVM线程和OS线程是1:1的关系==, 调用`Thread#start`会为thread对象创建对应的OS线程
+
+用户线程的状态切换需要调用系统内核切换OS线程的状态, **开销大**
+
+**用户线程的阻塞会导致OS线程的阻塞**(用户线程的阻塞无法被OS线程感知和优化)
+
+目前1:1的线程模型还是主流, 因为它的技术更加成熟, 技术方案更简单直观
 
 
 
-| 枚举值        |                                         |                                     |
-| ------------- | --------------------------------------- | ----------------------------------- |
-| NEW           |                                         |                                     |
-| RUNNABLE      | JVM的运行态,但在OS层面上为ready/running |                                     |
-| TERMINATED    | 正常/异常结束                           |                                     |
-| WAITING       | **等待**                                | wait join park                      |
-| TIMED_WAITING | 计时等待                                | sleep wait join parkNanos parkUntil |
-| BLOCKED       | **阻塞**                                | synchronized                        |
+**M:N线程模型**
+
+Java21正式发布了虚拟线程的新特性, 可以将大量的JVM线程对应到少量的OS线程(通常等于CPU核心数)
+
+用户线程切换状态的过程基本只发生在用户空间, 不影响OS线程的状态
+
+一个OS线程会被若干个用户线程共享, 但用户线程的阻塞是需要调用内核将OS线程阻塞的, 这就导致**用户线程的阻塞将阻塞其他用户线程**
+
+
+
+
+
+### 线程状态
+
+
+
+#### JVM线程6个状态
+
+| 枚举值        |                                                              |                                     |
+| ------------- | ------------------------------------------------------------ | ----------------------------------- |
+| NEW           | 线程对象已创建, 但还没有OS层面对应的线程(Thread#start创建OS线程) |                                     |
+| RUNNABLE      | JVM的运行态,但在OS层面上为ready/running                      | 线程等待或正在使用CPU时间片         |
+| TERMINATED    | 正常/异常结束, OS线程已被销毁                                |                                     |
+| WAITING       | **等待**                                                     | wait join park                      |
+| TIMED_WAITING | 计时等待                                                     | sleep wait join parkNanos parkUntil |
+| BLOCKED       | **阻塞** (只有synchronized能让线程进入阻塞状态)              | synchronized                        |
 
 
 
 ![](image.assets/Java+线程状态变迁.png)
 
+#### OS线程状态
+
+根据底层实现不同, OS层面的线程状态通常为3-5种, 以Linux举例
+
+| 枚举值                       |                                                              |
+| ---------------------------- | ------------------------------------------------------------ |
+| READY                        | 等待CPU时间片                                                |
+| RUNNING                      | 正在使用CPU时间片                                            |
+| SLEEPING / WAITING / BLOCKED | 线程阻塞, 不竞争CPU时间片                                    |
+| STOPPED / SUSPENDED          | 线程被外部信号（如SIGSTOP）暂停执行，需要显式信号（如`SIGCONT`）才能恢复 |
+| ZOMBIE                       | 线程已停止, 保留一个状态记录用于查询(比如线程池查询线程状态), 这是短暂的一个中间态 |
 
 
-![](image.assets/137084-20180421113325399-1759953729.jpg)
+
+#### JVM线程状态和OS线程状态的区别
+
+1. OS线程状态是内核定义的底层实现, 面向CPU调度和系统资源管理
+
+   JVM线程状态是JVM定义的高层抽象, 面向开发者理解线程在并发程序中的行为（如等待锁、等待通知、休眠）. 这也**屏蔽了不同操作系统底层实现的差异**
+
+2. CPU的时间片非常短暂(10~100ms), 对于JVM层面来说, 区分一个线程是READY还是RUNNING是意义不大的. 所以用RUNNABLE会对应READY/RUNNING两种状态
+
+3. JVM通过GC来回收线程资源, 所以JVM层面没有定义ZOMBIE僵尸线程
 
 
 
 
-
-new和terminated实际上并不是线程的状态,而是Thread对象的状态,新建/终止的不是线程,而是代表线程的对象
-
-
-
-### 为什么不区分ready/running
-
-目前操作系统架构通常用“时间分片方式进行抢占调度时间. 这个时间片短到10ms,区分为ready/running是意义不大的
-
-这也使得RUNNABLE的线程, 可能正在运行,也可能处于等待时间片的状态
 
 
 
@@ -5120,6 +5160,36 @@ wait + notify
 如果需要一个快速交换的队列，选择SynchronousQueue
 
 如果需要对队列中的元素进行延时操作，则选择DelayQueue
+
+
+
+### 父子线程共用线程池导致的死锁
+
+
+
+1. 对一批id的数据进行迁移, 因为不同id的数据相互独立可以批量提交到线程池去生成子任务a
+2. 子任务a中的某些步骤又拆分子任务b, 由于工作线程满载了, b被放入了阻塞队列
+3. a需要等待b执行完, b需要等待工作线程的调度, 导致死锁
+
+```java
+ExecutorService pool = Executors.newFixedThreadPool(1);
+
+@Test
+public void t() {
+    List<String> ids = Lists.newArrayList("1", "2", "3", "4");
+    CountDownLatch latch = new CountDownLatch(ids.size());
+    for (String id : ids) {
+        pool.submit(() -> processOne(id, latch));//子任务a
+    }
+    latch.await();
+}
+
+private void processOne(String id, CountDownLatch latch) {
+    Future<?> future = pool.submit(() -> {});//子任务b
+    future.get();//a需要等待b执行完
+    latch.countDown();
+}
+```
 
 
 

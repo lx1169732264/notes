@@ -1935,6 +1935,44 @@ T = 2 * t2
 
 
 
+## 案例
+
+
+
+### 重复发红包
+
+数据库Mysql, 隔离级别可重复读, 需要为订单去生成红包表的数据
+
+1. 线程ab都执行了第一条sql，创建了mvcc快照
+2. 线程ab都执行到第二条sql, 线程a获得锁, 线程b阻塞
+3. 线程a检查到没有红包，插入了一条红包数据, 最后提交事务，此时数据库中有红包
+4. 线程b成功获得第二条sql的锁
+5. 线程b检查红包时用的是老版本的快照, 快照中没有红包. 所以线程b生成了重复的红包数据
+
+```java
+@Transactional
+public void sendRedPacket(Long orderId) {
+    Order o = "select * from ORDER where id = ''"; //此时对数据库全库开启快照
+    if (o == null) 
+        return;
+    o = "select * from ORDER where id = '' for update"; //此时线程a继续运行, 线程b阻塞
+    boolean exists = "select * from RED_PACKET where ORDER_ID = ''";
+    if (!exists) {
+        //执行发红包操作
+    }
+}
+```
+
+**解决思路**
+
+1. 用redis锁代替for update锁, 但会带来额外的架构复杂性
+2. 红包表加乐观锁字段, 或者在订单id字段加唯一索引
+3. 直接删除第一条sql, 避免产生快照
+
+
+
+
+
 
 
 # Log
@@ -5826,6 +5864,49 @@ SELECT id FROM (
   SELECT * FROM t ORDER BY create_time desc
 ) tmp
 GROUP BY bill_no; --group优先于order执行. 会导致group后的结果无法携带正确的时间信息
+```
+
+
+
+## 大量数据如何插入数据库
+
+首先要考虑到这些细节: 有没有大字段? 是什么数据库? 允不允许数据丢失? 涉不涉及事务?
+
+几十万条数据, 根据每行占用的字节, 可以是很大的数据量, 也可以是单线程就能快速执行完的小数据, 在考虑数据量的大小时不能只看数量而不看质量
+
+
+
+优化的思路主要有数据库层面和应用层面两个方向
+
+1. 从数据库层面来说, **增加数据库连接数**, 调整批量刷盘的大小和频率
+
+2. 从应用层面来说, 可以用**多线程**来插入数据, 但这样很难做事务的, 并且数据库的性能瓶颈往往是在磁盘io上, 写入速度拉满的情况下, 多线程是负优化, 甚至会影响其他表的读取. 尽量从单线程多写入量去解决这个问题
+
+3. insert into table values(?,?,?),(?,?,?)
+
+   这种方法可以在一条sql中插入多行数据, 但语句在过长时会报错, 并且**无法预编译**, 这就导致执行效率不如mybatis那样循环插入来得快
+
+4. 从orm正面来说, 可以参考mybatis的实现思路, 用**预编译来优化批量sql**
+   1. 根据batchSize分割数组处理
+   2. 生成**批处理的sqlsession**, 能够利用JDBC的PreparedStatement预编译优化 
+   3. 对于一组数据, 循环执行insert单条的语句, 
+
+```java
+@Transactional(rollbackFor = Exception.class)
+@Override
+public boolean saveBatch(Collection<T> entityList, int batchSize) {
+    String sqlStatement = getSqlStatement(SqlMethod.INSERT_ONE);
+    return executeBatch(entityList, batchSize, (sqlSession, entity) -> sqlSession.insert(sqlStatement, entity));
+}
+
+
+@SneakyThrows
+public static boolean executeBatch(SqlSessionFactory sqlSessionFactory, Log log, Consumer<SqlSession> consumer) {
+    ......
+        //批处理的 sqlSession，并非普通的 sqlSession
+        SqlSession sqlSession = sqlSessionFactory.openSession(ExecutorType.BATCH);
+    ......
+}
 ```
 
 
