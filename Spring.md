@@ -66,35 +66,22 @@ API Gateway 是一个服务器，也是进入系统的唯一节点。这跟面�
 
 
 
-## Core Container
-
-Spring 框架的核心模块，也可以说是基础模块，主要提供 IoC 依赖注入功能的支持。Spring 其他所有的功能基本都需要依赖于该模块，我们从上面那张 Spring 各个模块的依赖关系图就可以看出来。
-
-- **spring-core**：Spring 框架基本的核心工具类。
+- **spring-core**：核心模块，主要提供 IoC 和依赖注入功能的支持。Spring 其他所有的功能基本都需要依赖于该模块
 - **spring-beans**：提供对 bean 的创建、配置和管理等功能的支持。
-- **spring-context**：提供对国际化、事件传播、资源加载等功能的支持。
-- **spring-expression**：提供对表达式语言（Spring Expression Language） SpEL 的支持，只依赖于 core 模块，不依赖于其他模块，可以单独使用。
-
-## AOP
+- **spring-context**：提供了 BeanFactory 的功能, 提供对国际化、事件传播、资源加载等功能的支持
 
 - **spring-aspects**：该模块为与 AspectJ 的集成提供支持。
-- **spring-aop**：提供了面向切面的编程实现。
-- **spring-instrument**：提供了为 JVM 添加代理（agent）的功能。 具体来讲，它为 Tomcat 提供了一个织入代理，能够为 Tomcat 传递类文 件，就像这些文件是被类加载器加载的一样。没有理解也没关系，这个模块的使用场景非常有限。
+- **spring-aop**：提供了面向切面的编程实现
 
-## Data Access/Integration
-
-- **spring-jdbc**：提供了对数据库访问的抽象 JDBC。不同的数据库都有自己独立的 API 用于操作数据库，而 Java 程序只需要和 JDBC API 交互，这样就屏蔽了数据库的影响。
+- **spring-jdbc**：提供了对数据库访问的抽象 
 - **spring-tx**：提供对事务的支持。
 - **spring-orm**：提供对 Hibernate、JPA、iBatis 等 ORM 框架的支持。
 - **spring-oxm**：提供一个抽象层支撑 OXM(Object-to-XML-Mapping)，例如：JAXB、Castor、XMLBeans、JiBX 和 XStream 等。
-- **spring-jms** : 消息服务。自 Spring Framework 4.1 以后，它还提供了对 spring-messaging 模块的继承。
-
-## Spring Web
+- **spring-jms** : 消息服务。自 Spring Framework 4.1 以后，它还提供了对 spring-messaging 模块的继承
 
 - **spring-web**：对 Web 功能的实现提供一些最基础的支持。
-- **spring-webmvc**：提供对 Spring MVC 的实现。
-- **spring-websocket**：提供了对 WebSocket 的支持，WebSocket 可以让客户端和服务端进行双向通信。
-- **spring-webflux**：提供对 WebFlux 的支持。WebFlux 是 Spring Framework 5.0 中引入的新的响应式框架。与 Spring MVC 不同，它不需要 Servlet API，是完全异步
+- **spring-webmvc**
+- **spring-websocket**：提供了对 WebSocket 的支持，WebSocket 可以让客户端和服务端进行双向通信
 
 
 
@@ -972,11 +959,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
 ## 注册bean
 
-
-
-### xml
-
-Spring有以下主要的命名空间：context、beans、jdbc、tx、aop、mvc和aso
+1. xml
 
 ```xml
 <beans>
@@ -984,11 +967,15 @@ Spring有以下主要的命名空间：context、beans、jdbc、tx、aop、mvc�
 </beans>
 ```
 
+2. @Compoment, 并配合**@ComponentScan进行组件扫描**
 
+   
 
-### @Configuration
+   ```java
+   @ComponentScan(basePackages = "")
+   ```
 
-自带了@Component,所以会被作为bean放入容器
+3. `@Configuration` / `@Repository` / `@Service` / `@Controller`, 都是自带了@Component,所以会被作为bean放入容器
 
 ```java
 @Target(ElementType.TYPE)
@@ -1001,84 +988,7 @@ public @interface Configuration {
 }
 ```
 
-
-
-1. **声明bean**
-
-```java
-@Configuration
-public class AppConfig{
-  @Bean
-  public Object myBean() {
-  }
-}
-```
-
-
-
-2. 配合**@ComponentScan进行组件扫描**
-
-```java
-@Configuration
-@ComponentScan(basePackages = "com.")
-```
-
-
-
-3. 注入配置文件属性
-
-@EnableConfigurationProperties可以让@ConfigurationProperties生效,在**配置类上不需要加@Compoment**
-
-```java
-@Configuration
-@EnableConfigurationProperties(xxx.class)
-public class AppConfiguration {
-  @Bean
-  public xxx myBean() {
-  }
-}
-
-//这里不需要加@Compoment
-@ConfigurationProperties(prefix = "")
-public class xxx {
-}
-```
-
-
-
-也可以不用@Configuration,直接在配置类上加@Compoment
-
-```java
-@Compoment
-@ConfigurationProperties(prefix = "")
-public class xxx {
-}
-```
-
-
-
-
-
-
-
-### 注解注册
-
-- `@Component`：通用注解. 默认扫描启动类所在的目录,也可以通过`@ComponentScan`指定扫描的目录
-- `@Repository`: 将类标记为数据访问组件，即DAO组件
-- `@Service`
-- `@Controller` 将类标记为 Spring Web MVC 控制器
-- `@RestController`=`@Controller和`+@`ResponseBody`,表示这是个控制器 bean,并且是将函数的返回值直接填入 HTTP 响应体中
-- **@Bean**: 唯一一个作用于方法的注解,很多地方只能通过 `@Bean` 来注册bean。比如将第三方库中的类装配到`Spring`容器
-
-
-
-==为什么声明bean不推荐用@Component==
-
-将上面的@Configuration替换为@Component,bean依然能被注册到容器中
-
-但@Component配置类中,声明bean的方法`myBean`可能被**显式调用**,导致bean的**单例被破坏**
-
-@Configuraton注解底层是通过==cglib代理==去实现@Bean方法不被用户显式调用,bean只会被实例化一次
+4. **@Bean**: 唯一一个作用于方法的注解,很多地方只能通过 `@Bean` 来注册bean。比如将第三方库中的类装配到`Spring`容器
 
 
 
@@ -1086,11 +996,11 @@ public class xxx {
 
 
 
-| Autowired                                                 | Resource                                       |
-| --------------------------------------------------------- | ---------------------------------------------- |
-| Spring,默认byType                                         | JDK,默认byName                                 |
-| 默认要求依赖对象必须存在,设置required=false开启允许null值 |                                                |
-| AutoWiredAnnotationBeanPostProcessor处理@AutoWired        | CommonAnnotationBeanPostProcessor处理@Resource |
+| Autowired                                             | Resource                                       |
+| ----------------------------------------------------- | ---------------------------------------------- |
+| Spring,默认byType                                     | JDK,默认byName                                 |
+| 默认要求依赖对象必须存在,设置required=false允许null值 |                                                |
+| AutoWiredAnnotationBeanPostProcessor处理@AutoWired    | CommonAnnotationBeanPostProcessor处理@Resource |
 
 
 
@@ -1313,28 +1223,101 @@ public class MyBeanPostProcessor implements BeanPostProcessor {
 
 ### 三级缓存
 
-1. singletonObjects 存放已经历完整生命周期的Bean
-2. earlySingletonObjects 存放早期暴露出来的Bean，Bean的生命周期未结束（属性还未填充完整）
-3. singletonFactories，存放可以生成Bean的工厂
+1. 一级缓存 singletonObjects 完全实例化好的bean, 可以对外暴露出去使用的
+2. 二级缓存 earlySingletonObjects 解决循环依赖的对象创建问题，里面存的是半成品（属性未填充完整）对象或半成品对象的代理对象
+3. 三级缓存 singletonFactories 存放可以生成Bean的工厂. 解决AOP + 循环依赖的对象创建问题，能将代理对象提前创建
 
 ==三级缓存无法解决构造器注入的循环依赖,无法解决非单例的依赖==
 
-
-
-A创建过程中需要B，于是**A将自己放到三级缓存**里面，去**实例化B**
-
-B实例化的时候发现需要A，于是B先查一级缓存，没有，再查二级缓存，还是没有，再查三级缓存，找到了A然后把三级缓存里面的这个**A放到二级缓存里面，并删除三级缓存里面的A**
-
-B顺利初始化完毕**，将自己放到一级缓存里面（**此时B里面的A依然是创建中状态**）然后回来接着创建A，此时B已经创建结束，直接从一级缓存里面拿到B，然后完成创建，并**将A放到一级缓存**中。
+**一二级缓存在取不到bean时会有同步加锁逻辑, 三级缓存没有**
 
 
 
-#### 只用earlySingletonObjects
+```java
+protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+    // 尝试从一级缓存中获取实例
+    Object singletonObject = this.singletonObjects.get(beanName);
+    // 如果一级缓存没有且这个Bean正在创建中
+    if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+        synchronized (this.singletonObjects) {
+            // 尝试从二级缓存中获取实例
+            singletonObject = this.earlySingletonObjects.get(beanName);
+            // 如果二级缓存也没有且允许早期依赖引用
+            if (singletonObject == null && allowEarlyReference) {
+                // 从三级缓存中获取对应的ObjectFactory
+                ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+                if (singletonFactory != null) {
+                    // 使用ObjectFactory创建实例
+                    singletonObject = singletonFactory.getObject();
+                    // 将新创建的单例Bean放到二级缓存中
+                    this.earlySingletonObjects.put(beanName, singletonObject);
+                    // 从三级缓存中移除对应的ObjectFactory
+                    this.singletonFactories.remove(beanName);
+                }
+            }
+        }
+    }
+    return singletonObject;
+}
+```
+
+
+
+**循环依赖的流程**
+
+1. A创建过程中需要B，于是**A将自己放到三级缓存**里面，去**实例化B**
+
+2. B实例化时发现需要A，于是B分别查一级二级缓存，都没有，再查三级缓存，找到了A的早期引用, 然后将**A的早期引用从三级缓存移入二级缓存**
+
+3. B初始化完毕**，将B放到一级缓存（**此时B里面的A依然是创建中状态）然后回来接着创建A，此时B已经创建结束，直接从一级缓存里面拿到B，然后完成创建，并将**A放到一级缓存**中
+
+
+
+#### 只用一级缓存的问题
+
+为了提升性能, 一级缓存首次读取时不加同步锁的, 除非缓存中不存在, 才会同步缓存并进行后续操作.
+
+在只用一级缓存的情况下, 多线程创建bean时会有如下问题: 
 
 1. 实例化A, 依赖注入时发现取不到B
-2. 将A放入earlySingletonObjects中
-3. 实例化B, 但并未放入earlySingletonObjects, 也没有注入到a中
-4. 另一个线程注入了a, 这时a.b=null
+2. 将A放入一级缓存(未实例化完成), 并去实例化B
+4. 实例化C时注入了a, 此时注入了未实例化完成的A
+
+
+
+如果说步骤2里, a不放入一级缓存, 这也会引出新的问题:
+
+步骤3中实例化C时发现没有A, 它也去实例化了一个A. 这时A就存在两个实例了, 这**违背了bean的单实例**
+
+
+
+
+
+#### 为什么要设计成三级缓存
+
+spring开发者并没有公布他们的设计想法, 网上的推测也都是站在读者的角度去推测作者的想法. 我认为spring的**多级缓存是为了统一创建bean的流程**
+
+> 正常流程: 发现bean不在缓存 -> 同步缓存并创建bean -> 放入缓存
+>
+> 循环依赖流程: 会遇到上一节提到的`只用一级缓存的问题`
+
+
+
+而至于为什么要设计成三级: 
+
+`getSingleton`这个方法中singletonFactory.getObject()的返回值, 有可能是入参beanName对应的类A的实例a, 也有可能是基于实例a生成的代理aImpl, 也就是说, **在aop的情况下, 创建的是代理对象**
+
+而代理对象的生成, 是先有a, 再有aImpl, 在这个步骤中, 还需要**一个缓存来存放未被代理的实例**a, 避免A被多次实例化, **另一个缓存存放代理后的实例**, 所以需要三级缓存
+
+
+
+
+
+
+
+
+
+
 
 
 
