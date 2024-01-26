@@ -421,7 +421,7 @@ get/put等加了synchronized**锁住整个table**,导致性能低
 
 **基本类型不能做为键值**
 
-* 泛型约束为Object,map.put(1, “Java”)，实际上是将1自动装箱为了Integer
+* 泛型约束为Object, map.put(1, “Java”)，实际上是将1自动装箱为了Integer
 
 * 引用类型有hashCode()/equals()方法，能==保证key的唯一==
 
@@ -449,13 +449,7 @@ hash&(length-1)
 
 
 
-#### TreeNode
 
-==HashMap.TreeNode 不继承自己的内部类 Node，却继承 LinkedHashMap.Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力(多态)==
-
-
-
-==TreeNode的大小约是Node的2倍==，仅在桶中包含足够多的节点时才被使用。当桶中的节点数量变少时，TreeNode被转成 Node,当hashCode具有良好分布性时,不会转为红黑树，TreeNode将很少被使用
 
 
 
@@ -791,9 +785,33 @@ final Node<K,V> removeNode(int hash, Object key, Object value, boolean matchValu
 
 
 
-#### treeifyBin
 
-树化条件 : 链表长度>阈值 && 数组长度>64
+
+
+
+#### 红黑树
+
+在特殊情况下hash冲突频繁, 导致元素都被放进同一个链表，这样查询的时间复杂度趋向于O(n), 所以定义了**链表长度为8(泊松分布)且数组大小>=64转红黑树**
+
+树化后如果**节点数小于6, 退化为链表**, 树化和反树化都有开销的, 设定为6可以预留出**缓冲空间**, 避免在树的形态上反复横跳
+
+
+
+红黑树的节点为TreeNode, 大小约是Node的2倍, 所以只在map中数据量足够大时才会转红黑树, 避免浪费空间
+
+当hashCode具有良好分布性时,不会转为红黑树，TreeNode将很少被使用
+
+
+
+##### TreeNode
+
+==HashMap.TreeNode 不继承自己的内部类 Node，却继承 LinkedHashMap.Entry,使得TreeNode 具备了和其他 Entry 一起组成链表的能力(多态)==
+
+
+
+##### treeifyBin
+
+树化条件 : 链表长度>8 && 数组长度>64
 
 在数组过小时,转换为红黑树后遍历的效率反而降低
 
@@ -832,9 +850,7 @@ final void treeifyBin(Node<K, V>[] tab, int hash) {
 
 
 
-
-
-#### 红黑树查找
+##### 红黑树查找
 
 
 
@@ -1597,48 +1613,48 @@ rs即resizeStamp(n)，如当前容量为8时sc(sizeCtl)的计算过程如下：
 
 ```java
 private final void tryPresize(int size) {
-        //根据传入的size计算出真正的新容量，新容量需要是2的幂次方。
-        int c = (size >= (MAXIMUM_CAPACITY >>> 1)) ? MAXIMUM_CAPACITY :
-            tableSizeFor(size + (size >>> 1) + 1);
-        int sc;
-        while ((sc = sizeCtl) >= 0) {
-            Node<K,V>[] tab = table; int n;
-            if (tab == null || (n = tab.length) == 0) {
-                n = (sc > c) ? sc : c;   //table未初始化则给一个初始容量
-                //后面相似代码不再讲解
-                if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
-                    try {
-                        if (table == tab) {
-                            @SuppressWarnings("unchecked")
-                            Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
-                            table = nt;
-                            sc = n - (n >>> 2);
-                        }
-                    } finally {
-                        sizeCtl = sc;
+    //根据传入的size计算出真正的新容量，新容量需要是2的幂次方。
+    int c = (size >= (MAXIMUM_CAPACITY >>> 1)) ? MAXIMUM_CAPACITY :
+    tableSizeFor(size + (size >>> 1) + 1);
+    int sc;
+    while ((sc = sizeCtl) >= 0) {
+        Node<K,V>[] tab = table; int n;
+        if (tab == null || (n = tab.length) == 0) {
+            n = (sc > c) ? sc : c;   //table未初始化则给一个初始容量
+            //后面相似代码不再讲解
+            if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+                try {
+                    if (table == tab) {
+                        @SuppressWarnings("unchecked")
+                        Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+                        table = nt;
+                        sc = n - (n >>> 2);
                     }
+                } finally {
+                    sizeCtl = sc;
                 }
-            }
-            else if (c <= sc || n >= MAXIMUM_CAPACITY)
-                break;
-            else if (tab == table) {
-                int rs = resizeStamp(n);
-                if (sc < 0) {
-                    Node<K,V>[] nt;
-                    if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                        sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
-                        transferIndex <= 0)
-                        break;
-                    if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
-                        //传入指定容量
-                        transfer(tab, nt);
-                }
-                else if (U.compareAndSwapInt(this, SIZECTL, sc,
-                                             (rs << RESIZE_STAMP_SHIFT) + 2))
-                    transfer(tab, null);
             }
         }
+        else if (c <= sc || n >= MAXIMUM_CAPACITY)
+            break;
+        else if (tab == table) {
+            int rs = resizeStamp(n);
+            if (sc < 0) {
+                Node<K,V>[] nt;
+                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
+                    sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
+                    transferIndex <= 0)
+                    break;
+                if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
+                    //传入指定容量
+                    transfer(tab, nt);
+            }
+            else if (U.compareAndSwapInt(this, SIZECTL, sc,
+                                         (rs << RESIZE_STAMP_SHIFT) + 2))
+                transfer(tab, null);
+        }
     }
+}
 ```
 
 
@@ -1647,15 +1663,33 @@ private final void tryPresize(int size) {
 
 ### LinkedHashMap
 
-#### Entry
 
-<img src="image.assets/image-20201113235444857.png"  />
+
+节点的before, after组成了双向链表
+
+```java
+static class Entry<K,V> extends HashMap.Node<K,V> {
+    Entry<K,V> before, after;
+    Entry(int hash, K key, V value, Node<K,V> next) {
+        super(hash, key, value, next);
+    }
+}
+```
+
+
+
+在HashMap中, 预留了3个回调接口, 并在put/get等方法中调用到了这些接口. 从而支持了Map中的有序性
+
+```java
+// HashMap
+void afterNodeAccess(Node<K,V> p) { }
+void afterNodeInsertion(boolean evict) { }
+void afterNodeRemoval(Node<K,V> p) { }
+```
 
 
 
 #### 链表初始化
-
-
 
 ==插入第一个节点时创建链表==,此时head和tail同时指向第一个节点
 
