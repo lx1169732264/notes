@@ -3371,25 +3371,23 @@ AtomicStampedReference类就实现了用版本号作比较机制
 
 ## AQS
 
-==非阻塞数据结构 + 原子变量类==
+AbstractQueuedSynchronizer 抽象队列式同步器,**无锁**,除synchronized之外的锁都基于AQS. 由**state 变量 +同步队列+等待队列**组成
 
-AbstractQueuedSynchronizer 抽象队列式同步器,**无锁**
-
-除synchronized之外的锁都基于AQS
+**公平/非公平**的实现: 区分线程获取锁时是加入到**同步队列尾部**还是直接用 **CAS** 争抢锁
 
 ![](image.assets/AQS结构.png)
 
-核心思想:
-
-如果被请求的共享资源空闲，则将当前请求资源的线程设置为有效，并且将共享资源设置为锁定状态
-
-如果被请求的共享资源占用，则执行线程阻塞等待以及被唤醒时锁分配的机制，这个机制由CLH队列锁实现，即将暂时获取不到锁的线程加入到队列中
 
 
+同步队列
 
-CLH队列
+是个双向链表, 线程通过CAS改变volatile的state，失败则进入同步队列，等待唤醒
 
-虚拟的双向队列,不存在队列实例，仅存在结点间的关联。**将线程封装成Node，实现锁分配**，线程通过CAS改变volatile的state，失败则进入CLH双向等待队列，等待唤醒
+
+
+等待队列
+
+也是个双向链表, 条件 condition 不满足时候则入等待队列, 满足条件后加入同步队列
 
 ![](image.assets/等待.同步队列.png)
 
@@ -4438,27 +4436,31 @@ sleep/wait/join等内置方法是支持中断的,如果执行的方法不支持�
 
 
 
+另一种错误的设计思路是将ThreadLocal设计成一个共享的Map<Thread,Object>, 这样每个线程也能获取到私有的变量. 但ThreadLocal的设计初衷是为了给线程开辟线程专属的本地资源, 这种设计又会出现访问map时的资源竞争, 所以设计成了每个线程拥有一个Map<ThreadLocal,Object>
 
 
 
+比如我现在有 3 个 ThreadLocal 对象，2 个线程。
 
-【强制】必须在finally中remove自定义的ThreadLocal变量，否则会影响后续业务逻辑和造成内存泄露等问题	
-
-```java
-objectThreadLocal.set(userInfo);
-try {
-} finally {
-  objectThreadLocal.remove();
-}
+```
+ThreadLocal<String> threadLocal1 =  new ThreadLocal<>();
+ThreadLocal<Integer> threadLocal2 =  new ThreadLocal<>();
+ThreadLocal<Integer> threadLocal3 =  new ThreadLocal<>();
 ```
 
+那此时 ThreadLocal 对象和线程的关系如下图所示, 每个线程维护自己的变量，互不干扰, 也支持存储多个本地变量的需求
+
+![img](image.assets/20220123165020.png)
 
 
-| ThreadLocal                                            | Synchronized         |      |
-| ------------------------------------------------------ | -------------------- | ---- |
-| 每个线程单独保存一份存储空间,空间换时间                | 阻塞实现, 时间换空间 |      |
-| 线程隔离,只有在线程内才能获取到对应的值                |                      |      |
-| 适合以线程为作用域并且不同线程具有不同的数据副本的场景 |                      |      |
+
+
+
+| ThreadLocal                                            | Synchronized         |
+| ------------------------------------------------------ | -------------------- |
+| 每个线程单独保存一份存储空间,空间换时间                | 阻塞实现, 时间换空间 |
+| 线程隔离,只有在线程内才能获取到对应的值                |                      |
+| 适合以线程为作用域并且不同线程具有不同的数据副本的场景 |                      |
 
 
 
@@ -4466,7 +4468,7 @@ try {
 
 ThreadLocal内部类
 
-存储(WeakReference<ThreadLocal<?>>,变量)的键值对，只有指定线程可以得到存储数据,相较于HashMap,并没有链表的概念
+每个线程私有一份map的实例, 存储<WeakReference<ThreadLocal<?>>, 变量>的键值对，只有指定线程可以得到存储数据,相较于HashMap,并没有链表的概念
 
 
 
@@ -4482,9 +4484,7 @@ ThreadLocalMap.table被Thread.threadLocals强引用 -> Entry[]的生命周期和
 
 ThreadLocalMap静态内部类
 
-Entry为[弱引用ThreadLocal,V]，**ThreadLocal很容易被回收导致[null,V]**
-
-==在get/set/remove时自动清理key为null的Entry==
+主键为ThreadLocal的**弱引用**，ThreadLocal很容易被回收导致[null,V], ==在get/set/remove时自动清理key为null的Entry==
 
 ```java
 static class Entry extends WeakReference<ThreadLocal<?>> { //弱引用
@@ -4500,53 +4500,39 @@ static class Entry extends WeakReference<ThreadLocal<?>> { //弱引用
 
 
 
-#### set
+#### 线性探测法解决hash冲突
+
+ThreadLocal的实例的threadLocalHashCode成员变量存储了hashcode, 用于放入map的数组中时通过hash确定存储下标
+
+在遇到hash碰撞时，则会将下标 +1，即**继续往后遍历**Entry数组, **在遍历过程中还会清除已被gc清除掉的弱引用**
+
+这种 hash 冲突的解决效率不高，但是一般 ThreadLocal 也不会太多，所以用这种简单的办法解决即可
 
 ```java
 private void set(ThreadLocal<?> key, Object value) {
-  Entry[] tab = table;
-  int len = tab.length;
-  int i = key.threadLocalHashCode & (len-1); //hash
-  
-  //线性探测法查找元素	tab[i]!= null -> hash冲突时不断向后查找
-  for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
-    ThreadLocal<?> k = e.get();
+    Entry[] tab = table;
+    int len = tab.length;
+    int i = key.threadLocalHashCode & (len-1); //每个ThreadLocal实例都有对应的hashCode
 
-    if (k == key) { //hash一致,替换
-      e.value = value;
-      return;
+    //e!= null时hash冲突,线性探测法不断向后查找元素
+    for (Entry e = tab[i]; e != null; e = tab[i = nextIndex(i, len)]) {
+        ThreadLocal<?> k = e.get();
+
+        if (k == key) { //hash一致,替换
+            e.value = value;
+            return;
+        }
+
+        if (k == null) { //旧threadLocal已被回收/未使用的Entry
+            replaceStaleEntry(key, value, i); //替换,并向后进行探测式数据清理
+            return;
+        }
     }
 
-    if (k == null) { //旧threadLocal已被回收/未使用的Entry
-      replaceStaleEntry(key, value, i); //替换,并向后进行探测式数据清理
-      return;
-    }
-  }
-
-  tab[i] = new En try(key, value);
-  int sz = ++size;
-  if (!cleanSomeSlots(i, sz) && sz >= threshold) //cleanSomeSlots清理脏数据
-    rehash();
-}
-
-private static int nextIndex(int i, int len) {
-  return ((i + 1 < len) ? i + 1 : 0);
-}
-
-private boolean cleanSomeSlots(int i, int n) {
-  boolean removed = false;
-  Entry[] tab = table;
-  int len = tab.length;
-  do {
-    i = nextIndex(i, len);
-    Entry e = tab[i];
-    if (e != null && e.get() == null) {
-      n = len;
-      removed = true;
-      i = expungeStaleEntry(i);
-    }
-  } while ( (n >>>= 1) != 0);
-  return removed;
+    tab[i] = new En try(key, value);
+    int sz = ++size;
+    if (!cleanSomeSlots(i, sz) && sz >= threshold) //cleanSomeSlots清理被gc的弱引用
+        rehash();
 }
 ```
 
@@ -4556,31 +4542,53 @@ private boolean cleanSomeSlots(int i, int n) {
 
 ### InheritableThreadLocal
 
-
-
 InheritableThreadLocal类是ThreadLocal类的子类
 
 **InheritableThreadLocal允许线程以及该线程创建的所有子线程都可以访问ThreadLocal变量**
 
 
 
+Thread 中已经包含了这个成员：
+
+![img](image.assets/20220123165231.png)
+
+在父线程创建子线程的时候，子线程的构造函数可以得到父线程，然后判断下父线程的 InheritableThreadLocal 是否有值，如果有的话就拷过来。
+
+![img](image.assets/20220123165241.png)
+
+这里要注意，只会在线程创建的时会拷贝 InheritableThreadLocal 的值，之后父线程如何更改，子线程都不会受其影响。
+
+
+
+
+
 ### 为什么用弱引用
 
+引用链: thread -> threadLocalMap -> entry -> threadLocal
 
-
-**key 使用强引用时**
-
-回收ThreadLocal时，ThreadLocalMap还持有ThreadLocal的强引用，导致ThreadLocal不会被回收，导致Entry内存泄漏
-
-
-
-**key 使用弱引用时**
-
-回收ThreadLocal时，由于ThreadLocalMap持有ThreadLocal的弱引用，即使没有手动删除，ThreadLocal也会被回收。当key为null，在下一次ThreadLocalMap调用set/get/remove时被清除value
+线程一般是搭配**线程池**使用的, 这使得线程的**生命周期**与线程池一样长, 同理entry的生命周期也很长. 如果生命周期都很短的话, 那等thread没有引用的时候, 整条链路都会被gc, 也就不用考虑强还是弱引用了, 所以生命周期是使用弱引用的本质原因
 
 
 
-**ThreadLocal内存泄漏的根本原因:** ThreadLocalMap生命周期与Thread一样长,如果没有手动删除对应的key就会导致内存泄漏,与弱引用无关
+key 使用**强引用时**, entry和threadLocal的强引用是一直存在的, 导致**ThreadLocal不会被回收**，进而内存泄漏
+
+
+
+**弱引用的目的是让 entry和threadLocal的引用关系 不计入gc的判断中**, 让threadLocal能够顺利地被gc. 而entry虽然不会被gc, 但可以在get/set的向后线性探测过程中赋值为null, 然后被gc
+
+
+
+### tomcat中threadLocal的问题
+
+在每次http请求对应一个新线程的情况下, 我们无需考虑threadlocal的生命周期问题
+
+但tomcat是隐式线程池, 多次http请求会**复用同一线程**, 也就是说会拿到上一次执行的值
+
+所以在使用完Threadlocal后, 要显式地remove
+
+
+
+
 
 ### 案例
 
@@ -5233,9 +5241,8 @@ synchronized (xxx) {}	//锁实例对象
 对象的非同步方法可以被任意数量的线程，在任意时刻调用
 
 
-![](image.assets/image-20201220211345772.png)
 
-编译为字节码后,可以看到有**monitorenter + monitorexit 指令**
+通过**monitorenter + monitorexit**两个字节码指令组成的
 
 monitorenter : 同步开始,线程尝试获取锁(monitor)。计数器0则成功获取，获取后设为1
 
@@ -5373,11 +5380,17 @@ public static String concatString(String s1, String s2, String s3) {
 
 ### 锁粗化
 
-
-
 JVM探测到频繁对同一个对象加锁，将会把加锁的范围粗化到整个操作的外部
 
 StringBuffer.append就进行了粗化
+
+
+
+
+
+在这种情况下, doSth()整个方法都会被加锁同步
+
+![图片](image.assets/640-17065777005371.png)
 
 
 
@@ -5624,35 +5637,22 @@ public void unlock() {
 
 ### ReentrantReadWriteLock
 
+**读读共享、写写互斥、读写互斥**  适用于写多读少	在写少读多时,将阻塞过多的读操作
 
-
-**读读共享、写写互斥、读写互斥**
-
-
-
-适用于写多读少	在写少读多时,将阻塞过多的读操作
+在ReentrantLock的基础上, 将**state分为了两部分**，高16bit用于标识读状态、低16bit标识写状态
 
 
 
 
 
+**进入读锁的前提条件**：没有其他线程的写锁 || 自身持有写锁
+
+**进入写锁的前提条件**：没有其他线程的读/写锁 && **该线程未持有读锁**   (在获取写锁时, 不允许同一时刻有任何线程持有读锁,包括自身的线程)
 
 
-**进入读锁的前提条件**：
 
-- **没有其他线程的写锁**
-- **自身持有写锁**
-
-**进入写锁的前提条件**：
-
-- **没有其他线程的读/写锁**
-
-  
-
-- 如果线程占有写锁，在不释放写锁的情况下，还能占有读锁**(写锁降级为读锁)**
-
-- 同时占有读锁和写锁的线程，完全释放了写锁后就转换成读锁，以后的写操作无法重入，在写锁未完全释放时写可以重入
-
+- **锁降级** 线程占有写锁时，还能继续获得读锁, 若此时释放了写锁, 则只持有读锁, 相当于写锁降级为读锁
+- **不支持锁升级** 在线程持有读锁时, 再去**获取写锁前需要释放自身的读锁**, 否则视为读写互斥
 - 读锁不允许newConditon获取Condition接口，而写锁的newCondition接口实现方法同ReentrantLock
 
 
@@ -7591,9 +7591,9 @@ Unsafe#allocateMemory这个native方法就是分配了直接内存
 
 ## JMM
 
-Java Memory Model
+Java Memory Model 内存模型
 
-内存模型==规范了内存的读写操作, 通过禁止指令重排序和内存屏障来解决并发问题==
+==规范了内存的读写操作, 通过禁止指令重排序和内存屏障来解决并发问题==
 
 ![](image.assets/内存模型.png)
 
@@ -7605,8 +7605,8 @@ Java Memory Model
 
 ### JMM的规范
 
-- 所有的变量都存储在主内存（Main Memory）中
-- 每个线程都有一个私有的本地内存（Local Memory），本地内存中存储了该线程以读/写共享变量的拷贝副本
+- 所有的变量都存储在主内存中
+- 每个线程都有一个私有的本地内存（寄存器、CPU 缓存等），本地内存中存储了该线程以读/写共享变量的拷贝副本
 - 线程对变量的所有操作都必须在本地内存中进行，而不能直接读写主内存
 - 不同的线程之间无法直接访问对方本地内存中的变量
 
@@ -7614,7 +7614,11 @@ Java Memory Model
 
 ### JMM和硬件内存架构之间的桥接
 
-Java内存模型与硬件内存架构之间存在差异。硬件内存架构没有区分[线程栈](https://www.zhihu.com/search?q=线程栈&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})和堆。对于硬件而言，所有的线程栈和堆都分布在主内存中。部分线程栈和堆可能有时候会出现在CPU缓存中和CPU内部的寄存器中。在java动态的内存模型中，分为主内存，和[线程工作内存](https://www.zhihu.com/search?q=线程工作内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})。主内存是所有的线程所共享的，工作内存是每个线程自己有一个，不是共享的。每个线程之间的共享变量存储在主内存里面，每个线程都有一个私有的本地内存，[本地内存](https://www.zhihu.com/search?q=本地内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})是Java内存模型的一个抽象的概念，并不是真实存在的。**从一个更低的层次来说，主内存就是硬件的内存，而为了获取更好的运行速度，[虚拟机](https://www.zhihu.com/search?q=虚拟机&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})及硬件系统可能会让工作内存优先存储于寄存器和高速缓存中。因此Java内存模型中的线程的工作内存（working memory）是cpu的寄存器和高速缓存的抽象描述。**主内存则可理解为[物理主存](https://www.zhihu.com/search?q=物理主存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})的抽象。而JVM的静态内存存储模型（[JVM内存模型](https://www.zhihu.com/search?q=JVM内存模型&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})）只是一种对物理内存的划分，它只局限在物理内存，而且只局限在JVM进程中的的物理内存
+Java内存模型与硬件内存架构之间存在差异
+
+硬件内存架构没有区分[线程栈](https://www.zhihu.com/search?q=线程栈&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})和堆。对于硬件而言，所有的线程栈和堆都分布在主内存中。部分线程栈和堆可能有时候会出现在CPU缓存中和CPU内部的寄存器中
+
+在java动态的内存模型中，分为主内存，和[线程工作内存](https://www.zhihu.com/search?q=线程工作内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})。主内存是所有的线程所共享的，工作内存是每个线程自己有一个，不是共享的。每个线程之间的共享变量存储在主内存里面，每个线程都有一个私有的本地内存，[本地内存](https://www.zhihu.com/search?q=本地内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})是Java内存模型的一个抽象的概念，并不是真实存在的。**从一个更低的层次来说，主内存就是硬件的内存，而为了获取更好的运行速度，[虚拟机](https://www.zhihu.com/search?q=虚拟机&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})及硬件系统可能会让工作内存优先存储于寄存器和高速缓存中。因此Java内存模型中的线程的工作内存（working memory）是cpu的寄存器和高速缓存的抽象描述。**主内存则可理解为[物理主存](https://www.zhihu.com/search?q=物理主存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})的抽象。而JVM的静态内存存储模型（[JVM内存模型](https://www.zhihu.com/search?q=JVM内存模型&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})）只是一种对物理内存的划分，它只局限在物理内存，而且只局限在JVM进程中的的物理内存
 
 ![img](image.assets/68747470733a2f2f63646e2e6a7364656c6976722e6e65742f67682f736d696c654172636869746563742f6173736574732f3230323130322f32303231303431363232313332382e706e67)
 
