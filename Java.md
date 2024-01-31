@@ -9438,7 +9438,7 @@ String str4 = str1 + str2;//堆中创建新对象
 
 ![](image.assets/2019-3String-Pool-Java1-450x249.png)
 
-字符串在进行 +运算 时,双方的内容都需要被拷贝,这将引发性能问题
+
 
 
 
@@ -9674,6 +9674,44 @@ List<String> list = splitter.splitToList("1,,,1,1    ,");
 
 ```java
 public native String intern();
+```
+
+
+
+###  String 类型的变量和常量做“+”运算时发生了什么？
+
+对象引用和“+”的字符串拼接方式，实际上是通过 `StringBuilder` 调用 `append()` 方法实现的，拼接完成之后调用 `toString()` 得到一个 `String` 对象 
+
+
+
+```java
+String str1 = "str";
+String str2 = "ing";
+String str3 = "str" + "ing";
+String str4 = str1 + str2;
+String str5 = "string";
+System.out.println(str3 == str4);//false
+System.out.println(str3 == str5);//true
+System.out.println(str4 == str5);//false
+
+
+
+```
+
+经过编译器的**常量折叠**优化, str3被优化为"string"存入常量池, 与str5指向同一个常量池地址, 而str4没有被优化, 指向的是堆中的地址
+
+
+
+在被**final**修饰后, 编译器也能将str3进行折叠
+
+```java
+//----------
+final String str1 = "str";
+final String str2 = "ing";
+// 下面两个表达式其实是等价的
+String str3 = "str" + "ing";// 常量池中的对象
+String str4 = str1 + str2; // 常量池中的对象
+System.out.println(str3 == str4);// true
 ```
 
 
