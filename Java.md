@@ -1989,27 +1989,13 @@ foreach是通过iterator实现的遍历
 
 
 
-offer，add区别：
+| `Queue` 接口 | 抛出异常  | 返回特殊值 |
+| ------------ | --------- | ---------- |
+| 插入队尾     | add(E e)  | offer(E e) |
+| 删除队首     | remove()  | poll()     |
+| 查询队首     | element() | peek()     |
 
-堆满插入时add抛出 unchecked 异常
 
-offer()返回false
-
-
-
-poll，remove区别：
-
-remove() 和 poll() 方法都是从队列中删除第一个元素。remove() 的行为与 Collection 接口的版本相似
-
-poll() 被空集合调用时不抛出异常，只是返回 null
-
- 
-
-peek，element区别：
-
-element() 和 peek() 用于在队列的头部查询元素。
-
-在队列为空时， element() 抛出一个异常，而 peek() 返回 null
 
 
 
@@ -4166,45 +4152,6 @@ public class AtomicStampedReferenceDemo {
 ```
 
 
-
-
-
-
-
-#### Unsafe
-
-```java
-public final class Unsafe {
-  private static final Unsafe theUnsafe;
-  //单例模式
-  private Unsafe() { }
-  static {
-    ...
-      theUnsafe = new Unsafe();
-    ...
-  }
-
-
-  public final int getAndAddInt(Object var1, long var2, int var4) {
-    int var5;
-    do {
-      var5 = this.getIntVolatile(var1, var2);
-    } while(!this.compareAndSwapInt(var1, var2, var5, var5 + var4));
-    return var5;
-  }
-
-  //native方法	var1当前对象	var2 valueOffsetvalue在主内存的地址	var4常量1	var5根据var1/2,调用getIntVolatile()得到的值
-  //当var1==var5,才更新
-  public final native boolean compareAndSwapInt(Object var1, long var2, int var4, int var5);
-
-  public native int getIntVolatile(Object var1, long var2);
-  
-  //直接在JVM上分配内存
-   public native long allocateMemory(long var1);
-}
-
-//最终是靠lock cmpxchg指令实现CAS操作,在一个cpu进行修改值时,不允许其他cpu进行修改
-```
 
 
 
@@ -8148,6 +8095,24 @@ CPU 将常用的数据放在高速缓存中，运算结束后将结果同步到�
 
 
 
+## 堆外内存
+
+堆外内存直接**受操作系统管理**（而不是虚拟机），通过通过代码手动回收内存, 减少内存空间占用率
+
+在io通信过程中, 使用堆外内存也可以**避免内存在堆内和堆外间的拷贝** 
+
+
+
+**堆外内存的创建** [Unsafe](##内存操作), [ByteBuffer](#allocateDirect)
+
+**堆外内存不受jvm管理,不会被gc**, 需要Unsafe#freeMemory来手动释放. 如果是用DirectByteBuffer分配的内存, 则有专门的`Cleaner`对象会自动调用freeMemory释放空间
+
+
+
+
+
+
+
 
 
 
@@ -9759,6 +9724,23 @@ stripTrailingZeros 去除尾部的0
 
 
 
+### 禁用BigDecimal.equals进行等值比较
+
+BigDecimal.equals会同时比较值和精度, 要用**compareTo**进行比较
+
+```java
+BigDecimal a = new BigDecimal("1");
+BigDecimal b = new BigDecimal("1.0");
+a.equals(b);//false
+a.compareTo(b);//0
+```
+
+
+
+
+
+
+
 
 
 
@@ -10547,6 +10529,8 @@ null -> Optional.empty()
 
 内部类对象可以访问/赋值外部类对象的成员变量(**包括私有**)
 
+编译后会生成两个不同的`.class`文件，分别是`xxx.class`和`xxx$inner.class`。所以**内部类的名字完全可以和外部类相同**
+
 
 
 ### 非静态内部类
@@ -10636,6 +10620,197 @@ null -> Optional.empty()
 1) 静态内部类：不依赖于外部类的实例，直接实例化内部类对象
 
 2) 非静态内部类：通过外部类的对象实例生成内部类对象
+
+
+
+## Unsafe
+
+提供一些用于执行低级别、不安全操作的方法，如直接访问系统内存资源、自主管理内存资源等
+
+
+
+```java
+public final class Unsafe {
+  // 单例对象
+  private static final Unsafe theUnsafe;
+  ......
+  private Unsafe() {
+  }
+    
+  @CallerSensitive
+  public static Unsafe getUnsafe() {
+    Class var0 = Reflection.getCallerClass();
+    // 只支持被BootstrapClassLoader加载
+    if(!VM.isSystemDomainLoader(var0.getClassLoader())) {
+      throw new SecurityException("Unsafe");
+    } else {
+      return theUnsafe;
+    }
+  }
+}
+```
+
+
+
+unsafe的实例对象不对外暴露, 但通过反射可以获取已实例化完成的单例对象 `theUnsafe` 
+
+```java
+Field field = Unsafe.class.getDeclaredField("theUnsafe");
+field.setAccessible(true);
+return (Unsafe) field.get(null);
+```
+
+
+
+### 内存操作
+
+Java对象内存的分配和回收都是由 JVM控制的。`Unsafe`提供了直接操作内存的接口
+
+
+
+Unsafe分配的是==堆外内存==, 不受JVM控制 (有内存泄漏的风险), 需要手动调用`freeMemory`进行释放
+
+```java
+//分配新的本地空间
+public native long allocateMemory(long bytes);
+//重新调整内存空间的大小
+public native long reallocateMemory(long address, long bytes);
+//将内存设置为指定值
+public native void setMemory(Object o, long offset, long bytes, byte value);
+//内存拷贝
+public native void copyMemory(Object srcBase, long srcOffset,Object destBase, long destOffset,long bytes);
+//清除内存
+public native void freeMemory(long address);
+```
+
+
+
+### 内存屏障
+
+
+
+```java
+//禁止读操作重排序，保证在这个屏障之前的所有读操作都已经完成，并且将缓存数据设为无效，重新从主存中进行加载
+public native void loadFence();
+//禁止store操作重排序
+public native void storeFence();
+//	禁止load、store操作重排序
+public native void fullFence();
+```
+
+
+
+可以实现等同于volatile的功能
+
+```java
+@Getter
+class ChangeThread implements Runnable{
+    /**volatile**/ boolean flag=false;
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("subThread change flag to:" + flag);
+        flag = true;
+    }
+}
+
+public static void main(String[] args){
+    ChangeThread changeThread = new ChangeThread();
+    new Thread(changeThread).start();
+    while (true) {
+        boolean flag = changeThread.isFlag();
+        unsafe.loadFence(); //加入读内存屏障
+        if (flag){
+            System.out.println("detected flag changed");
+            break;
+        }
+    }
+    System.out.println("main thread end");
+}
+
+//运行结果
+subThread change flag to:false
+detected flag changed
+main thread end
+```
+
+![](image.assets/image-20220717144703446.png)
+
+
+
+### 对象属性获取/赋值
+
+
+
+```java
+//在对象的指定偏移地址获取一个对象引用
+public native Object getObject(Object o, long offset);
+//在对象指定偏移地址写入一个对象引用
+public native void putObject(Object o, long offset, Object x);
+
+//出了object外,unsafe对于8大基本类型都有对应的get/put方法
+```
+
+
+
+### CAS
+
+```java
+/**
+  *  CAS
+  * @param o         包含要修改field的对象
+  * @param offset    对象中某field的偏移量
+  * @param expected  期望值
+  * @param update    更新值
+  * @return          true | false
+  */
+public final native boolean compareAndSwapObject(Object o, long offset,  Object expected, Object update);
+
+public final native boolean compareAndSwapInt(Object o, long offset, int expected,int update);
+
+public final native boolean compareAndSwapLong(Object o, long offset, long expected, long update);
+```
+
+
+
+### 线程调度
+
+ `LockSupport` 的 `park`、`unpark` 方法实际是调用 `Unsafe` 的 `park`、`unpark`
+
+```java
+//取消阻塞线程
+public native void unpark(Object thread);
+//阻塞线程
+public native void park(boolean isAbsolute, long time);
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
