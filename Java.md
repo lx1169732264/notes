@@ -913,7 +913,7 @@ CAS + synchronized + Node + 红黑树
 
 分段桶,**锁只加在数组头节点**，粒度小，并发高
 
-==不接受空key/value==
+==不接受空key/value==  Map#get返回null时,存在二义性: 可能是key不存在, 也可能是value为null. 在不考虑多线程的HashMap场景下, 可以通过contains(key)来判断key是否存在. 在多线程的场景下, 在调用完contains后, map有可能会被其他线程改动 (无法保证符合操作的原子性), 所以ConcurrentHashMap禁止了null来规避二义性
 
 
 
@@ -1148,27 +1148,9 @@ private final Node<K,V>[] initTable() {
 
 
 
-#### 3个原子操作
+#### 原子操作
 
-
-
-用于对指定位置的节点进行操作,CAS保证了线程安全
-
-ABASE表示table中首个元素的内存偏移地址，所以((long)i << ASHIFT) + ABASE为table[i]的内存偏移地址
-
-```java
-static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
-    return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
-}
-
-static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,Node<K,V> c, Node<K,V> v) {
-    return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
-}
-
-static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
-    U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
-}
-```
+`putIfAbsent`、`compute`、`computeIfAbsent` 、`computeIfPresent`、`merge`
 
 
 
@@ -1787,25 +1769,9 @@ public static void main(String[] args) {
 
 
 
-红黑树实现,线程不安全
+底层红黑树数据结构,线程不安全，默认是key的自然排序
 
 
-
-#### TreeMap按Value排序
-
-TreeMap底层是根据红黑树的数据结构构建的，默认是key的自然排序
-
-==将TreeMap的EntrySet转换成list，然后使用Collections.sor排序==
-
-```java
- Map<String,String> map = new TreeMap<String,String>();
-
-List<Entry<String, String>> list = new ArrayList<Entry<String, String>>(map.entrySet());
-Collections.sort(list,new Comparator<Map.Entry<String,String>>() {
-//升序排序
-public int compare(Entry<String, String> o1, Entry<String, String> o2) {
-	return o1.getValue().compareTo(o2.getValue()); } });
-```
 
 
 
@@ -2036,16 +2002,37 @@ Deque接口扩展了 Queue 接口。在将双端队列用作队列时，将得�
 
 
 
-### PriorityQueue 优先队列 1.5+
+### PriorityQueue 优先队列
 
 
 
-* **基于优先堆**的**无界**队列，**容量不受限制,会自动扩容**，但可以指定初始容量
-
+* **基于优先堆**的**无界**队列，支持自动扩容, 不允许使用索引来访问元素
 * **不允许空值，不支持不可比较的对象**，如自定义类
-
-* **队头最小**
 * PriorityQueue是**非线程安全**的，==PriorityBlockingQueue线程安全==（实现BlockingQueue接口）
+
+
+
+
+
+
+
+### BlockingQueue
+
+
+
+![BlockingQueue 的实现类](image.assets/blocking-queue-hierarchy.png)
+
+
+
+`ArrayBlockingQueue`：使用数组实现的有界阻塞队列。在创建时需要指定容量大小，并支持公平和非公平两种方式的锁访问机制
+
+`LinkedBlockingQueue`：使用单向链表实现的可选有界阻塞队列。在创建时可以指定容量大小，如果不指定则默认为`Integer.MAX_VALUE`。和`ArrayBlockingQueue`不同的是， 它仅支持非公平的锁访问机制。
+
+`PriorityBlockingQueue`：支持优先级排序的无界阻塞队列。元素必须实现`Comparable`接口或者在构造函数中传入`Comparator`对象，并且不能插入 null 元素。
+
+`SynchronousQueue`：同步队列，是一种不存储元素的阻塞队列。每个插入操作都必须等待对应的删除操作，反之删除操作也必须等待插入操作。因此，`SynchronousQueue`通常用于线程之间的直接传递数据。
+
+`DelayQueue`：延迟队列，其中的元素只有到了其指定的延迟时间，才能够从队列中出队
 
 
 
