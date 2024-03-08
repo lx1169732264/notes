@@ -120,6 +120,178 @@ UUID	全局唯一（UUID）
 
 
 
+## 启动流程
+
+
+
+
+
+```java
+// 1. 读取mybatis-config.xml配置
+InputStream in = Resources.getResourceAsStream("mybatis-config.xml");
+// 2. 创建SqlSessionFactory工厂
+SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(in);
+// 3. 获取sqlSession
+SqlSession sqlSession = sqlSessionFactory.openSession();
+// 4. 获取代理的Mapper对象
+TTestUserMapper userMapper = sqlSession.getMapper(TTestUserMapper.class);
+// 5. 执行接口方法
+TTestUser userInfo = userMapper.selectByPrimaryKey(16L);
+// 6. 提交事物
+sqlSession.commit();
+// 7. 关闭资源
+sqlSession.close();
+in.close()
+```
+
+
+
+![image.png](image.assets/f8cef8e76ad74c1d9969110081fc53e2tplv-k3u1fbpfcp-zoom-in-crop-mark1512000.awebp)
+
+
+
+
+
+**SqlSessionFactoryBuilder**
+
+创建SqlSessionFactory工厂
+
+```java
+public class SqlSessionFactoryBuilder {
+    public SqlSessionFactory build(InputStream inputStream, String environment, Properties properties) {
+        try {
+            //XMLConfigBuilder用来读取mybatis-config.xml
+            XMLConfigBuilder parser = new XMLConfigBuilder(inputStream, environment, properties);
+            //parse()返回Configuration
+            return build(parser.parse());
+        } catch (Exception e) {
+            throw ExceptionFactory.wrapException("Error building SqlSession.", e);
+        } finally {
+            ErrorContext.instance().reset();
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+            }
+        }
+    }
+}
+```
+
+
+
+
+
+**SqlSessionFactory**
+
+产出**sqlSession**对象，并为这个对象的**excutor**成员变量赋值
+
+
+
+**SqlSession**
+
+定义了查询、更新、回滚等接口, 对外提供了用户和数据库之间交互需要的所有方法
+
+SqlSession是线程不安全的，每个线程都会有自己唯一的SqlSession，不同线程间调用同一个SqlSession会出现问题，因此在使用完后需要close掉
+
+
+
+
+
+##### Executor
+
+SqlSession对数据库操作都委托给了Executor
+
+1. SimpleExecutor：**默认**，每次都会创建新的Statement对象，并在执行结束后关闭
+2. ReuseExecutor：可**重用**Statement对象的执行器，第一次执行一条sql，会将这条sql的Statement对象缓存在map缓存中，**执行结束后不关闭statement对象**。下一次执行，就可以从缓存中取出Statement对象，减少了重复编译的次数，从而提高了性能。每个SqlSession对象都有一个Executor对象，因此这个缓存是SqlSession级别的，当SqlSession销毁时，缓存也会销毁
+3. BatchExecutor：批量执行器，每次执行一条sql，不会立马发送到数据库，而是批量一次性发送sql
+4. ClosedExecutor: ResultLoaderMap的内部类，用来进行处理懒加载相关
+5. CachingExecutor: Executor的装饰器, 在**执行更新时清除缓存**，在执行查询时先从缓存中查找
+
+![image.png](image.assets/abe674d6f359406faa64fea3074dfc3ftplv-k3u1fbpfcp-zoom-in-crop-mark1512000.awebp)
+
+
+
+```java
+//Configuration.class
+public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    if (ExecutorType.BATCH == executorType) {
+      executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+      executor = new ReuseExecutor(this, transaction);
+    } else {
+      executor = new SimpleExecutor(this, transaction); //默认
+    }
+    if (cacheEnabled) {//如果二级缓存开启,会用CachingExecutor来装饰执行器
+      executor = new CachingExecutor(executor);
+    }
+   // 加载插件链
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+  }
+```
+
+
+
+Executor流程，以SimpleExecutor为例,  如果是ReuseExecutor，则没有关闭Statement这一步
+
+```java
+//SimpleExecutor.class
+@Override
+  public int doUpdate(MappedStatement ms, Object parameter) throws SQLException {
+    Statement stmt = null;
+    try {
+      Configuration configuration = ms.getConfiguration();
+      // 1. 创建StatementHandler
+      StatementHandler handler = configuration.newStatementHandler(this, ms, parameter, RowBounds.DEFAULT, null, null);
+      // 2. 创建Statement
+      stmt = prepareStatement(handler, ms.getStatementLog());
+      // 3. 执行sql			
+      return handler.update(stmt);
+    } finally {
+      // 4. 关闭Statement
+      closeStatement(stmt);
+    }
+  }
+```
+
+
+
+prepareStatement，以ReuseExecutor为例. SimpleExecutor则是没有了从缓存中存取的这一步
+
+```java
+//ReuseExecutor.class
+//k:sql语句 v:Statement对象
+private final Map<String, Statement> statementMap = new HashMap<>();
+
+private Statement prepareStatement(StatementHandler handler, Log statementLog) throws SQLException {
+    Statement stmt;
+    BoundSql boundSql = handler.getBoundSql();
+    String sql = boundSql.getSql();
+    // 1. sql在缓存中则直接获取statement对象
+    if (hasStatementFor(sql)) {
+        stmt = getStatement(sql);
+        applyTransactionTimeout(stmt);
+    } else {
+        //2. 不存在则创建statement对象
+        Connection connection = getConnection(statementLog);
+        stmt = handler.prepare(connection, transaction.getTimeout());
+        //3. 放到缓存中
+        putStatement(sql, stmt);
+    }
+    handler.parameterize(stmt);
+    return stmt;
+}
+```
+
+
+
+
+
+
+
 
 
 

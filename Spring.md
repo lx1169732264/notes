@@ -1939,6 +1939,54 @@ Cloud就是基于boot的三大魔法,将各种微服务组件整合在一起
 
 
 
+## Spring Cloud Gateway
+
+
+
+## 工作流程
+
+![![断言配置示例](https://oss.javaguide.cn/github/javaguide/system-design/distributed-system/api-gateway/spring-cloud-gateway-predicate-example.png)](image.assets/spring-cloud-gateway-workflow.png)
+
+**路由判断**：客户端的请求先经过 Gateway Handler Mapping 处理，根据断言规则映射到后端的某个服务
+
+**请求过滤**：然后请求到达 Gateway Web Handler，这里面有很多过滤器，组成过滤器链（Filter Chain），这些过滤器可以对请求进行拦截和修改，比如添加请求头、参数校验等等，有点像净化污水。然后将请求转发到实际的后端服务。这些过滤器逻辑上可以称作 Pre-Filters，Pre 可以理解为“在...之前”。
+
+**服务处理**：后端服务会对请求进行处理。
+
+**响应过滤**：后端处理完结果后，返回给 Gateway 的过滤器再次做处理，逻辑上可以称作 Post-Filters，Post 可以理解为“在...之后”。
+
+**响应返回**：响应经过过滤处理后，返回给客户端
+
+
+
+## 断言
+
+一个路由规则可以配置多个断言, 但需要**同时满足**才会符合路由条件
+
+当多个路由同时被请求匹配时, 则映射到**第一个**匹配成功的路由
+
+
+
+![断言配置示例](image.assets/spring-cloud-gateway-predicate-example.png)
+
+
+
+![Spring Cloud GateWay 路由断言规则](image.assets/spring-cloud-gateway-predicate-rules.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Nacos
 
 
