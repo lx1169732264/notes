@@ -1939,44 +1939,7 @@ bitop and key1 key2
 
 
 
-## 网页独立访客统计
 
-> UV:Unique Visitor 网页的独立访客,通过IP去重
-
-
-
-**Set统计UV**
-
-```shell
-SADD page1:uv user1
-SCARD page1:uv #返回set中元素的个数
-```
-
-当用户数量大时,set里会有千万个用户. 并且每个网页都要用独立的set存储uv,大促时可能会有上万个网页需要统计,这会导致占用过多的内存
-
-
-
-**Hset统计UV**
-
-```bash
-HSET page1:uv user1 1 #用户ID作为Hset的key,对这个用户 ID 记录一个值“1”，表示一个独立访客
-HLEN page1:uv #统计 Hash 集合中的所有元素个数
-```
-
-和 Set 类型相似，当页面很多时，Hash 类型也会消耗很大的内存空间
-
-
-
-**HyperLogLog统计UV**
-
-HyperLogLog 是一种用于统计基数的数据集合类型,它计算基数所需的空间总是固定的，而且还很小，适合大量数据的统计
-
-每个 HyperLogLog 只需要花费 12 KB 内存，就可以存储 2^64 个元素
-
-```shell
-PFADD page1:uv user1 user2 user3 user4 user5 #支持一次性记录多个用户
-PFCOUNT page1:uv #统计结果是基于概率完成的，一般存在0.81%的误差
-```
 
 
 
