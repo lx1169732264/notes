@@ -1589,11 +1589,9 @@ Aspect-Oriented Programming 面向切面编程
 
 ## 多切面执行顺序
 
-按类名决定执行顺序,并且是A.around->B.around->A.Before->B.beofre,因为方法只会执行一次
+默认按**类名顺序**,并且是A.around->B.around->A.Before->B.beofre,因为方法只会执行一次
 
-
-
-也可以加@Order注解,定义执行顺序
+也可以加**@Order**注解,定义执行顺序
 
 
 
