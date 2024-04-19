@@ -345,9 +345,7 @@ public interface Comparator<T> {
 
 ### ArrayList
 
-
-
-#### retainAll 交集
+ 当第⼀次添加元素（调⽤ add() ⽅法）时，会初始化为⼀个⻓度为 10 的数组
 
 
 
@@ -4639,17 +4637,11 @@ if(!vector.contains(element))		vector.add(element); //contains和add都是原子
 
 
 
-#### 同步锁
 
 
 
-每个对象都有一个内置锁,一个对象只有一个锁
 
-当程序运行到非静态的 synchronized 同步方法上时，自动获得与正在执行代码类的当前实例（this 实例）有关的锁
 
-获得一个对象的锁也称为获取锁、锁定对象、在对象上锁定或在对象上同步
-
-一个线程获得该锁，就没有其他线程可以获得锁，直到第一个线程释放/返回锁
 
 
 
@@ -4678,8 +4670,6 @@ ReentrantLock,synchronized
 
 
 #### 隐式/显示
-
-
 
 区分点在于有没有显示声明锁
 
@@ -5117,7 +5107,7 @@ JSR内存屏障协议:	Load/Storage 读/写屏障
 
 **悲观+不公平+可重入	无锁/自旋/互斥信号量**
 
-线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，==退出或异常时自动释放锁==
+每个对象都有一个内置锁, 当程序运行到非静态的 synchronized 同步方法上时，自动获得与正在执行代码类的当前实例（this 实例）有关的锁. 获得一个对象的锁也称为在对象上同步. 在获得锁之前, 线程进入BLOCKED状态，争夺到锁后恢复为RUNNABLE状态，==退出或异常时自动释放锁==
 
 
 
@@ -8172,39 +8162,41 @@ java -XX:+PrintCommandLineFlags -version
 -XX:InitialHeapSize=257798976 #最小堆大小
 -XX:MaxHeapSize=4124783616 #最大堆大小  
 -XX:+PrintCommandLineFlags
--XX:+UseCompressedClassPointers #将类型指针进行压缩(8->4字节)
+-XX:+UseCompressedClassPointers #将类型指针进行压缩(8->4字节), 默认开启, 但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB将无法开启指针压缩
 -XX:+UseCompressedOops	#将普通对象指针(成员变量指向对象)进行压缩 8->4字节
 -XX:-UseLargePagesIndividualAllocation -XX:+UseParallelGC
 java version "1.8.0_191"
 Java(TM) SE Runtime Environment (build 1.8.0_191-b12)
-Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节)
+Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节,在开启指针压缩后变为4字节)
 ```
 
 
 
-**64/32位操作系统指系统使用多少位表示一个指针**
-
-**Java默认开启指针压缩,指针是4字节**,但4字节最多代表2^32^*2^3^=32GB的内存空间,超过32GB将无法开启指针压缩
-
-
-
-![](image.assets/image-20201220173759450.png)
-
-
-
-| 对象头 markword       | 锁                                   | 8字节 | 对象运行时数据，哈希，GC年龄，锁状态标志 |
-| --------------------- | ------------------------------------ | ----- | ------------------------------------------------------------ |
-| 类型指针 classpointer | 指向xxx.class                        | 4     | 指向类元数据的指针，从而判断对象是哪个类的实例     |
-| 实例数据 instancedata | 成员属性                             | 每个4 | 类中各个字段                                     |
-| 对齐 padding          | 填充为8的倍数,加速读取 |       | Hotspot JVM规定对象起始地址必须是8的整数倍 |
-
-
+java对象由对象头, 类型指针, 实例数据, 对齐填充组成
 
 开启指针压缩后,最小的一个对象为 8对象头+4类型指针+4对齐 = 16字节
 
+| 对象头 markword       | 8字节 | 对象运行时数据，哈希，GC年龄，锁状态标志 |
+| --------------------- | ----- | ------------------------------------------------------------ |
+| 类型指针 classpointer | 4     | 指向.class对象的指针，从而判断对象是哪个类的实例 |
+| 实例数据 instancedata | 每个4 | 成员属性                                 |
+| 对齐填充 padding        |       | Hotspot JVM规定对象起始地址必须是8的整数倍. 在不足8时需要填充, 便于读取 |
 
 
-![](image.assets/image-20201220175904411.png)
+
+synchronized锁的状态被分为4种，级别从低到⾼依次是：无锁、偏向锁、轻量级锁、重量级锁。在32位虚拟机下，Mark Word的最后3位就可以判断锁的状态
+
+自旋锁并没有对应的锁标志位, 它仅仅是锁可能存在的⼀种状态，是暂时性的，并没有官方的标志
+
+**锁的竞争本质上是看哪个线程能修改对象头的锁标志位**
+
+![](image.assets/image-20240419164420250.png)
+
+
+
+
+
+
 
 
 
@@ -8252,18 +8244,6 @@ string ="xxx";	4字节(此处只需存储4字节的指针指向"xxx"对象)
 内补齐使得读取成员变量时不会出现碎片化
 
 
-
-### 64位JVM
-
-目前主流的Cou已经支持64位架构了,JVM也早就支持了64位系统的版本,但Java程序运行在64位JVM上需要付出额外的内存(将近是32位的1.1/1.3倍)
-
-
-
-1.6+提供了`UseCompressedOops`设置指针压缩,通过在执行代码时动态地植入压缩指令来节省内存的消耗,但这会**增加代码的执行量**:
-
-1. 所有堆中的对象的指针都被压缩 -> 需要额外的代码完成指针的访问
-2. 实例指向对象类型的引用也被压缩 -> 
-3. 子类型检查 -> 
 
 
 
@@ -9384,6 +9364,14 @@ String s4 = s2.intern();
 System.out.println(s1 == s3);
 System.out.println(s1 == s4);
 System.out.println(s2 == s4);//false  其余都true
+
+//final修饰的String可以让编译器当做常量处理
+final String str1 = "str";
+final String str2 = "ing";
+
+String c = "str" + "str2";// 常量池中的对象
+String d = str1 + str2; // 常量池中的对象
+System.out.println(c == d);// true
 ```
 
 
@@ -9600,7 +9588,47 @@ System.out.println(str3 == str4);// true
 
 
 
+#### String空对象打印为null
 
+
+
+PrintStream对null做了特殊处理
+
+```java
+String s = null;
+System.out.println(s);//打印出来null
+
+//PrintStream#print
+public void print(String s) {
+    if (s == null) {
+        s = "null";
+    }
+    write(s);
+}
+```
+
+
+
+在字符串拼接时, Stringbuilder做了特殊处理
+
+```java
+String a = null;
+String b = null;
+System.out.println(a + b);//打印nullnull
+
+//AbstractStringBuilder#appendNull
+private AbstractStringBuilder appendNull() {
+    int c = count;
+    ensureCapacityInternal(c + 4);
+    final char[] value = this.value;
+    value[c++] = 'n';
+    value[c++] = 'u';
+    value[c++] = 'l';
+    value[c++] = 'l';
+    count = c;
+    return this;
+}
+```
 
 
 
@@ -11006,7 +11034,7 @@ s1 instanceof String; // false		instanceof为true的条件: 不为null && 没有
 
 ## static
 
-1. **修饰成员变量和成员方法:** 被 static 修饰的成员属于类，不属于单个这个类的某个对象，被类中所有对象共享，可以并且建议通过类名调用。被static 声明的成员变量属于静态成员变量，静态变量 存放在 Java 内存区域的方法区
+1. **修饰成员变量和成员方法:** 被 static 修饰的成员属于类，被类中所有对象共享，可以通过类名调用。被static 声明的成员变量属于静态成员变量，静态变量 存放在方法区
 2. **静态代码块:** 静态代码块在非静态代码块之前执行(静态代码块—>非静态代码块—>构造方法)。 不管创建多少对象，静态代码块只执行一次
 3. **静态内部类（static修饰类的话只能修饰内部类）：**静态内部类与非静态内部类之间存在一个最大的区别: 非静态内部类在编译完成之后会隐含地保存着一个引用，该引用是指向创建它的外围类，但是静态内部类却没有。没有这个引用就意味着：1. 它的创建是不需要依赖外围类的创建。2. 它不能使用任何外围类的非static成员变量和方法。
 4. **静态导包(1.5+新特性):**
