@@ -483,19 +483,17 @@ string类型的键值对映射表 -> ==字段和值必须是字符串==
 
 Zset增加了一个**权重参数score**，实现有序排列,还支持通过score范围获取元素
 
-
-
 | 命令                                          | 介绍                                                         |
 | --------------------------------------------- | ------------------------------------------------------------ |
-| ZADD key score1 member1 score2 member2 ...    | 向指定有序集合添加一个或多个元素                             |
-| ZCARD KEY                                     | 获取指定有序集合的元素数量                                   |
-| ZSCORE key member                             | 获取指定有序集合中指定元素的 score 值                        |
+| ZADD key score1 member1 score2 member2 ...    | 添加一个或多个元素                                           |
+| ZREM key score1 member1 score2 member2 ...    | 删除                                                         |
+| ZCARD KEY                                     | 获取元素数量                                                 |
+| ZSCORE key member                             | 获取指定元素的 score 值                                      |
 | ZINTERSTORE destination numkeys key1 key2 ... | 将给定所有有序集合的交集存储在 destination 中，对相同元素对应的 score 值进行 SUM 聚合操作，numkeys 为集合数量 |
 | ZUNIONSTORE destination numkeys key1 key2 ... | 求并集，其它和 ZINTERSTORE 类似                              |
 | ZDIFFSTORE destination numkeys key1 key2 ...  | 求差集，其它和 ZINTERSTORE 类似                              |
-| **ZRANGE** key start end                      | 获取指定有序集合 start 和 end 之间的元素（score 从低到高）   |
-| ZREVRANGE key start end                       | 获取指定有序集合 start 和 end 之间的元素（score 从高到底）   |
-| ZREVRANK key member                           | 获取指定有序集合中指定元素的排名(score 从大到小排序)         |
+| **ZRANGE** key start end [WITHSCORES]         | 获取start到end之间的元素, WITHSCORES为可选项, 代表score也会一起返回 |
+| ZREVRANGE key start end                       | ZRANGE的倒序                                                 |
 
 **微信步数排行榜 / 优先级队列** `ZREVRANGE`
 

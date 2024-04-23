@@ -7504,34 +7504,53 @@ Unsafe#allocateMemory这个native方法就是分配了直接内存
 
 Java Memory Model 内存模型
 
-==规范了内存的读写操作, 通过禁止指令重排序和内存屏障来解决并发问题==
+==规范了内存的读写操作, 通过禁止指令重排序和内存屏障来解决并发问题==, 不同硬件之间的内存模型存在差异, JMM屏蔽了各种硬件和操作系统访问内存的差异, 来让Java程序在各个平台下都有一致的内存访问效果
 
-![](image.assets/内存模型.png)
+JMM更侧重于多线程环境下共享变量的可见性、原子性和有序性等问题
 
-
-
-![](image.assets/1c1d85b5fb8b47239af2a5c0436eb2d7-new-image0cd10827-2f96-433c-9b16-93d4fe491d88.png)
+Java运行时数据区侧重于存储Java程序运行时所需要的数据结构和对象实例, JMM和运行时数据区是两个不同的概念
 
 
 
-### JMM的规范
 
-- 所有的变量都存储在主内存中
-- 每个线程都有一个私有的本地内存（寄存器、CPU 缓存等），本地内存中存储了该线程以读/写共享变量的拷贝副本
-- 线程对变量的所有操作都必须在本地内存中进行，而不能直接读写主内存
-- 不同的线程之间无法直接访问对方本地内存中的变量
+
+### JMM规范
+
+* **共享内存**  所有线程共享**主内存**的空间, 但不能直接读写主内存, 必须将数据拷贝到**工作内存（寄存器、CPU 缓存等）**后再操作数据. 工作内存是线程私有的
+* **隐式通信**  上一个线程将数据从工作内存写回至主内存, 下一个线程就能读到新数据, 实现了线程之间的隐式通信
+* **显式同步**  在程序中可以显式地控制多线程访问主内存的顺序, 来让线程能够成功读取到上个线程修改过后的数据
+
+
+
+<img src="image.assets/image-20240423152607197.png" alt="image-20240423152607197" style="zoom:67%;" />
+
+
+
+而工作内存实际上是对寄存器, CPU缓存等一系列硬件的抽象, 从硬件层面的角度来说, JMM的流程是这样的:
+
+<img src="image.assets/image-20240423152751914.png" alt="image-20240423152751914" style="zoom: 67%;" />
 
 
 
 ### JMM和硬件内存架构之间的桥接
 
-Java内存模型与硬件内存架构之间存在差异
+JMM是建立在应用软件层面上的, 对底层硬件内存架构进行了更细的划分
 
-硬件内存架构没有区分[线程栈](https://www.zhihu.com/search?q=线程栈&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})和堆。对于硬件而言，所有的线程栈和堆都分布在主内存中。部分线程栈和堆可能有时候会出现在CPU缓存中和CPU内部的寄存器中
+硬件内存架构没有区分堆/栈, 堆/栈都分布在主内存中-----todo
 
 在java动态的内存模型中，分为主内存，和[线程工作内存](https://www.zhihu.com/search?q=线程工作内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})。主内存是所有的线程所共享的，工作内存是每个线程自己有一个，不是共享的。每个线程之间的共享变量存储在主内存里面，每个线程都有一个私有的本地内存，[本地内存](https://www.zhihu.com/search?q=本地内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})是Java内存模型的一个抽象的概念，并不是真实存在的。**从一个更低的层次来说，主内存就是硬件的内存，而为了获取更好的运行速度，[虚拟机](https://www.zhihu.com/search?q=虚拟机&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})及硬件系统可能会让工作内存优先存储于寄存器和高速缓存中。因此Java内存模型中的线程的工作内存（working memory）是cpu的寄存器和高速缓存的抽象描述。**主内存则可理解为[物理主存](https://www.zhihu.com/search?q=物理主存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})的抽象。而JVM的静态内存存储模型（[JVM内存模型](https://www.zhihu.com/search?q=JVM内存模型&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})）只是一种对物理内存的划分，它只局限在物理内存，而且只局限在JVM进程中的的物理内存
 
 ![img](image.assets/68747470733a2f2f63646e2e6a7364656c6976722e6e65742f67682f736d696c654172636869746563742f6173736574732f3230323130322f32303231303431363232313332382e706e67)
+
+
+
+## 运行时数据区
+
+
+
+![](image.assets/内存模型.png)
+
+![](image.assets/1c1d85b5fb8b47239af2a5c0436eb2d7-new-image0cd10827-2f96-433c-9b16-93d4fe491d88.png)
 
 
 
