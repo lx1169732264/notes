@@ -30,13 +30,7 @@ Java的解释	[JIT](#JIT)
 
 
 
-### 静态不能调用非静态
 
-
-
-静态方法属于类,在[加载](加载)时根据.class文件在堆中创建class对象 -> 支持通过类名直接访问
-
-非静态成员属于实例,此时内存中还不存在实例,也不存在实例的方法,所以无法被静态访问
 
 
 
@@ -5037,7 +5031,7 @@ wait + notify
 
 ## volatile
 
-[只保证变量的可见性,不保证操作的原子性](#JMM三大特性) -> ==针对变量弱同步，不保证线程安全==,static不是可见的
+[只保证变量的可见性,不保证操作的原子性](#JMM三大特性) -> ==针对变量弱同步，不保证线程安全==, static不是可见的
 
 ==修饰引用变量时,引用不变不刷新至主内存==
 
@@ -5055,38 +5049,38 @@ wait + notify
 
 **内存语义**
 
+* 读取时, 线程放弃工作内存中的副本, 从主内存中读取最新的值
+
 * 写入时，JMM把工作内存中的**变量值立即刷新到主内存,并通知其他线程**(线程通信)
   * 其他线程放弃工作内存中的副本，重新去主内存获取
 * 产生==内存屏障==，防止指令重排
-* volatile 变量不会被缓存在寄存器/处理器不可见的地方，读volatile变量时总会返回最新的值
 
 
 
 ### 内存屏障
 
-
-
-JSR内存屏障协议:	Load/Storage 读/写屏障
+内存屏障规定了`load`, `store`指令的执行顺序	[JMM内存的8种操作](#JMM内存的8种操作)
 
 - LoadLoad	两个LoadLoad指令不能重排,下面同理
 - StoreStore
 - LoadStore
 - StoreLoad
 
-内存屏障防止Volatile修饰的关键字指令不会重排序,底层是loadfence/storefence原语指令
+
+
+**volatile写操作会在 写操作前插入StoreStore屏障, 写操作后插入StoreLoad屏障**
+
+<img src="image.assets/image-20240425095908968.png" style="zoom:67%;" />
 
 
 
-**实现机制**
+**volatile读操作会在 读操作前插入LoadLoad屏障, 读操作后插入LoadStore屏障**
 
-把 volatile变量和非volatile变量都生成汇编代码，会发现 volatile 变量多出一个 lock 前缀指令
+<img src="image.assets/image-20240425100833498.png" alt="image-20240425100833498" style="zoom:67%;" />
 
 
 
-1.在每个volatile写操作前插入StoreStore屏障；对于这样的语句Store1; StoreLoad; Store2，在Store2及后续写入操作执行前，保证Store1的写入操作对其它处理器可见
-2.在每个volatile写操作后插入StoreLoad屏障；对于这样的语句Store1; StoreLoad; Load2，在Load2及后续所有读取操作执行前，保证Store1的写入对所有处理器可见
-3.在每个volatile读操作前插入LoadLoad屏障；对于这样的语句Load1;LoadLoad; Load2，在Load2及后续读取操作要读取的数据被访问前，保证Load1要读取的数据被读取完毕
-4.在每个volatile读操作后插入LoadStore屏障；对于这样的语句Load1; LoadStore; Store2，在Store2及后续写入操作被刷出前，保证Load1要读取的数据被读取完毕
+在不影响volatile内存语义的前提下, 编译器可能会优化掉不必要的内存屏障	
 
 
 
@@ -7516,7 +7510,7 @@ Java运行时数据区侧重于存储Java程序运行时所需要的数据结构
 
 ### JMM规范
 
-* **共享内存**  所有线程共享**主内存**的空间, 但不能直接读写主内存, 必须将数据拷贝到**工作内存（寄存器、CPU 缓存等）**后再操作数据. 工作内存是线程私有的
+* **共享内存**  所有线程共享**主内存(硬件中的物理内存)**的空间, 但不能直接读写主内存, 必须将数据拷贝到**工作内存（寄存器、CPU 缓存等）**后再操作数据. 工作内存是线程私有的
 * **隐式通信**  上一个线程将数据从工作内存写回至主内存, 下一个线程就能读到新数据, 实现了线程之间的隐式通信
 * **显式同步**  在程序中可以显式地控制多线程访问主内存的顺序, 来让线程能够成功读取到上个线程修改过后的数据
 
@@ -7526,29 +7520,145 @@ Java运行时数据区侧重于存储Java程序运行时所需要的数据结构
 
 
 
-而工作内存实际上是对寄存器, CPU缓存等一系列硬件的抽象, 从硬件层面的角度来说, JMM的流程是这样的:
-
-<img src="image.assets/image-20240423152751914.png" alt="image-20240423152751914" style="zoom: 67%;" />
 
 
+从硬件的层面来说来说，主内存就是硬件内存, 工作内存是对寄存器, CPU缓存等一系列硬件的抽象. JMM是在软件内存架构和硬件内存架构的一种桥接的规范
 
-### JMM和硬件内存架构之间的桥接
+![](image.assets/68747470733a2f2f63646e2e6a7364656c6976722e6e65742f67682f736d696c654172636869746563742f6173736574732f3230323130322f32303231303431363232313332382e706e67)
 
-JMM是建立在应用软件层面上的, 对底层硬件内存架构进行了更细的划分
 
-硬件内存架构没有区分堆/栈, 堆/栈都分布在主内存中-----todo
 
-在java动态的内存模型中，分为主内存，和[线程工作内存](https://www.zhihu.com/search?q=线程工作内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})。主内存是所有的线程所共享的，工作内存是每个线程自己有一个，不是共享的。每个线程之间的共享变量存储在主内存里面，每个线程都有一个私有的本地内存，[本地内存](https://www.zhihu.com/search?q=本地内存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})是Java内存模型的一个抽象的概念，并不是真实存在的。**从一个更低的层次来说，主内存就是硬件的内存，而为了获取更好的运行速度，[虚拟机](https://www.zhihu.com/search?q=虚拟机&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})及硬件系统可能会让工作内存优先存储于寄存器和高速缓存中。因此Java内存模型中的线程的工作内存（working memory）是cpu的寄存器和高速缓存的抽象描述。**主内存则可理解为[物理主存](https://www.zhihu.com/search?q=物理主存&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})的抽象。而JVM的静态内存存储模型（[JVM内存模型](https://www.zhihu.com/search?q=JVM内存模型&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra={"sourceType"%3A"answer"%2C"sourceId"%3A1805737164})）只是一种对物理内存的划分，它只局限在物理内存，而且只局限在JVM进程中的的物理内存
+### JMM三大特性
 
-![img](image.assets/68747470733a2f2f63646e2e6a7364656c6976722e6e65742f67682f736d696c654172636869746563742f6173736574732f3230323130322f32303231303431363232313332382e706e67)
+缓存一致性 -> 可见性  线程执行的结果能否被其他线程正常访问
+
+处理器优化 -> 原子性
+
+指令重排序 -> 有序性
+
+
+
+#### 原子性
+
+```java
+i = 0; // 这个是原子性的
+i++;   // 包含三个操作，读取i的值，将i加1，将值赋给i
+i = j; // 读取j的值，将j的值赋给i
+i = i + 1; // 包含三个操作，读取i的值，将i加1，将值赋给i
+```
+
+Java 内存模型保证 read、load、use、assign、store、write、lock 和 unlock 操作具有原子性
+
+但JMM允许JVM将没有被 volatile 修饰的 64 位数据（long，double）的读写操作划分为 两次32位的操作进行，即 load、store、read 和 write 操作不具备原子性
+
+
+
+
+
+将内存间的交互操作简化为 3 个：load、assign、store
+
+下图演示了两个线程同时对 cnt 进行操作，load、assign、store 这一系列操作整体上看不具备原子性，那么在 T1 修改 cnt 并且还没有将修改后的值写入主内存，T2 依然可以读入旧值。可以看出，这两个线程虽然执行了两次自增运算，但是主内存中 cnt 的值最后为 1 而不是 2。因此对 int 类型读写操作满足原子性只是说明 load、assign、store 这些单个操作具备原子性
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2797a609-68db-4d7b-8701-41ac9a34b14f.jpg" width="300px"> </div><br>
+
+AtomicInteger 能保证多个线程修改的原子性
+
+<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/dd563037-fcaa-4bd8-83b6-b39d93a12c77.jpg" width="300px"> </div><br>
+
+
+
+除了使用原子类之外，也可以使用 synchronized 来保证操作的原子性。它对应的内存间交互操作为：lock 和 unlock，在虚拟机实现上对应的字节码指令为 monitorenter 和 monitorexit
+
+
+
+#### 可见性
+
+可通过在变量修改后将新值同步回主内存，在变量读取前从主内存刷新变量值实现可见性
+
+
+
+- volatile
+- synchronized，对变量执行 unlock 前，必须把变量值同步回主内存
+- final,不变 = 可见
+
+
+
+#### <a name="指令重排">有序性</a>
+
+==指令重排==	JMM允许编译器和处理器对指令进行重排序，重排不影响到单线程执行的最终结果，却会影响到多线程并发执行的正确性
+
+有3类重排
+
+1. 编译器优化的重排序  编译器在遵循**as-if-serial语义**(重排序不影响单线程的执行结果)的前提下, 可以重排指令
+2. 处理器的重排序  如果不存在**数据依赖性**(两个操作共同访问一个变量, 其中一个是写操作), 处理器可以改变语句对机器执行指令的顺序
+3. 内存系统的重排序  由于处理器使用缓存和读写缓冲区, 使得内存的读写操作是乱序执行的
+
+
+
+
+
+volatile 关键字通过添加内存屏障的方式来禁止指令重排，即重排序时不能把后面的指令放到内存屏障之前
+
+synchronized 保证每个时刻只有一个线程执行同步代码
+
+
+
+### happens-before
+
+**先行发生原则**	在不改变程序执行结果(包括多线程之间的正确同步)的前提下, 编译器和处理器可以进行特殊的优化, 例如消除方法内的锁同步, 消除volatile
+
+1. 如果操作a happens-before 操作b, 那么a的执行结果对于b来说是可见的
+2. 如果a,b的执行顺序调换后, 不影响最终的执行结果, 那么a,b之间可以重排序
+
+| 规则         |                          |                                                              |
+| ------------ | ------------------------ | ------------------------------------------------------------ |
+| 单一线程原则 | Single Thread rule       | 同一线程内，前面的语句先行于后面的语句                       |
+| 管程锁定     | Monitor Lock Rule        | unlock先行于后续对同一个锁的lock                             |
+| volatile     | Volatile Variable Rule   | 对 volatile 变量的写操作先行于后续读操作                     |
+| 线程启动规则 | Thread Start Rule        | Thread 对象的 start() 先行发生于方法体内容                   |
+| 线程加入规则 | Thread Join Rule         | Thread 对象的结束先行于 join() 方法返回                      |
+| 线程中断规则 | Thread Interruption Rule | [interrupt()](#interrupt) 的调用先行于被中断线程的代码检测到中断事件的发生 |
+| 对象终结规则 | Finalizer Rule           | 对象的初始化完成先行发生于 finalize() 的调用                 |
+| 传递性       | Transitivity             | 如果操作 A 先行发生于操作 B，操作 B 先行发生于操作 C，那么操作 A 先行发生于操作 C |
+
+
+
+### JMM内存的8种操作
+
+JMM规定了主内存与工作内存之间交互的8种操作
+
+| 内存交互操作 |                                      |
+| ------------ | ------------------------------------ |
+| lock         | 把主内存的变量标记为线程独占的状态   |
+| unlock       |                                      |
+| read         | 读取主内存中变量的值到工作内存       |
+| **load**     | 为read得到的值创建工作内存的变量副本 |
+| use          | 将工作内存的变量传递给执行引擎       |
+| assign       | 执行引擎给工作内存的变量赋值         |
+| **store**    | 读取工作内存中变量的值到主内存       |
+| write        | 将store得到的值写入主内存的变量      |
+
+内存操作之间存在一定的规则, 比如unlock必须在lock之后，read和load、store和write两两成对，不允许单独出现等等
+
+
+
+
+
+### 为什么要有内存模型
+
+
+
+**缓存一致性问题**
+
+CPU 将常用的数据放在高速缓存中，运算结束后将结果同步到主存中
+
+高速缓存解决了 CPU 和主存速率不匹配的问题，但同时又引入了缓存一致性问题
+
+
 
 
 
 ## 运行时数据区
-
-
-
-![](image.assets/内存模型.png)
 
 ![](image.assets/1c1d85b5fb8b47239af2a5c0436eb2d7-new-image0cd10827-2f96-433c-9b16-93d4fe491d88.png)
 
@@ -7926,112 +8036,6 @@ JVM定义了8个操作来完成主内存和工作内存的交互
 
 
 
-### JMM三大特性
-
-缓存一致性 -> 可见性
-
-处理器优化 -> 原子性
-
-指令重排序 -> 有序性
-
-
-
-
-
-#### 原子性
-
-```java
-i = 0; // 这个是原子性的
-i++;   // 包含三个操作，读取i的值，将i加1，将值赋给i
-i = j; // 读取j的值，将j的值赋给i
-i = i + 1; // 包含三个操作，读取i的值，将i加1，将值赋给i
-```
-
-Java 内存模型保证 read、load、use、assign、store、write、lock 和 unlock 操作具有原子性
-
-但JMM允许JVM将没有被 volatile 修饰的 64 位数据（long，double）的读写操作划分为 两次32位的操作进行，即 load、store、read 和 write 操作不具备原子性
-
-
-
-
-
-将内存间的交互操作简化为 3 个：load、assign、store
-
-下图演示了两个线程同时对 cnt 进行操作，load、assign、store 这一系列操作整体上看不具备原子性，那么在 T1 修改 cnt 并且还没有将修改后的值写入主内存，T2 依然可以读入旧值。可以看出，这两个线程虽然执行了两次自增运算，但是主内存中 cnt 的值最后为 1 而不是 2。因此对 int 类型读写操作满足原子性只是说明 load、assign、store 这些单个操作具备原子性
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2797a609-68db-4d7b-8701-41ac9a34b14f.jpg" width="300px"> </div><br>
-
-AtomicInteger 能保证多个线程修改的原子性
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/dd563037-fcaa-4bd8-83b6-b39d93a12c77.jpg" width="300px"> </div><br>
-
-
-
-除了使用原子类之外，也可以使用 synchronized 来保证操作的原子性。它对应的内存间交互操作为：lock 和 unlock，在虚拟机实现上对应的字节码指令为 monitorenter 和 monitorexit
-
-
-
-#### 可见性
-
-可通过在变量修改后将新值同步回主内存，在变量读取前从主内存刷新变量值实现可见性
-
-
-
-- volatile
-- synchronized，对变量执行 unlock 前，必须把变量值同步回主内存
-- final,不变 = 可见
-
-
-
-#### <a name="指令重排">有序性</a>
-
-在本线程内观察，所有操作都是有序的。在一个线程观察另一个线程，所有操作都是无序的，无序是因为发生了==指令重排==
-
-JMM允许编译器和处理器对指令进行重排序，重排序过程不会影响到单线程程序的执行，却会影响到多线程并发执行的正确性
-
-as-if-serial语义:不管怎么重排序，单线程程序的执行结果都不能被改变
-
-
-
-volatile 关键字通过添加内存屏障的方式来禁止指令重排，即重排序时不能把后面的指令放到内存屏障之前
-
-synchronized 保证每个时刻只有一个线程执行同步代码
-
-
-
-**先行发生原则**	部分操作无需volatile/synchronized 
-
-| 先行发生原则 |                          |                                                              |
-| ------------ | ------------------------ | ------------------------------------------------------------ |
-| 单一线程原则 | Single Thread rule       | 在一个线程内，在程序前面的操作先行发生于后面的操作           |
-| 管程锁定     | Monitor Lock Rule        | unlock先行于后续对同一个锁的lock                             |
-| volatile     | Volatile Variable Rule   | 对 volatile 变量的写操作先行于后续读操作                     |
-| 线程启动规则 | Thread Start Rule        | Thread 对象的 start() 先行发生于方法体内容                   |
-| 线程加入规则 | Thread Join Rule         | Thread 对象的结束先行于 join() 方法返回                      |
-| 线程中断规则 | Thread Interruption Rule | [interrupt()](#interrupt) 的调用先行于被中断线程的代码检测到中断事件的发生 |
-| 对象终结规则 | Finalizer Rule           | 对象的初始化完成先行发生于 finalize() 的调用                 |
-| 传递性       | Transitivity             | 如果操作 A 先行发生于操作 B，操作 B 先行发生于操作 C，那么操作 A 先行发生于操作 C |
-
-
-
-
-
-## 为什么要有内存模型
-
-
-
-### 缓存一致性问题
-
-CPU 将常用的数据放在高速缓存中，运算结束后将结果同步到主存中
-
-高速缓存解决了 CPU 和主存速率不匹配的问题，但同时又引入了缓存一致性问题
-
-![img](image.assets/68747470733a2f2f63646e2e6a7364656c6976722e6e65742f67682f736d696c654172636869746563742f6173736574732f3230323130322f32303231303431353233313232342e706e67)
-
-
-
-
-
 ## 堆外内存
 
 堆外内存直接**受操作系统管理**（而不是虚拟机），通过通过代码手动回收内存, 减少内存空间占用率
@@ -8191,11 +8195,11 @@ Java HotSpot(TM) 64-Bit #java为64位(1个指针8字节,在开启指针压缩后
 
 
 
-java对象由对象头, 类型指针, 实例数据, 对齐填充组成
+java对象由对象头(运行时元数据, 类型指针), 实例数据, 对齐填充组成
 
 开启指针压缩后,最小的一个对象为 8对象头+4类型指针+4对齐 = 16字节
 
-| 对象头 markword       | 8字节 | 对象运行时数据，哈希，GC年龄，锁状态标志 |
+| 运行时元数据 markword | 8字节 | 对象运行时数据，哈希，GC年龄，锁状态标志 |
 | --------------------- | ----- | ------------------------------------------------------------ |
 | 类型指针 classpointer | 4     | 指向.class对象的指针，从而判断对象是哪个类的实例 |
 | 实例数据 instancedata | 每个4 | 成员属性                                 |
@@ -11049,6 +11053,19 @@ s1 instanceof String; // false		instanceof为true的条件: 不为null && 没有
 
 
 
+### final的内存语义
+
+对于final域，编译器和处理器要遵循两个重排序规则
+
+1. 构造函数内对final域的写入, 与把构造出来的对象引用赋值给一个引用变量, 这两个操作之间不能重排序
+2. 首次读取final域, 与再次读取final域, 这两个操作之间不能重排序
+
+
+
+在final域写操作时, 写操作前会插入StoreStore屏障, 禁止处理器把写操作重排序到构造函数之外
+
+在final域读操作时, 读操作前会插入LoadLoad屏障
+
 
 
 ## static
@@ -11060,8 +11077,8 @@ s1 instanceof String; // false		instanceof为true的条件: 不为null && 没有
 
 
 
-- 在外部调用静态方法时，可以使用”类名.方法名”的方式，也可以使用”对象名.方法名”的方式。而实例方法只有后面这种方式。也就是说，调用静态方法可以无需创建对象。 
-- 静态方法在访问本类的成员时，只允许访问静态成员（即静态成员变量和静态方法），而不允许访问实例成员变量和实例方法；实例方法则无此限制 
+- 在外部调用静态方法时，可以使用”类名.方法名”的方式，也可以使用”对象名.方法名”的方式。而实例方法只有后面这种方式。也就是说，**调用静态方法可以无需创建对象**。 
+- **静态方法在访问本类的成员时，只允许访问静态成员**（即静态成员变量和静态方法），而不允许访问实例成员变量和实例方法；实例方法则无此限制 
 
 
 
