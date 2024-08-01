@@ -1876,9 +1876,9 @@ public interface TransactionDefinition {
 
 # IOC
 
-Ioc—Inversion of Control 控制反转
+Ioc—Inversion of Control 控制反转	将对象的控制权交给了第三方的IOC容器
 
-IoC 容器实际上就是存放各种对象的Map，在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里，再通过DI注入
+IoC 容器是存放各种对象的Map，在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里，再通过DI注入
 
 
 
@@ -1903,8 +1903,9 @@ IoC和DI是同一个概念的不同角度描述
 ioc 容器初始化过程：BeanDefinition 的资源定位、解析和注册
 
 1. 从XML中读取配置文件
-2. 将bean标签解析成 BeanDefinition，如解析 property 元素， 并注入到 BeanDefinition 实例中
+2. 将bean标签解析成 BeanDefinition实例( 例如<property> )
 3. 将 BeanDefinition 注册到容器 BeanDefinitionMap 中
+3. 
 4. BeanFactory 根据 BeanDefinition 的定义信息创建实例化和初始化 bean
 
 单例bean的初始化以及依赖注入一般都在容器初始化阶段进行，只有懒加载（lazy-init为true）的单例bean是在应用第一次调用getBean()时进行初始化和依赖注入
