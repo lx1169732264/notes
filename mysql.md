@@ -1,4 +1,3 @@
-```sql
 Select From 
 【连接类型】Join 
 On 连接条件
@@ -7,7 +6,6 @@ Group by 分组
 Having 分组后的筛选	HAVING不一定要有GROUP BY
 Order by
 Limit
-```
 
 
 
@@ -862,7 +860,7 @@ MySQL难以优化引用了可空列的查询,会使索引、索引统计和值�
 | **select_type** | SELECT 关键字对应的查询类型                                  |
 | table           | 用到的表名                                                   |
 | partitions      | 匹配的分区，对于未分区的表，值为 NULL                        |
-| type            | 表的访问方法                                                 |
+| type            | type=ALL表示使⽤ 全表查询; **type=RES表示使⽤索引**          |
 | possible_keys   | 可能用到的索引                                               |
 | **key**         | 实际用到的索引,**全表扫描时为null,覆盖索引为查询的select字段** |
 | **key_len**     | `key`对应索引中,根据表定义推算出**使用到的索引字节数**(包括字符集),不是表中数据实际的字节数.如果列**允许null,还需额外的1字节**.当使用索引等值查询时，与索引作比较的列或**常量为变长类型,还需要额外2字节**表示预计要读取的行数 |
@@ -965,8 +963,6 @@ desc 表名;				查看表的设计
 
 
 
-
-
 |            | truncate       | delete                                         |
 | ---------- | -------------- | ---------------------------------------------- |
 | 删除范围   | 全表数据       | 满足where条件                                  |
@@ -974,18 +970,6 @@ desc 表名;				查看表的设计
 | 自增主键   | 重置为1        |                                                |
 | 表空间大小 | 恢复到初始大小 | 由于[隐式字段](#隐式字段)的存在,表空间不变     |
 | 执行效率   | 快             | 慢,并且可能导致大量的**碎片化空间**,触发页合并 |
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1001,28 +985,6 @@ ifnull(字段,缺省值)		可以设置空值时的缺省值
 
 
 
-## Case
-
-
-
-```mysql
-Case情况1
-Case 变量/表达式/字段
-When 常量1 then 值1
-When 常量2 then 值2
-Else 值n
-End
-
-Case 情况2
-Case
-When 条件1 then 值1
-When 条件2 then 值2
-Else 值n
-End
-```
-
-
-
 ## 分页
 
 
@@ -1035,67 +997,8 @@ Limit (page-1)*size,size;			实现分页
 
 Order by + 分页获取最大值最小值数据
 Order by 排序，第一个数值为最大/最小值，
-Limit 1		获取第一个数值
+Limit 1	获取第一个数值
 ```
-
-
-
-
-
-### 排序字段不唯一会导致翻页时重复记录
-
-
-
-```mysql
--- 有8条记录
-SELECT *  FROM t2 ORDER BY created DESC;
-+----+---------------------+
-| id | created             |
-+----+---------------------+
-|  2 | 2017-07-10 08:36:29 |
-|  4 | 2017-07-07 16:14:30 |
-|  3 | 2017-07-07 15:47:34 |
-|  1 | 2017-07-07 10:25:54 |
-|  6 | 2017-07-05 02:02:28 |
-|  5 | 2017-06-03 00:33:05 |
-|  7 | 2017-06-03 00:33:05 |
-|  8 | 2017-06-03 00:33:05 |
-+----+---------------------+
-
--- 第一页
-SELECT *  FROM t2 ORDER BY created DESC LIMIT 0,6;
-+----+---------------------+
-| id | created             |
-+----+---------------------+
-|  2 | 2017-07-10 08:36:29 |
-|  4 | 2017-07-07 16:14:30 |
-|  3 | 2017-07-07 15:47:34 |
-|  1 | 2017-07-07 10:25:54 |
-|  6 | 2017-07-05 02:02:28 |
-|  8 | 2017-06-03 00:33:05 |
-+----+---------------------+
-
--- 第二页，出现重复记录 id=8
-SELECT *  FROM t2 ORDER BY created DESC LIMIT 6,6;
-+----+---------------------+
-| id | created             |
-+----+---------------------+
-|  7 | 2017-06-03 00:33:05 |
-|  8 | 2017-06-03 00:33:05 |
-+----+---------------------+
-```
-
-当排序字段的值相同时,mysql不能保证结果集的顺序固定
-
-避免出现排序字段值相同而导致的无序 -> 翻页时重复		需要额外增加排序字段
-
-
-
-当未指定OrderBy时,按索引顺序排序
-
-增，删，改可能导致查询结果集变化或者乱序
-
-
 
 
 
@@ -1107,241 +1010,45 @@ SELECT *  FROM t2 ORDER BY created DESC LIMIT 6,6;
 
 
 
-有时某些业务不需要精确的Count值,可以用近似值代替
+==行数的近似值==
 
-可以**用Explain优化器估算的行数代替Count**,此时并没有真正的执行查询
+1. 查询**元数据**的统计信息
 
-或者是**剔除某些查询条件**,在统计活跃人数时,要过滤离线人数,还要过滤特定ID的人,去掉某些特定条件能够加速查询,但不会过于影响结果
+```mysql
+SELECT TABLE_ROWS FROM information_schema.TABLES 
+WHERE TABLE_NAME = 'your_table_name';
+```
+
+2. **Explain**估算行数, 在输出结果中查找 `rows` 字段
+
+```mysql
+EXPLAIN SELECT * FROM your_table_name;
+```
 
 
 
 ## OrderBy
 
-
-
 2种排序方式:IndexSort , FileSort
 
 index ：通过有序索引顺序扫描直接返回有序数据，不需要额外的排序，效率高
 
-filesort：并不代表通过磁盘文件排序，只说明进行了排序操作，filesort通过相应的排序算法，将数据在内存排序区sort_buffer_size进行排序，如果内存装载不下，它就将磁盘上的数据进行分块，再对各个数据块进行排序，然后合并成有序的结果集
+filesort：通过排序算法将数据在内存排序区sort_buffer_size进行排序，如果内存装载不下，它就将磁盘上的数据进行分块，再对各个数据块进行排序，然后合并成有序的结果集. ==filesort != 磁盘文件排序==
 
 sort_buffer_size是每个线程独占的，**同一时刻存在多个sort buffer排序区**
 
 
 
-优化：==尽量减少额外排序，通过索引直接返回有序的数据==。谓词和order by 使用了相同的索引，并且order by 的顺序和索引顺序相同，并且order by 的字段都是升序或者降序，否则肯定需要filesort
-
-
-
-以下SQL不可以使用索引：
-
-select * from tablename order by key_part1 desc,key_part2 asc; ----order by 的字段混合asc,desc
-
-select * from tablename where key2=constant order by key1; ----用于查询的关键字与order by 中所使用的不相同
-
-select * from tablename order by key1,key2;   ----对不同的关键字使用order by
-
- 
-
-对于Filesort，MySQL有两种排序算法 ：
-
-一次扫描算法和两次扫描算法，通过比较系统变量max_length_for_sort_data的大小和query语句总字段的大小来判断使用哪种排序算法。
-
-适当增加 max_length_for_sort_data的值，适当增加sort_buffer_size排序区，尽量使用具体的字段而不是select * 选择所有字段
-
 
 
 ## GroupBy
 
-
-
-
-
-#### group by 什么情况下需要用 order by null
-
-在此只讨论group by无法使用索引直接分组，需要使用临时表的情况。
-
-1. MySQL group by的做法：
-
-   默认按分组字段排序:
+MySQL 默认会对分组后的结果**按分组字段进行排序**
 
 ```sql
--- 使用索引(`user_id`,`pay_time`,`tid`,`status`,`buyer_nick`,`payment`)，下同
-SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `buyer_nick`;
+#在业务不要求排序时,可以通过ORDER BY NULL禁用GROUP BY的排序, 此时顺序与聚簇索引顺序一致
+SELECT XXX FROM T GROUP BY XXX ORDER BY NULL;
 ```
-
-```sql
--- 执行计划
-+----+-------------+------------+-------+-----------------------------+-----------------------------+---------+------+--------+-----------------------------------------------------------+
-| id | select_type | table      | type  | possible_keys               | key                         | key_len | ref  | rows   | Extra                                                     |
-+----+-------------+------------+-------+-----------------------------+-----------------------------+---------+------+--------+-----------------------------------------------------------+
-|  1 | SIMPLE      | trade_info | range | idx_ti_uid_pt_tid_sta_bn_pm | idx_ti_uid_pt_tid_sta_bn_pm | 14      | NULL | 830346 | Using where; Using index; Using temporary; Using filesort |
-+----+-------------+------------+-------+------------------------------------------+-----------------------------+---------+------+--------+----------------------------------------------+
-```
-
-查询等价于下面sql:   
-
-```sql
-SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `buyer_nick` 
-ORDER BY `buyer_nick`;
-```
-
-如果不想对结果集进行排序，需要加上ORDER BY NULL.
-
-```sql
-SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `buyer_nick` 
-ORDER BY NULL;
-```
-
-```sql
--- 执行计划
-+----+-------------+------------+-------+-----------------------------+-----------------------------+---------+------+--------+-------------------------------------------+
-| id | select_type | table      | type  | possible_keys               | key                         | key_len | ref  | rows   | Extra                                     |
-+----+-------------+------------+-------+-----------------------------+-----------------------------+---------+------+--------+-------------------------------------------+
-|  1 | SIMPLE      | trade_info | range | idx_ti_uid_pt_tid_sta_bn_pm | idx_ti_uid_pt_tid_sta_bn_pm | 14      | NULL | 830346 | Using where; Using index; Using temporary |
-+----+-------------+------------+-------+------------------------------------------+-----------------------------+---------+------+--------+------------------------------+
-```
-
-1. 有没有order by null的性能测试对比：
-
-```sql
--- 对比1
-SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `buyer_nick`;
--- 391753 rows in set (33.30 sec)
-
-    SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `buyer_nick` 
-ORDER BY NULL;
--- 391753 rows in set (11.67 sec)
-```
-
-    ```sql
-
--- 对比2
-SELECT count(*) paynum,sum(payment) paymentSum  
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `status`;
--- 4 rows in set (3.08 sec)
-
-    SELECT count(*) paynum,sum(payment) paymentSum  
-
-FROM trade_info  
-WHERE user_id=619123122 
-  AND pay_time>"2017-09-10" AND pay_time<="2017-09-17"
-GROUP BY `status` 
-ORDER BY NULL;
--- 4 rows in set (3.06 sec)
-
-```
-2. group by 执行过程：
-
-    (1). 创建内存临时表，存储引擎为MEMORY，各字段定义为固定长度，长度为列的最大可能长度。表结构为：
-
-        - 有一个唯一键，即group by的列，这里为buyer_nick
-
-        - select的列，包括聚合函数的列，本例中为sum(payment)的值，字段类型为bigint
-
-    (2). 从InnoDB存储引擎表读取一条记录，先在临时表中查找唯一键，若唯一键值不存在，则insert，否则更新相同KEY的total_pay的值，循环往复
-
-    (3). 以group by的key(buyer_nick)对临时表进行文件排序(filesort)；如果有order by null, 则不排序
-
-    (4). 发送结果
-
-1. 临时表分两种：
-
-    |临时表类型|存储位置|存储引擎|
-|:---|:---|:---|
-|内存临时表 |内存| MEMORY|
-|磁盘临时表 | 磁盘|MyISAM|
-
-1. 默认创建内存临时表，内存临时表的大小可根据上面提到的临时表结构来估算，当内存临时表大小大于(tmp_table_size， max_heap_table_size两者中的最小值，默认16M, 淘宝RDS为2M)时，内存临时表自动转化磁盘临时表。如果会产生磁盘临时表，应尽量优化避免。
-​```sql
-> show global variables like '%table_size%';
-+---------------------+----------+
-| Variable_name       | Value    |
-+---------------------+----------+
-| max_heap_table_size | 67108864 |
-| tmp_table_size      | 2097152 |
-+---------------------+----------+
-```
-
-1. 如何判断查询是否使用了临时表：
-
-   使用explain查看执行计划，Extra列看到Using temporary就意味着使用了临时表。
-
-```sql
-> show global status like '%created_tmp%_tables';
-+-------------------------+-------+
-| Variable_name           | Value |
-+-------------------------+-------+
-| Created_tmp_disk_tables | 152   |
-| Created_tmp_tables      | 500   |
-+-------------------------+-------+
--- 使用了内存临时表时，Created_tmp_tables状态变量+1
--- 使用了磁盘临时表时，Created_tmp_disk_tables状态变量+1
-```
-
-1. MySQL在以下几种情况会创建临时表：
-
-   (1)、UNION查询；
-
-   (2)、用到TEMPTABLE算法或者是UNION查询中的视图；
-
-   (3)、FROM中的子查询（派生表）；
-
-   (4)、子查询或者semi-join时创建的表；
-
-   (5)、ORDER BY和GROUP BY的子句不一样时；
-
-   (6)、DISTINCT查询并且加上ORDER BY时；
-
-   (7)、SQL中用到SQL_SMALL_RESULT修饰符的查询；
-
-   (8)、insert ... select 操作同一个表；
-
-   (9)、GROUP BY无法在索引上直接分组时；
-
-1. 在以下几种情况下，会创建磁盘临时表：
-
-   (1)、表中存在BLOB/TEXT列；
-
-   (2)、在 GROUP BY 或者 DSTINCT 的列中有超过512字符的字符类型列（或者超过 512字节的 二进制类型列）；
-
-   (3)、在UNION、UNION ALL查询中，select的列存在最大长度超过512的列（对于字符串类型是512个字符，对于二进制类型则是512字节）；
-
-   (4)、对含有BLOB列的表执行SHOW COLUMNS/FIELDS、DESCRIBE等SQL命令时。
-
-
->  最佳实践：
-
-1. 如果group by的结果集较大时，建议加上order by null，能显著提高性能。结果集越大，性能提高越大，如果是内存临时表，性能差别不大。
-2. group by 性能由好到差：松散索引扫>紧凑索引扫描>内存临时表>磁盘临时表不排序>磁盘临时表排序。
-3. 考虑避免分组，直接按组分别查询提高性能
-
-
-
-
 
 
 
@@ -1372,18 +1079,6 @@ Order By c;
 (Select i,c From t1) Union (Select i,d From t3)
 Limit 2;
 ```
-
-
-
-## WITH TIES
-
-
-
-把与最后一条记录值相同的数据也放入列表中
-
-一般和Top , order by相结合使用
-
-
 
 
 
@@ -1575,36 +1270,6 @@ Select substr(email,1,instr(email,’@’,)-1) from 表
 | SESSION_USER()                                               | 返回当前用户                                                 | `SELECT SESSION_USER(); -> guest@%`                          |
 | SYSTEM_USER()                                                | 返回当前用户                                                 | `SELECT SYSTEM_USER(); -> guest@%`                           |
 | USER()                                                       | 返回当前用户                                                 | `SELECT USER(); -> guest@%`                                  |
-
-
-
-## 自定义函数
-
-
-
-sql自定义函数
-
-```mysql
-Create function 函数名（参数）
-Returns 返回值类型
-[with {Encryption | Schemabinding }]
-[as]
-begin
-SQL语句(必须有return 变量或值)
-End
-```
-
-
-
-* [with]为附加选项
-  * 需要对函数体进行加密，用WITH ENCRYPTION；
-  * 需要将创建的函数与引用的数据库绑定，用WITH SCHEMABINDING（**函数一旦绑定，则不能删除、修改，除非删除绑定**）
-
-
-
-* DECLARE  在复合语句 (BEGIN...END) 中声明 SQL 变量或异常
-
-
 
 
 
@@ -1850,7 +1515,25 @@ I 增量锁 Incremental locks
 
 Two Phase Locking Protocal 2PL
 
-加锁/解锁分两个阶段进行,**加锁时不能解锁,解锁时不能加锁** -> 加解锁原子性 -> 隔离性
+加锁/解锁分两个阶段进行,**加锁时不能解锁,解锁时不能加锁**
+
+通过**加解锁的原子性**来保证事务的隔离性
+
+
+
+MySQL的InnoDB引擎默认使用行级锁和2PL协议
+
+
+
+### 一次封锁
+
+**一次封锁**（或称为**保守锁**）是事务并发控制的策略，其核心思想是**在事务开始时，一次性申请并锁定所有需要访问的数据资源**，从而在整个事务执行过程中无需再申请其他锁，直到事务提交或回滚时统一释放所有锁
+
+这种方式能有效地==避免死锁==, 但也会降低并发性
+
+
+
+
 
 
 
@@ -2851,11 +2534,11 @@ Redo Log只进行顺序追加，事务回滚不删除Redo
 
 # Lock
 
-服务器在需要时自动创建/释放隐式锁,并传给存储引擎,由存储引擎自动转换为特定类型的锁
 
 
-
-**SHOW PROCESSLIST	查看等待锁的线程**
+```sql
+SHOW PROCESSLIST	#查看等待锁的线程
+```
 
 
 
@@ -2867,17 +2550,27 @@ Redo Log只进行顺序追加，事务回滚不删除Redo
 
 
 
-加S锁场景
+共享锁场景
 
-* LOCK IN SHARE MODE
-* 普通的INSERT/UPDATE，检查Duplicate key（或者被标记删除的duplicate key）
-* INSERT…SELECT,会对SELECT数据加S锁
+```sql
+select * from T LOCK IN SHARE MODE; #行级共享锁
+INSERT… SELECT;	#SELECT访问到的数据自动加共享锁
+
+LOCK TABLE T READ;	#表级共享锁
+UNLOCK TABLE;	#解锁
+```
 
 
 
-加X锁场景
+排它锁场景
 
-REPLACE INTO或者INSERT ON DUPLICATE
+```sql
+select * from T FOR UPDATE; #行级排它锁
+REPLACE INTO 或 INSERT ON DUPLICATE;	
+
+LOCK TABLE T WRITE;	#表级排它锁
+UNLOCK TABLE;	#解锁
+```
 
 
 
@@ -2888,8 +2581,6 @@ REPLACE INTO或者INSERT ON DUPLICATE
 
 
 <a name="锁兼容性">锁兼容性</a>
-
-
 
 |      | IS   | IX   | S    | X    |
 | ---- | ---- | ---- | ---- | ---- |
@@ -2924,35 +2615,6 @@ SELECT * FROM information_schema.INNODB_LOCK_waits;	#锁等待关系
 
 
 
-
-
-## 锁表更新
-
-
-
-GAP加在索引项上,但如果索引项之前发生了插入/删除，该索引项的GAP就代表的范围就发生了变化，需要对锁表进行更新
-
-
-
-| SessionA      | SessionB |
-| ------------- | -------- |
-|               | 插入[5], |
-| 持有(3,9) Gap |          |
-|               |          |
-|               |          |
-
-
-
-对于数据插入，假设我们当前在记录[3,9]之间有会话持有锁(不管是否和插入意向锁冲突)，现在插入一条新的记录5，需要调用函数`lock_update_insert`。这里会遍历所有在记录9上的记录锁，如果这些锁不是插入意向锁并且是LOCK_GAP或者NEXT-KEY LOCK（没有设置LOCK_REC_NOT_GAP标记)，(`lock_rec_inherit_to_gap_if_gap_lock`)，就会为这些会话的事务增加一个新的锁对象，锁的类型为`LOCK_REC | LOCK_GAP`，锁住的GAP范围在本例中为(3,5)。所有符合条件的会话都继承了这个新的GAP，避免之前的GAP锁失效。
-
-对于数据删除操作，调用函数`lock_update_delete`，这里会遍历在被删除记录上的记录锁，当符合如下条件时，需要为这些锁对应的事务增加一个新的GAP锁，锁的Heap No为被删除记录的下一条记录：
-
-完成GAP锁继承后，将所有等待该记录的锁对象全部唤醒
-
-
-
-
-
 ## lock_sys
 
 
@@ -2967,28 +2629,23 @@ GAP加在索引项上,但如果索引项之前发生了插入/删除，该索引
 
 
 
-## 隐式锁
-
-Implicit Lock
-
-通过延迟加锁减少加锁次数
 
 
+## 全局锁
 
-1. 操作记录前，先根据记录中的trx_id检查该事务是否活跃。如果活跃，将该事务的隐式锁转换为显式锁(等同于为该事务加锁)
-2. 检查锁冲突，冲突则创建锁，并加入等待队列。没有冲突则不加锁,跳到4
-3. 等待加锁成功唤醒 / 超时
-4. 写数据，并将自己的trx_id写入trx_id字段。**Page** **Lock**可以保证操作的正确性
+使用场景: 全库逻辑备份
 
+1. Mysql加全局读锁
 
+```mysql
+Flush Tables With Read Lock;
+```
 
-普通select	快照读			不加锁
+2. 设置数据库为只读
 
-普通 insert、update、delete	隐式写锁
-
-select… lock in share mode	显式读锁
-
-select… for update			显式写锁
+```mysql
+SET GLOBAL read_only=1;
+```
 
 
 
@@ -3015,123 +2672,29 @@ S模式的表锁场景
 
 
 
-开销最小的锁策略,[不会导致死锁](#一次封锁)	**Myisam只有表锁,不存在死锁场景**
+开销很小的锁策略,并发度低(**Myisam是表级锁, 出现死锁的概率很低**)
 
 ```mysql
 Lock Tables 表名 Read/Write;
+unlock tables;#解锁
 
 SHOW PROCESSLIST 查询状态为 Waiting for table,表明正处于表锁
 ```
 
 
 
-### 一次封锁
+### 元数据锁(MDL锁)
 
-在会话开始时,用 lock 命令将后面所有要用到的表加上锁，在锁释放之前，只能访问这些加锁的表，不能访问其他表，最后通过 unlock tables 释放所有表锁
+Meta Data Lock
 
+MDL锁不需要显式的声明, 它会在访问表时自动加上
 
+* 执行增删改查的DDL语句时, 加MDL读锁
+* 修改表结构时, 加MDL写锁
 
-==只有一次加锁的时机 -> 避免死锁==
-
-
-
-### 表锁数据结构
-
-⽤于表的意向锁和⾃增锁
-
-```c
-typedef struct lock_table_struct lock_table_t;
-struct lock_table_struct {
-  dict_table_t* table; /*database table in dictionary cache*/
-  UT_LIST_NODE_T(lock_t) locks; /*list of locks on the same table*/
-}
-```
+MDL能确保执行DDL语句时, 表结构不会发生变化
 
 
-
-
-
-### 事务中关联锁的结构
-
-index变量指向⼀个索引，⾏锁本质是索引记录锁
-
-UT_LIST_NODE_T是⼀个典型的链表结构
-
-```c
-typedef struct lock_struct lock_t;
-struct lock_struct{
-  trx_t* trx; /* transaction owning the lock 持有该锁对象的事务*/
-  UT_LIST_NODE_T(lock_t) trx_locks; //⼀个事务可能在不同⻚上有多个⾏锁，trx_locks将事务所有锁信息进⾏链接，这样就可以快速查询事务所有锁信息
-  ulint type_mode;
-  hash_node_t hash; /* hash chain node for a record lock 在lock_sys->rec_hash对应哈希桶中的下⼀个节点*/
-  dict_index_t* index; /* index for a record lock 锁对应的索引*/
-  union {
-    lock_table_t tab_lock; /* table lock */
-    lock_rec_t rec_lock; /* record lock */
-  } un_member;
-};
-
-//UT_LIST_NODE_T 是c的链表
-struct {
-  TYPE * prev;
-  TYPE * next;
-}
-
-//type_mode	⽆符号32位整型，从低位排列，第1字节为lock_mode，定义如下
-enum lock_mode {
-  LOCK_IS = 0, /* intention shared */
-    LOCK_IX, /* intention exclusive */
-    LOCK_S, /* shared */
-    LOCK_X, /* exclusive */
-    LOCK_AUTO_INC, /* locks the auto-inc counter of a tablein an exclusive mode */
-    LOCK_NONE, /* this is used elsewhere to note consistent read */
-    LOCK_NUM = LOCK_NONE, /* number of lock modes */
-    LOCK_NONE_UNSET = 255
-};
-
-//第2字节为lock_type，⽬前只⽤前两位，⼤⼩为 16 和 32 ，表示 LOCK_TABLE 和 LOCK_REC，剩下的⾼位 bit 表示⾏锁的类型record_lock_type
-  define LOCK_WAIT 256 /* 表示正在等待锁 */
-  define LOCK_ORDINARY 0 /* 表示 Next-Key Lock ，锁住记录本身和记录之前的 Gap*/
-  define LOCK_GAP 512 /* 表示锁住记录之前 Gap（不锁记录本身） */
-  define LOCK_REC_NOT_GAP 1024 /* 表示锁住记录本身，不锁记录前⾯的 gap */
-  define LOCK_INSERT_INTENTION 2048 /* 插⼊意向锁 */
-  define LOCK_CONV_BY_OTHER 4096 /* 表示锁是由其它事务创建的(⽐如隐式锁转换) */
-
-//lock_sys是⼀个全局变量，⽤于控制整个Innodb锁系统的全部锁结构，其对应的结构体为lock_sys_t，该结构体只包含两个成员：
-    struct lock_sys_struct{
- hash_table_t* rec_hash; // 根据space 和page no来计算对应的哈希桶，然后再将锁对象插⼊到其中，作⽤是映射⾏数据和锁信息
- ulint rec_num; //锁数量
-};
-
-//从函数lock_rec_create（新建⼀个锁对象）可以看出这两个变量的作⽤：
-quoted code:
- HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
- lock_rec_fold(space, page_no), lock);
- lock_sys->rec_num++;
-
-//只有记录锁会存在lock_sys->rec_hash中， 表锁是不会存这⾥，只会插⼊到事务trx->trx_locks链表和对应表对象的table->locks中,并且都是加到链表的尾部(lock_table_create)。
-```
-
-
-
-### 命名锁
-
-表锁的一种,在重命名/删除表时创建,**与其他的表锁冲突**
-
-
-
-### 全局读锁
-
-Flush Tables With Read Lock 或 设置read_onnly=1 获取单个全局读锁,**与表锁冲突**
-
-```
-SHOW PROCESSLIST 查询状态为 Waiting for release of readlock
-标明正处于全局读锁而不是表锁
-```
-
-
-
-和设置数据库只读(set global readonly=true)相比，全局锁在发生异常时会自动释放,多用于全库逻辑备份
 
 
 
@@ -3196,19 +2759,55 @@ show variables like 'innodb_autoinc_lock_mode';	#查看自增锁模式
 
 
 
+## 行锁
+
+相较于表锁而言, 开销大, 发生锁冲突的概率低, 但支持更高的并发
+
+Mysql InnoDb存储引擎层的==行锁是基于索引实现==的, 当查询优化器判断本次查询**不走索引时, 将直接申请表锁**而不是行锁
 
 
 
+### 加锁规则
 
-## Record
+加锁的基本单位是next-key lock, 并且只对查询过程中访问到的对象加锁
 
-lock_mode: X locks rec but not gap [ , ]
+等值查询给唯一索引加锁时, next-key lock退化为record lock
 
-==只有InnoDb存储引擎层实现==,通过索引项加锁实现 -> ==走索引才行锁，不走索引则表锁==(即使走索引,优化器也有可能决定锁表)
+索引上的查询遍历到最后一个元素且不满足查询条件时, next-key lock退化为gap lock
+
+唯⼀索引上的范围查询会访问到不满⾜条件的第⼀个值为⽌(bug)
+
+
+
+### 加锁位置
+
+行锁会加在被访问到的索引上(不管是聚簇索引还是二级索引)
+
+1. 查询使用聚簇索引时, 仅加在聚簇索引上加行锁
+2. 查询使用二级索引 && 需要回表时, 会在二级索引和访问到的聚簇索引加锁
+3. 查询使用二级索引 && 不需要回表时, 只在二级索引加锁
+
+间隙锁也是同理, 聚簇索引和二级索引上都有可能加间隙锁
+
+
+
+如果是UPDATE/DELETE操作, 无论查询条件如何, 最终都会在聚簇索引上加锁, 因为实际数据是存储在聚簇索引中的
+
+
+
+### 行锁释放时机
+
+可重复读（`REPEATABLE-READ`）的隔离级别下, 行锁会在事务提交后释放
+
+读已提交（READ-COMMITTED）的隔离级别下, 不匹配where条件的数据行锁会在Server层执行完[Table Filter](#Table Filter)后释放; 其余行锁在事务提交后释放
+
+
+
+### Record Lock
+
+> lock_mode: X locks rec but not gap [ , ]
 
 主键更新索引值时，首先锁住主键，然后检查二级索引是否冲突，如果无冲突就不对二级索引加锁
-
-行锁在Server层执行完[Table Filter](#Table Filter)后释放
 
 
 
@@ -3234,28 +2833,11 @@ SELECT * FROM city WHERE CityCode='002' FOR UPDATE;
 
 
 
-### 行锁数据结构
+### GAP Lock
 
-⾏锁实际上是索引记录锁，对索引记录的锁定。即使表没有建⽴索引，InnoDB也会根据隐藏字段创建聚簇索引，并使⽤此索引进⾏记录锁定
+> lock_mode: X locks gap before rec	( , )
 
-InnoDB根据==⻚==的单位进⾏锁管理，并使⽤==位图==记录锁信息
-
-```c
-typedef struct lock_rec_struct lock_rec_t
-struct lock_rec_struct{
- ulint space; /*space id*/
- ulint page_no; /*page number*/
- unint n_bits;	//表示位图占⽤的字节数，它后⾯紧跟着⼀个bitmap，bitmap中的每⼀位标识对应的⾏记录是否加锁
-}
-```
-
-
-
-
-
-## GAP
-
-LOCK_GAP ( , )	出现条件:==RR级别== + 范围查询/**等值查询未命中**
+出现条件:==RR级别== + 范围查询/**等值查询未命中**
 
 并不是加在区间上,而是**加在区间的下一条记录**
 
@@ -3281,7 +2863,7 @@ LOCK_GAP ( , )	出现条件:==RR级别== + 范围查询/**等值查询未命中*
 
 
 
-### 范围查询bug
+#### 范围查询bug
 
 
 
@@ -3326,7 +2908,7 @@ c1主键	c2二级索引
 
 
 
-## next-key lock (,]
+### next-key lock (,]
 
 > A next-key lock is a combination of a record lock on the index record and a gap lock on the gap before the index record
 
@@ -3446,6 +3028,8 @@ lock in share model 读锁，不回表则不会对聚簇索引(主键索引)加�
 
 ## Intention
 
+> lock_mode: X locks gap before rec insert intention
+
 只在**添加行锁前**由server层控制去申请表的意向锁,外部应用无感知
 
 意向锁的出现兼容了Mysql的行锁和表锁,**避免锁表时,需要遍历检查是否存在行锁**
@@ -3473,10 +3057,6 @@ LOCK_INSERT_INTENTION
 
 
 
-
-
-
-
 没有插入意向锁时,当前索引上有4,8，并发插入6，7,会分别为(4,8)加上Gap锁，但Gap属于X锁,导致互斥
 
 引入插入意向锁,将锁的粒度变得更细了,[同一个Gap的插入意向锁互相兼容](#锁兼容性)
@@ -3495,7 +3075,7 @@ LOCK_INSERT_INTENTION
 
 ## 隐式锁
 
-
+Implicit Lock
 
 在不发生冲突的情况下，多数的锁都是不必要的。Innodb 实现了隐式锁,**只在可能发生冲突时才加锁,延迟加锁的时机**,减少加锁数量
 
@@ -3504,8 +3084,6 @@ LOCK_INSERT_INTENTION
 
 
 ⼆级索引虽然没有记录事务id，但同样可以存在隐式锁，只不过判断逻辑复杂⼀些
-
-
 
 
 
@@ -3529,87 +3107,25 @@ LOCK_INSERT_INTENTION
 
 ## Latch 闩锁
 
+latch 是低级别、**轻量级**锁，线程通常只在**临界区**内读写共享内存数据结构时持有 latch，用来保证并发线程操作临界资源的正确性. 因此 latch 的**锁定时间短**并且频繁使用
 
+latch 最简单的形式就是互斥锁（mutex），它不允许任何的并发访问，在数据库系统中通常还会使用共享（shared）和互斥（exclusive）两种类型的 latch
 
-在InnoDB 的实现中, btree 主要有两种lock: index lock 和 page lock
-
-index lock 就是整个Index 的lock, 具体在代码里面就是 dict_index->lock
-
-page lock 就是我们在btree 里面每一个page 的变量里面都会有的 lock
-
-
-
-
-
-B-tree 索引的并发控制需要考虑两个方面：
-
-事务 并发访问数据内容	->	数据内容在多个事务间的一致性
-
-线程 并发访问内存数据结构 ->	一个线程在页分裂时，其他线程不能去访问这种中间状态的数据结构
-
-通常用 lock 和 latch 来实现并发控制，而操作系统中常用的 lock 这个词，在数据库中其实指的是 latch
-
-latch 指物理Lock, Lock 指的是事务的逻辑lock
-
-
-
-latch只作用于内存数据结构，例如，控制多个线程互斥访问内存池中的 B-tree 节点
-
-latch 是低级别、轻量级的锁，线程通常只在临界区内读写共享内存数据结构时持有 latch，因此 latch 的锁定时间一般很短并且频繁使用
-
-latch 的获取和释放需要尽量小的消耗和更好的性能。latch 最简单的形式就是互斥锁（mutex），它不允许任何的并发访问，在数据库系统中通常还会使用共享（shared）和互斥（exclusive）两种类型的 latch
-
-latch 的死锁不能使用复杂的死锁检测或回滚机制，而是需要通过设计编码规范来避免死锁发生，例如多个线程都以规定好的顺序申请 latch
-
-
-
-lock 用于隔离多个事务，锁定的对象是数据库逻辑内容，例如 table、record、B-tree keys、key range 等，通常锁定时间很长，在事务结束时才释放。lock 会参与死锁检测，也支持复杂的调度策略，例如使用队列来排队加锁请求，因此 lock 申请和释放是比较耗时的，通常要上千的 CPU 周期。数据库系统通常会实现 lock table，因为 lock table 是共享的内存数据结构并且会有多个线程并发访问，因此访问 lock table 也就需要 latch 来保护
-
-latch 可以直接嵌入数据结构，例如内存池中的磁盘数据页，每个数据页都有一个内存描述符结构记录 page id 等信息，而数据页对应的 latch 就可以嵌入到这个描述符结构中。 lock 用于保护逻辑的数据库内容，被保护的数据可能都不在内存里出现，因此 lock 也就无法像 latch 一样嵌入要保护的对象
-
-
-
-### 单个节点并发控制
-
-如果要修改 B-tree 的内容或结构，必须先把 B-tree 节点读取到内存池中，修改后再写回磁盘。在多线程场景下，内存池中的一个 B-tree 节点在被一个线程读取时，不能被另一个线程修改，这种场景就是多线程编程中共享数据的临界区问题
-
-数据库中使用 latch 来控制单个 B-tree 节点的访问，从而保持 B-tree 物理结构的一致性，通常在每个节点的描述符中嵌入一个对应的 latch
-
-
-
-### latch coupling
-
-当线程沿着指针从 B-tree 的父节点到子节点，期间不能有其它线程去改变这个指针，例如删除这个子节点等操作。这个时候需要持有父节点的 latch 直到获得了子节点的 latch，这种方法通常称为 ”latch coupling”
-
-持有父节点 latch 去请求子节点 latch 时，如果子节点不在内存，就需要进行磁盘 IO 来获取子节点，因为 latch 的持有时间必须很短，等待读取子节点时，释放父节点的 latch。在获取子节点的 IO 操作结束之后，需要重新进行从 root 到 leaf 的遍历来获得父节点的 latch，这样避免释放父节点的期间 B-tree 的结构改变导致的不一致问题。这种重新遍历的操作代价并不大，因为可以来重用上一次遍历的路径，当需要的节点已经从磁盘读取到内存池中时，它的祖先节点可能还没有被其它线程修改过
-
-
-
-### 反向遍历 level list
-
-latch coupling 除了上面提到的从父节点到子节点遍历的情况，还有一种是同层相邻节点遍历的场景，例如范围查询时需要沿着叶节点的链表正向或反向遍历，并发查询可能会由于遍历的方向不同导致死锁。为了避免相反方向遍历产生的死锁，一种方法是让 latch 支持立即重试的模式，即当一个 latch 被其它线程占有而获取不到时，立即返回失败而不是继续等待 latch 被其它线程释放。在正向或反向遍历 B-tree 同层节点时，只要遇到 latch 获取失败，就立即释放掉自己占有的 latch，从而让冲突的对方能继续执行下去，而自己进行一次从 root 到 leaf 的重试。这里要考虑的一个问题是，如何避免两个冲突的线程同时重试的情况，因为同时重试后有可能还在相同的地方发生冲突，可以规定一个遍历方向的优先级，这样可以保证冲突时只有一个线程会重试，另一个线程会继续执行
-
-
-
-### 递归向上更新
-
-在向 B-tree 插入记录时可能导致叶节点 overflow，需要将 overflow 的节点分裂成两个，并将新节点指针插入到父节点，这时父节点可能也会 overflow，因此又会触发插入到祖父节点的操作，最极端的情况，这种递归向上插入会一直执行到 root 节点。除了插入操作，删除或者更新记录操作也可能发生这种从叶节点到根节点的变更，这个过程需要从下到上的加锁顺序，因此可能会与从上到下的遍历操作形成死锁。最简单的解决办法是对整个 B-tree 加一个互斥锁，但是这样太影响多线程并发，最好的方法应该是只对 B-tree 节点加锁，下面总结了几种针对这个问题的策略
-
-1. 在从上到下查找目标节点时，就把整个路径节点加互斥锁，这样从下到上的节点变更时就不再需要加锁。很明显的这种方法每次都会锁住 root 节点，跟锁住整个 B-tree 没有本质区别，严重影响 B-tree 的并发性；
-2. 在从上到下遍历时给查找路径加共享锁，在必要时再将共享锁升级成互斥锁，升级过程中需要检查死锁的风险。由于这种方法是可能失败的，因此需要有额外的备选方案，这就增加了逻辑的复杂度。
-3. 引入一种共享互斥锁（SX latch），从上到下遍历时给路径上的节点都加 SX latch，这种类型的 latch 可以与共享锁相容，从而不会阻塞其它线程的读请求。但是 SX latch 无法与自身相容，因此对于并发更新来说 B-tree 的根节点依然是一个瓶颈，只允许一个线程进行修改 B-tree 结构的操作。
-4. 上面三种方法都需要一直持有遍历路径上节点的 latch，直到一个节点不再会触发向上更新才释放路径上的所有 latch。实际情况是大多数节点都不是满的，因此大多数插入操作都不会触发节点分裂并向上变更，锁住整个路径的节点是没有必要的。如果在插入操作的从上到下遍历时主动进行节点分裂，就能避免了根节点的瓶颈问题，也没有升级 latch 时失败的问题。缺点是需要在实际分裂之前预先分配空间，造成一定的空间浪费，并且在可变长记录更新时无法准确地判断是否需要预先分裂
-5. 为了解决不必要的对节点加互斥锁，可以在第一次从上到下遍历时加共享锁，直到一个节点需要分裂时，重新回到 root 做一次遍历，这次给要分裂的节点加互斥锁，并进行实际的分裂操作。第二次遍历时可以通过检查第一次遍历保存的路径来进行重用，不必从根节点重新遍历
+```sql
+show engine innodb mutex;	#查询Latch锁
+```
 
 
 
 
 
+### Lock VS Latch
 
-
-
-
-
+|          | Lock                 | Latch        |
+| -------- | -------------------- | ------------ |
+| 作用对象 | 事务                 | 线程         |
+| 保护对象 | 数据库数据           | 内存数据结构 |
+| 死锁检测 | 有死锁检测和处理机制 | 无死锁检测   |
 
 
 
@@ -6185,6 +5701,45 @@ Mysql不生成查询字节码来执行查询,而是生成指令树,通过存储�
 
 
 
+### 临时表的使用场景
+
+* UNION查询
+* FROM中子查询
+* GROUP BY和ORDER BY的子句不一样, 导致需要重新排序
+* GROUP BY无法通过索引进行分组
+* insert ... select 操作同一张表
+
+
+
+**磁盘临时表的使用场景**
+
+* 行数据占用空间过大, 存在BLOB/TEXT列
+* 在 GROUP BY 或者 DSTINCT 的列中有超过512字符的字符类型列
+* 在UNION、UNION ALL查询中，select的列存在最大长度超过512的列
+
+
+
+### 判断是否使用了临时表
+
+1. 使用explain查看执行计划，Extra列看到Using temporary就意味着使用了临时表
+2. 
+
+```sql
+> show global status like '%created_tmp%_tables';
++-------------------------+-------+
+| Variable_name           | Value |
++-------------------------+-------+
+| Created_tmp_disk_tables | 152   |
+| Created_tmp_tables      | 500   |
++-------------------------+-------+
+-- 使用了内存临时表时，Created_tmp_tables状态变量+1
+-- 使用了磁盘临时表时，Created_tmp_disk_tables状态变量+1
+```
+
+
+
+
+
 
 
 ## 高效加载数据
@@ -6228,68 +5783,6 @@ CPU瓶颈	数据完全存放在内存 或 磁盘读速度很快
 原本是内存不足 -> Mysql频繁地读写缓存 -> IO容量不足
 
 在发现瓶颈时需要思考是否由其他原因导致
-
-
-
-
-
-# 千万级数据量的优化方案
-
-
-
-
-
-## 数据库分区
-
-
-
-- 数据库分区是把一张表的数据`分在了不同的硬盘`上，但仍是一张表，说硬盘可能不完全准确，但就这样理解是最容易的。
-- 不要把数据库分区和分库分表混淆，一个是`数据库级别`的操作，一个是`代理工具`的操作，前者限制较多，后者更灵活。
-
-
-
-```mysql
--- 按照年份对订单表进行分区,查询时只要查一年的数据
-ALTER TABLE orders
-PARTITION BY RANGE(YEAR(order_date)) (
-    PARTITION p2022 VALUES LESS THAN (2023),
-    PARTITION p2023 VALUES LESS THAN (2024)
-);
-```
-
-
-
-分区方案的可行性受限于查询的业务逻辑
-
-1. 如果出现了不带分区字段的查询逻辑, 分区就失效了
-2. 查询字段可能不适合作为分区字段, 某些条件的过滤度可能太细, 也可能太粗, 这样分区后的数据量会存在太大的差异
-3. MySQL的分区存在特殊限制, 分区字段必须是唯一索引的一部分
-
-所以分区适用的场景非常少, 难以定位分区字段. 但优化方案比较简单, 只需一行sql
-
-
-
-## 冷热分离
-
-把`活跃数据`和`非活跃数据`区分开，一热一冷，频率高的查询只操作热数据，频率低的只操作冷数据
-
-
-
-对于数据量不算太大的场景下, 可以新建一张**冷表**, 通过定时任务把热数据不断同步到冷表中, 这样数据还是在同一个库中
-
-但并不建议用**冷库**, 这样会遇到跨库查询的问题
-
-
-
-在查询条件比较复杂, 甚至要关联好多张表的情况下, 冷热分离并不能带来明显的性能优化, 这时候要去考虑读写分离
-
-
-
-
-
-
-
-
 
 
 
@@ -6344,7 +5837,55 @@ GROUP BY bill_no; --group优先于order执行. 会导致group后的结果无法�
 
 
 
+## 千万级数据量的优化方案
 
+
+
+
+
+### 数据库分区
+
+
+
+- 数据库分区是把一张表的数据`分在了不同的硬盘`上，但仍是一张表，说硬盘可能不完全准确，但就这样理解是最容易的。
+- 不要把数据库分区和分库分表混淆，一个是`数据库级别`的操作，一个是`代理工具`的操作，前者限制较多，后者更灵活。
+
+
+
+```mysql
+-- 按照年份对订单表进行分区,查询时只要查一年的数据
+ALTER TABLE orders
+PARTITION BY RANGE(YEAR(order_date)) (
+    PARTITION p2022 VALUES LESS THAN (2023),
+    PARTITION p2023 VALUES LESS THAN (2024)
+);
+```
+
+
+
+分区方案的可行性受限于查询的业务逻辑
+
+1. 如果出现了不带分区字段的查询逻辑, 分区就失效了
+2. 查询字段可能不适合作为分区字段, 某些条件的过滤度可能太细, 也可能太粗, 这样分区后的数据量会存在太大的差异
+3. MySQL的分区存在特殊限制, 分区字段必须是唯一索引的一部分
+
+所以分区适用的场景非常少, 难以定位分区字段. 但优化方案比较简单, 只需一行sql
+
+
+
+### 冷热分离
+
+把`活跃数据`和`非活跃数据`区分开，一热一冷，频率高的查询只操作热数据，频率低的只操作冷数据
+
+
+
+对于数据量不算太大的场景下, 可以新建一张**冷表**, 通过定时任务把热数据不断同步到冷表中, 这样数据还是在同一个库中
+
+但并不建议用**冷库**, 这样会遇到跨库查询的问题
+
+
+
+在查询条件比较复杂, 甚至要关联好多张表的情况下, 冷热分离并不能带来明显的性能优化, 这时候要去考虑读写分离
 
 
 
