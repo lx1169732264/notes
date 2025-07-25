@@ -1260,16 +1260,12 @@ Select substr(email,1,instr(email,’@’,)-1) from 表
 | CONNECTION_ID()                                              | 返回唯一的连接 ID                                            | `SELECT CONNECTION_ID(); -> 4292835`                         |
 | CONV(x,f1,f2)                                                | 返回 f1 进制数变成 f2 进制数                                 | `SELECT CONV(15, 10, 2); -> 1111`                            |
 | CONVERT(s USING cs)                                          | 函数将字符串 s 的字符集变成 cs                               | `SELECT CHARSET('ABC') ->utf-8     SELECT CHARSET(CONVERT('ABC' USING gbk)) ->gbk` |
-| CURRENT_USER()                                               | 返回当前用户                                                 | `SELECT CURRENT_USER(); -> guest@%`                          |
 | DATABASE()                                                   | 返回当前数据库名                                             | `SELECT DATABASE();    -> runoob`                            |
 | IF(expr,v1,v2)                                               | 如果表达式 expr 成立，返回结果 v1；否则，返回结果 v2。       | `SELECT IF(1 > 0,'正确','错误')     ->正确`                  |
 | [IFNULL(v1,v2)](https://www.runoob.com/mysql/mysql-func-ifnull.html) | 如果 v1 的值不为 NULL，则返回 v1，否则返回 v2。              | `SELECT IFNULL(null,'Hello Word') ->Hello Word`              |
 | ISNULL(expression)                                           | 判断表达式是否为 NULL                                        | `SELECT ISNULL(NULL); ->1`                                   |
 | LAST_INSERT_ID()                                             | 返回最近生成的 AUTO_INCREMENT 值                             | `SELECT LAST_INSERT_ID(); ->6`                               |
 | NULLIF(expr1, expr2)                                         | 比较两个字符串，如果字符串 expr1 与 expr2 相等 返回 NULL，否则返回 expr1 | `SELECT NULLIF(25, 25); ->`                                  |
-| SESSION_USER()                                               | 返回当前用户                                                 | `SELECT SESSION_USER(); -> guest@%`                          |
-| SYSTEM_USER()                                                | 返回当前用户                                                 | `SELECT SYSTEM_USER(); -> guest@%`                           |
-| USER()                                                       | 返回当前用户                                                 | `SELECT USER(); -> guest@%`                                  |
 
 
 
@@ -3051,13 +3047,12 @@ lock in share model 读锁，不回表则不会对聚簇索引(主键索引)加�
 
 LOCK_INSERT_INTENTION
 
-==属于间隙锁的一种类型==,**不会阻塞任何锁,只会被间隙锁阻塞**,相比于X锁,能让更多事务并发运行
+==属于间隙锁的一种类型==,在插入数据之前, **对索引区间的某个插入位置加X模式的意向锁, 并阻塞相同位置的其他意向锁**, 用于解决间隙内插入的并发问题,不能避免幻读
 
-**针对间隙范围内的行锁,插入间隙中的不同位置则兼容**,==解决间隙内插入的并发问题,不能避免幻读==
+> 没有插入意向锁时,当前索引上有4,8两条数据，并发插入6，7,会分别为(4,8)加上插入意向锁，但插入位置不同, 所以不会互斥
+>
 
 
-
-没有插入意向锁时,当前索引上有4,8，并发插入6，7,会分别为(4,8)加上Gap锁，但Gap属于X锁,导致互斥
 
 引入插入意向锁,将锁的粒度变得更细了,[同一个Gap的插入意向锁互相兼容](#锁兼容性)
 
