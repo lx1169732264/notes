@@ -1382,26 +1382,25 @@ FactoryBean：用来创建比较复杂的bean
 
 
 
-|      | BeanFactory             | ApplicationContext       |
-| ---- | ----------------------- | ------------------------ |
-|      | 懒加载(调用getBean()时) | 启动容器时一次性创建全部 |
-|      |                         | 支持国际化               |
-|      | 不支持基于依赖的注解    | 支持基于依赖的注解       |
-|      |                         | 统一的资源文件读取方式   |
+|            | BeanFactory               | ApplicationContext               |
+| ---------- | ------------------------- | -------------------------------- |
+| bean实例化 | 调用`getBean`时**懒加载** | 启动容器时**预加载**所有单例bean |
+| i18n国际化 | 不支持                    | 支持                             |
+| 事件发布   | 不支持                    | ApplicationEventPublisher        |
+| 注解支持   | 不支持（如 `@Autowired`） | 支持                             |
+|            |                           | 统一的资源文件读取方式           |
 
 
 
-BeanFactory和ApplicationContext的优缺点分析：
+BeanFactory是最低级的容器接口，提供最简单的 DI 功能, 追求**轻量化和低开销**
 
-BeanFactory的优缺点：
+@Autowired属于高级特性, 需要依赖BeanPostProcessor后处理器. 而这些处理器是ApplicationContext初始化时自动注册的, 属于容器的高级特性. 所以BeanFactory不支持注解
 
-- 优点：应用启动的时候占用资源很少，对资源要求较高的应用，比较有优势；
-- 缺点：运行速度会相对来说慢一些。而且有可能会出现空指针异常的错误，而且通过Bean工厂创建的Bean生命周期会简单一些。
+ApplicationContext的扩展能力`AutowiredAnnotationBeanPostProcessor`
 
-ApplicationContext的优缺点：
+- **`ApplicationContext`** 是增强版容器，支持企业级特性. 预加载可以在启动时就发现系统的配置问题
 
-- 优点：所有的Bean在启动的时候都进行了加载，系统运行的速度快；在系统启动的时候，可以发现系统中的配置问题。
-- 缺点：把费时的操作放到系统启动中完成，所有的对象都可以预加载，缺点就是内存占用较大。
+
 
 
 
