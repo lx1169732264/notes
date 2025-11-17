@@ -3429,7 +3429,7 @@ public final boolean release(int arg) {
 
 
 
-AQS基于==模板方法==,**围绕state提供get/set + 双向队列存放阻塞线程 + 预设的获取/释放锁方法**
+AQS基于==模板方法==,**围绕state提供get/set + 双向队列存放阻塞线程 + 预设的获取/释放锁方法**, status也代表了锁的**重入次数**
 
 在自定义AQS同步器时,需要重写:
 
@@ -3441,18 +3441,6 @@ isHeldExclusively() //该线程是否正在独占资源。只有用到condition�
 
 //AQS中的其他方法都是 final,只有这几个方法可以被其他类重写
 //一般来说，自定义同步器要么是独占方法，要么是共享方式，只需实现`tryAcquire-tryRelease`、`tryAcquireShared-tryReleaseShared`中的一种即可。但 AQS 也支持自定义同步器同时实现独占和共享两种方式，如`ReentrantReadWriteLock`
-```
-
-
-
-### acquireSharedInterruptibly
-
-```java
-public final void acquireSharedInterruptibly(int arg) throws InterruptedException {
-    if (Thread.interrupted()) throw new InterruptedException();
-    if (tryAcquireShared(arg) < 0)
-        doAcquireSharedInterruptibly(arg);
-}
 ```
 
 
@@ -7638,7 +7626,7 @@ JVM运行时数据区是对JMM的具体实现, 侧重于存储Java程序运行�
 
 包含: 主内存变量的临时副本
 
-工作内存通常映射到**OS层面的CPU 缓存(L1/L2), 寄存器, 写缓冲区**, 但这是 JVM 的实现细节，而非 JMM 的强制要求
+工作内存通常映射到**OS层面的CPU 缓存(L1/L2), 寄存器, 写缓冲区**, 但这是 JVM 的实现细节，而非JMM规范
 
 
 
@@ -7671,9 +7659,7 @@ JVM运行时数据区是对JMM的具体实现, 侧重于存储Java程序运行�
 
 直接内存不属于JMM内存模型, 也不在JVM规范的运行时数据区, 它是**JVM实现层面的扩展功能**
 
-专指通过NIO的 `ByteBuffer.allocateDirect()` 分配的堆外内存. NIO是基于通道与缓存区的I/O方式, 通过存储在堆中的 DirectByteBuffer 对象作为这块内存的引用进行操作,**避免了在 Java 堆和 Native 堆之间来回复制数据**
-
-
+专指通过NIO的 `ByteBuffer.allocateDirect()` 分配的[堆外内存](#堆外内存). NIO是基于通道与缓存区的I/O方式, 通过存储在堆中的 DirectByteBuffer 对象作为这块内存的引用进行操作,**避免了在Java堆和操作系统内核之间来回复制数据**
 
 
 
@@ -7712,27 +7698,9 @@ Java 内存模型保证 read、load、use、assign、store、write、lock 和 un
 
 
 
-
-
-将内存间的交互操作简化为 3 个：load、assign、store
-
-下图演示了两个线程同时对 cnt 进行操作，load、assign、store 这一系列操作整体上看不具备原子性，那么在 T1 修改 cnt 并且还没有将修改后的值写入主内存，T2 依然可以读入旧值。可以看出，这两个线程虽然执行了两次自增运算，但是主内存中 cnt 的值最后为 1 而不是 2。因此对 int 类型读写操作满足原子性只是说明 load、assign、store 这些单个操作具备原子性
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/2797a609-68db-4d7b-8701-41ac9a34b14f.jpg" width="300px"> </div><br>
-
-AtomicInteger 能保证多个线程修改的原子性
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/dd563037-fcaa-4bd8-83b6-b39d93a12c77.jpg" width="300px"> </div><br>
-
-
-
-除了使用原子类之外，也可以使用 synchronized 来保证操作的原子性。它对应的内存间交互操作为：lock 和 unlock，在虚拟机实现上对应的字节码指令为 monitorenter 和 monitorexit
-
-
-
 #### 可见性
 
-可通过在变量修改后将新值同步回主内存，在变量读取前从主内存刷新变量值实现可见性
+在变量读取前从主内存刷新变量值, 在变量修改后将新值同步回主内存
 
 
 
@@ -7744,7 +7712,7 @@ AtomicInteger 能保证多个线程修改的原子性
 
 #### <a name="指令重排">有序性</a>
 
-==指令重排==	JMM允许编译器和处理器对指令进行重排序，重排不影响到单线程执行的最终结果，却会影响到多线程并发执行的正确性
+==指令重排==	JMM允许编译器和处理器对指令进行重排序，重排不影响单线程执行的最终结果，却会影响多线程并发执行的正确性
 
 有3类重排
 
@@ -8089,7 +8057,12 @@ Program Counter Register
 
 
 
-**堆外内存的创建** [Unsafe](##内存操作), [ByteBuffer](#allocateDirect)
+**常见的堆外内存类型**：
+
+1. [直接内存](#直接内存), 通过[ByteBuffer](#allocateDirect)申请的堆外内存
+2. JNI分配的内存
+3. 通过**Unsafe**分配的内存
+4. 内存映射文件：通过`FileChannel.map`将文件直接映射到进程的地址空间
 
 
 
