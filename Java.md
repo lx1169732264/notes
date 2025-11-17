@@ -3213,7 +3213,7 @@ public abstract class SelectionKey {
 
  
 
-#### serialversionUID
+### serialversionUID
 
 目的是序列化对象版本控制。如果在新版本中这个值修改了，新版本就不兼容旧版本，反序列化抛出InvalidClassException。如果修改较小，比如仅仅是增加了一个属性，我们希望向下兼容，那就不用修改；如果我们删除了一个属性，或者更改了类的继承关系，必然不兼容旧数据，这时就应该手动更新版本号
 
@@ -3231,7 +3231,7 @@ public abstract class SelectionKey {
 
 
 
-#### transient
+### transient
 
 
 
@@ -3244,6 +3244,36 @@ public abstract class SelectionKey {
 一旦变量被transient修饰，变量将不再是对象持久化的一部分，该变量内容在序列化后无法获得访问。
 
 **实现Externalizable接口 ,则无视transient**
+
+
+
+### 类型改变引起的序列化问题
+
+```java
+public class User {
+	//private long id;
+	private Long id;
+}
+//反序列化时报错  InvalidClassException: local class incompatible: stream classdesc serialversionUID = 123, loal class serialversionUID = 321
+```
+
+场景User对象会被缓存到Redis中, 这种跨进程的读写数据会涉及序列化和反序列化.
+
+后续一次代码优化中, 把User类的id从long改成了Long, 也就是**改变了类结构.** 发布上线后**缓存中的历史数据在反序列化**的时, 就会因为自动生成的serialVersionUID不同而报`InvalidClassException`
+
+哪怕是手动给serialVersionUID赋固定值, 在反序列化的过程中也会因为流中的数据类型与类字段类型不兼容而报`java.io.StreamCorruptedException` 或 `ClassCastException`
+
+
+
+不过这种问题并不是必现的, 如果项目用的是**JDK序列化**, 那么JDK会**极致地压缩空间**, 以节省传输带宽的需求(不过会加大CPU的占用), 这样子序列化后的内容是一串乱码, 人类无法阅读. 这种序列化方式是不支持修改类结构的
+
+如果项目用的是**JSON序列化**, 则JSON的内容中只保留K,V的值, **对类结构的变化是很宽松**的. 目前互联网产业对CPU和存储的资源消耗并没有那么敏感了, 所以JSON序列化相较于JDK序列化有着更大的优势
+
+
+
+一种比较好的解决方案是停机发布, 写个脚本将Redis中的数据都处理一遍变成Long的缓存值, 然后再把程序发不上线
+
+
 
 
 
@@ -10673,14 +10703,15 @@ public native void park(boolean isAbsolute, long time);
 
 ==通过堆中的class对象访问到方法区中class文件== 即运行时动态获取类的方法
 
-**动态获取类信息/调用对象方法** 在运行时，对任意类，都能获取到这个类的所有属性和方法,对于任意对象，都能够调用它的任意方法和属性
+**在运行时动态获取类信息/调用对象方法** ，对任意类，都能获取到这个类的所有属性和方法,对于任意对象，都能够调用它的任意方法和属性
 
 
 
 对象存在两种类型：编译时类型和运行时类型。编译时的类型由声明对象时实用的类型来决定，运行时的类型由实际赋值给对象的类型决定
 
 ```java
-Person p=new Student(); //编译时类型Person，运行时类型Student
+Person p = new Student(); //编译时类型Person，运行时类型Student
+Class.forName("com.mysql.cj.jdbc.Driver");//通过类全路径名去创建数据库驱动
 ```
 
 * **反射解决了程序如何调用运行时类型方法的问题**
@@ -10698,6 +10729,18 @@ Person p=new Student(); //编译时类型Person，运行时类型Student
 * 反射提高了灵活性和扩展性，**低耦合**。允许**程序创建和控制任何类的对象，无需提前硬编码**目标类
 * 反射是**解释操作**，用于字段和方法接入时效率低
 * 会模糊程序内部逻辑：程序人员希望在源代码中看到程序的逻辑，反射等绕过了源代码的技术，带来维护问题
+
+
+
+**反射为什么慢**
+
+普通的方法调用可以通过编译器和JIT的优化, 可以进行很多内联的操作, 也可以快速地定位到方法的地址
+
+但反射是动态地获取类的信息, 无法在编译期间对它进行优化; 其次反射过程中会进行很多类型匹配, 全都检查完了之后才会去通过JNI执行调用. 通过`setAccessible(true)`可以减少检查的开销
+
+在JDK1.7+, 提供了`MethodHandle`类对反射的调用进行了优化, 相较于`Method#invoke`会快上十倍左右
+
+另一种优化思路是通过字节码技术, 例如`CGlib`和ByteBuddy, 这种调用基本上等同于直接调用
 
 
 
