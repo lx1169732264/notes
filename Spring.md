@@ -1800,7 +1800,7 @@ Aspect-Oriented Programming 面向切面编程
 
 # Spring事务
 
-spring会扫描bean方法上是否包含@Transactional，如果包含则为这个bean动态生成代理类，继承那个bean。并重写方法开启关闭事务
+spring会扫描bean方法上是否包含@Transactional，如果包含则为这个bean动态**生成代理子类**。并**重写方法**在方法开始前开启事务, 方法结束后提交事务
 
 
 
@@ -1808,27 +1808,54 @@ spring会扫描bean方法上是否包含@Transactional，如果包含则为这�
 
 
 
-
-
-
-
 ## 失效的场景
 
-1. 事务注解作用于类,类的非public方法
-2. 不会回滚的传播机制 PROPAGATION_SUPPORTS, PROPAGATION_NOT_SUPPORTED, PROPAGATION_NEVER
-3. rollbackFor指定了错误的异常
-4. 内部调用类的方法. 这样不会通过代理类,而是直接通过原来的bean
-5. **不能在接口上加事务注解** 由于注解不会被继承, 如果在接口类上加事务,则事务失效. 如果在接口方法上加事务, 则事务依然生效
-6. 异常被捕获
+1. **代理机制**导致失效
+   * 方法被private/final修饰, 无法被增强
+   * **类内部调用**走的是this.xxx(), 没有调用代理对象的方法
+   * 不是spring容器管理的对象, 自己new出来的对象是没有动态代理的
+   * 如果只在接口方法上加了事务注解, 实现方法上没加, 那么在走CGLIB直接注入实现类的情况下, 动态代理会失效; 注入接口类则仍然有效
+
+2. **异常机制**导致失效
+   * Spring默认只对RunTimeException回滚, 如果抛出的异常不是RunTimeException就不会回滚
+   * 异常被catch捕获并且没有重新对外抛出异常. 这对于Spring来说是感知不到异常的
+   * @Transaction(**rollbackFor**=xxx)  rollbackFor声明的异常与实际抛出的异常不符合
+3. **多线程**导致失效    
+4. **传播机制**导致失效
+   * `PROPAGATION_NOT_SUPPORTED`  方法必须在**非事务**的环境下运行, 如果外部有事务则挂起
+   * `PROPAGATION_NEVER`   必须在**非事务**的环境下运行, 如果外部有事务则抛异常
+   * `PROPAGATION_SUPPORTS`   **当前没有事务时, 以非事务的方式运行**, 若有事务则加入事务
+5. 底层数据库不支持事务, 比如Mysql的MyISAM引擎
 
 
 
-### 同一个方法调用无事务的解决方案
 
-当方法被同一个类调用的时候，spring无法将这个方法加到事务管理中。只有在代理对象之间进行调用时，可以触发切面逻辑。
 
-1. 使用 ApplicationContext 获取该对象
-2. 使用 AopContext.currentProxy() 获取代理对象,但是需要配置exposeProxy=true
+### 类内部调用事务失效的解决方案
+
+
+
+1. 使用@Autowired注入自身的bean实例
+2. 将事务**方法抽取**为单独的Service方法(**最推荐**)
+3. 将@Transactional注解加在类级别上, 但这会导致所有public方法都会被事务管理
+4. 使用`ApplicationContext`获取bean
+5. 使用 `AopContext#currentProxy`获取代理对象, 但是需要配置exposeProxy=true
+
+```java
+@Configuration
+@EnableAspectJAutoProxy(exposeProxy = true)  // 关键配置
+@EnableTransactionManagement
+public class AppConfig {
+}
+
+@Service
+public class UserService {
+    public void batchCreateUsers(List<User> users) {
+        // 获取当前代理对象
+        UserService proxy = (UserService) AopContext.currentProxy();
+    }
+}
+```
 
 
 
@@ -1957,21 +1984,17 @@ public interface TransactionStatus {
 
 
 
-### 同一个类中的方法调用
 
 
+### 错误的异常捕获而导致的UnexpectedRollbackException
 
-### catch了异常
-
-> A调用B
+> 场景: A调用B, B方法内部抛了异常，A catch了B方法的异常，并没有继续对外抛出新的异常
 >
-> B方法内部抛了异常，Acatch了B方法的异常，此时B回滚,A不回滚
->
-> UnexpectedRollbackException: Transaction rolled back because it has been marked as rollback-only
+> 此时最终结果为事务没有被提交, 控制台报错: UnexpectedRollbackException: Transaction rolled back because it has been marked as rollback-only
 
 
 
-当`Service B`抛出异常后，`Service B`标识当前事务需要rollback。但`Service A`中catch异常并进行处理，`Service A`正常`commit`。就出现了前后不一致，抛出`UnexpectedRollbackException`
+当B抛出异常后，会标识当前事务为`rollback-only`。但A中捕获异常后, 又去做提交事务的操作, 此时校验发现事务被标记为需要回滚，就会抛出`UnexpectedRollbackException`
 
 `spring`事务在调用方法之前开始，方法执行完毕之后才执行`commit` / `rollback`，**事务是否提交取决于是否抛出`runtime异常`**。如果抛出`runtime exception` 并在方法中没有catch，则回滚
 
@@ -1985,14 +2008,15 @@ public interface TransactionStatus {
 
 ## 传播机制
 
-| 支持当前事务   | REQUIRED 默认 | 加入外层/新建事务                           | 一起回滚                              |
-| -------------- | ------------- | ------------------------------------------- | ------------------------------------- |
-|                | SUPPORT       | 加入外层/无事务                             |                                       |
-|                | MANDATORY     | 加入外层/抛异常                             |                                       |
-| 不支持当前事务 | REQUIRES_NEW  | 新建事务,外层挂起                           | 独立回滚                              |
-|                | NOT_SUPPORT   | 非事务执行内层,外层挂起                     |                                       |
-|                | NEVER         | 非事务执行内层,外层有事务就抛异常           |                                       |
-| 混沌中立       | NESTED        | 外层有事务则加入外层,无事务则与REQUIRED一致 | 外层回滚则一起回滚,子事务可以单独回滚 |
+|                   | 对当前事务的支持 |                                             |                                       |
+| ----------------- | ---------------- | ------------------------------------------- | ------------------------------------- |
+| **REQUIRED 默认** | 支持当前事务     | 加入外层/新建事务                           | 一起回滚                              |
+| SUPPORT           |                  | 加入外层/无事务                             |                                       |
+| MANDATORY         |                  | 加入外层/抛异常                             |                                       |
+| REQUIRES_NEW      | 不支持当前事务   | 新建事务,外层挂起                           | 独立回滚                              |
+| NOT_SUPPORT       |                  | 非事务执行内层,外层挂起                     |                                       |
+| NEVER             |                  | 非事务执行内层,外层有事务就抛异常           |                                       |
+| NESTED            | 混沌中立         | 外层有事务则加入外层,无事务则与REQUIRED一致 | 外层回滚则一起回滚,子事务可以单独回滚 |
 
 
 
@@ -2028,25 +2052,15 @@ public interface TransactionDefinition {
 
 
 
-# IOC
+# 容器
 
-Ioc—Inversion of Control 控制反转	将对象的控制权交给了第三方的IOC容器
+IOC	Inversion of Control 控制反转		将对象的控制权交给了容器
 
-IoC 容器是存放各种对象的Map，在项目启动的时候会读取配置文件里面的bean节点，根据全限定类名使用反射new对象放到map里，再通过DI注入
+DI	  Dependency Injection 依赖注入	 使用@AutoWired/@Resource等注解, 或使用构造器去获得容器中的对象
 
-
-
-## DI
-
-DI—Dependency Injection 依赖注入
-
-组件间依赖关系由容器在运行期决定，即由容器动态的将依赖关系注入到组件之中
-
-应用程序的对象 需要IoC容器提供对象需要的 外部资源(对象、资源、常量数据)
+IoC和DI是同一个概念的不同角度描述, IOC偏向于用设计理念的角度去解释容器的控制反转, DI是面向技术使用角度去描述如何使用容器中的bean对象
 
 
-
-IoC和DI是同一个概念的不同角度描述
 
 
 
@@ -2076,7 +2090,25 @@ finishBeanFactoryInitialization(beanFactory);
 
 
 
-# 一些重要的类
+# 配置文件的读取顺序
+
+后加载的配置会==覆盖==之前加载的配置值
+
+|                      | bootstrap.yml                       | application.yml       |
+| :------------------- | :---------------------------------- | :-------------------- |
+| **加载顺序**         | 先加载                              | 后加载                |
+| **上下文**           | 父 ApplicationContext               | 子 ApplicationContext |
+| **主要用途**         | 引导配置、**连接配置中心/注册服务** | 应用业务配置          |
+| **Spring Cloud**     | 必需                                | 可选                  |
+| **普通 Spring Boot** | 很少使用                            | 主要配置              |
+
+
+
+通常会将连接配置中心/服务中心的配置放到`bootstrap.yml`, 因为这些基础设施的初始化要早于`application.yml`的的加载
+
+> 新版本的SpringCloud才支持读取`application.yml`去连接配置中心
+
+如果只是单体应用, 没有用到配置中心, 也可以只配置`application.yml`
 
 
 
