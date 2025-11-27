@@ -459,12 +459,12 @@ ImmutableList.<String>builder().add("a").add("b").build();
 
 
 
-| 集合类            | Key            | Value          | Super       | 说明            |
-| ----------------- | -------------- | -------------- | ----------- | --------------- |
-| Hashtable         | 不允许null     | 不允许null     | Dictionary  | 安全            |
-| ConcurrentHashMap | **不允许null** | **不允许null** | AbstractMap | 锁分段技术(CAS) |
-| TreeMap           | 不允许null     | **允许null**   | AbstractMap | 不安全          |
-| HashMap           | **允许null**   | **允许null**   | AbstractMap | 不安全          |
+| 集合类            | Key            | Value          | 父类        | 线程安全                 | 迭代器行为                     |
+| ----------------- | -------------- | -------------- | ----------- | ------------------------ | ------------------------------ |
+| Hashtable         | 不允许null     | 不允许null     | Dictionary  | 安全                     | **快速失败 - Fail-Fast**       |
+| ConcurrentHashMap | **不允许null** | **不允许null** | AbstractMap | 安全, CAS + synchronized | **弱一致性**, 能容忍并发的修改 |
+| TreeMap           | 不允许null     | **允许null**   | AbstractMap | 不安全                   |                                |
+| HashMap           | **允许null**   | **允许null**   | AbstractMap | 不安全                   |                                |
 
 
 
@@ -986,15 +986,17 @@ CAS + synchronized + Node + 红黑树
 
 分段桶,**锁只加在数组头节点**，粒度小，并发高
 
-==不接受空key/value==  Map#get返回null时,存在二义性: 可能是key不存在, 也可能是value为null. 在不考虑多线程的HashMap场景下, 可以通过contains(key)来判断key是否存在. 在多线程的场景下, 在调用完contains后, map有可能会被其他线程改动 (无法保证符合操作的原子性), 所以ConcurrentHashMap禁止了null来规避二义性
+==不接受空key/value==  Map#get返回null时,存在二义性: 可能是key不存在, 也可能是value为null. 在不考虑多线程的HashMap场景下, 可以通过contains(key)来判断key是否存在. 在多线程的场景下, 在调用完contains后, map有可能会被其他线程改动 (无法保证复合操作的原子性), 所以ConcurrentHashMap禁止了null来规避二义性
 
 
 
 ![](image.assets/ConcurrentHashMap.png)
 
-1.7- 锁定Segment
+1.7- 锁定Segment(分段锁)
 
-jdk1.8+ 锁定Node头节点，减小锁粒度;还支持CAS,在CAS失败时使用内置锁 synchronized. **不支持加锁独占访问**
+jdk1.8+ 舍弃了分段锁, 改用**CAS + synchronized**去锁定**桶数组**的**Node**头节点，如果CAS成功则不加锁, CAS失败则尝试用synchronized加锁
+
+
 
 
 
@@ -1711,6 +1713,10 @@ private final void tryPresize(int size) {
     }
 }
 ```
+
+
+
+
 
 
 
@@ -4233,11 +4239,17 @@ ExecutorCompletionService和都支持提交一批任务后,获取任务结果,�
 
 ### 线程模型
 
+用户线程是JVM自己维护的线程对象, 它的状态切换并不会带来很大的消耗
+
+**内核线程**是真正与操作系统内核交互的线程, 我们常说的"线程上下文切换消耗大"指的是内核线程的切换
+
+
+
 **1:1线程模型**
 
 ==JVM线程和OS线程是1:1的关系==, 调用`Thread#start`会为thread对象创建对应的OS线程
 
-用户线程的状态切换需要调用系统内核切换OS线程的状态, **开销大**
+**用户线程的状态切换需要调用系统内核切换OS线程的状态**, **开销大**
 
 **用户线程的阻塞会导致OS线程的阻塞**(用户线程的阻塞无法被OS线程感知和优化)
 
@@ -4249,9 +4261,13 @@ ExecutorCompletionService和都支持提交一批任务后,获取任务结果,�
 
 Java21正式发布了虚拟线程的新特性, 可以将大量的JVM线程对应到少量的OS线程(通常等于CPU核心数)
 
-用户线程切换状态的过程基本只发生在用户空间, 不影响OS线程的状态
+**用户线程切换状态的过程基本只发生在用户空间**, 不影响OS线程的状态
 
 一个OS线程会被若干个用户线程共享, 但用户线程的阻塞是需要调用内核将OS线程阻塞的, 这就导致**用户线程的阻塞将阻塞其他用户线程**
+
+<img src="image.assets/内核级线程.png" style="zoom: 67%;" />
+
+
 
 
 
@@ -6400,23 +6416,9 @@ final boolean transferForSignal(Node node) {
 
 ## ThreadPool
 
-
-
 **降低创建/销毁对象的资源消耗**,管理线程个数/活跃数,调优和监控
 
 线程池在内部构建了生产者消费者模型，将线程和任务两者解耦，并不直接关联，从而良好的缓冲任务，复用线程
-
-<img src="image.assets/内核级线程.png" style="zoom: 67%;" />
-
-**内核级线程**是真正与操作系统内核交互的线程,存在上下文切换等性能消耗
-
-new Thread 用户级:内核级 = 1:1
-
-线程池	用户级:内核级 = n:1
-
-线程池减少了内核级线程的数量,从而无需大量的创建/切换线程
-
-
 
 
 
@@ -6456,36 +6458,6 @@ CachedThreadPool,核心线程数量0,不会有核心线程存活阻止线程池�
    Fixed/SingleThreadPool请求队列长度固定，会堆积大量的请求，导致OOM
 
    CachedThreadPool允许的创建线程数量为Integer.MAX_VALUE，导致OOM
-
-
-
-### 7个参数
-
-corePoolSize 核心线程数量	**核心线程可以被重复使用**
-
-maximumPoolSize 最大线程数量
-
-keepAliveTime 非核心线程在空闲后的存活时间, 若当前的线程数量>corePoolSize，空闲线程会被自动销毁
-
-unit 时间单位
-
-workQueue 工作队列
-
-threadFactory 线程工厂,用来设定线程名、是否为daemon线程
-
-handler 拒绝策略
-
-```java
-public ThreadPoolExecutor(int corePoolSize,
-                          int maximumPoolSize,
-                          long keepAliveTime,
-                          TimeUnit unit,
-                          BlockingQueue<Runnable> workQueue,
-                          ThreadFactory threadFactory,
-                          RejectedExecutionHandler handler
-```
-
-
 
 
 
