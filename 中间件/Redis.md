@@ -492,6 +492,7 @@ Zset增加了一个**权重参数score**，实现有序排列,还支持通过sco
 | ZINTERSTORE destination numkeys key1 key2 ... | 将给定所有有序集合的交集存储在 destination 中，对相同元素对应的 score 值进行 SUM 聚合操作，numkeys 为集合数量 |
 | ZUNIONSTORE destination numkeys key1 key2 ... | 求并集，其它和 ZINTERSTORE 类似                              |
 | ZDIFFSTORE destination numkeys key1 key2 ...  | 求差集，其它和 ZINTERSTORE 类似                              |
+| **ZINCRBY** key score                         | 给元素**增加分数**                                           |
 | **ZRANGE** key start end [WITHSCORES]         | 获取start到end之间的元素, WITHSCORES为可选项, 代表score也会一起返回 |
 | ZREVRANGE key start end                       | ZRANGE的倒序                                                 |
 
@@ -1425,8 +1426,6 @@ redlock在发生进程/线程/时钟的**大延迟**之后,会出现以下三个
 缓存可能是查询n张表运算出来的数据,计算比较耗时, 直接删除能够避免拉长当前事务的执行时间
 
 先删除缓存再读数据库这个方案不可行, 在并发场景下会出现数据库还没来得及更新,就又被读出来当缓存了
-
-
 
 
 

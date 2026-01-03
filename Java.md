@@ -459,12 +459,19 @@ ImmutableList.<String>builder().add("a").add("b").build();
 
 
 
-| 集合类            | Key            | Value          | 父类        | 线程安全                 | 迭代器行为                     |
-| ----------------- | -------------- | -------------- | ----------- | ------------------------ | ------------------------------ |
-| Hashtable         | 不允许null     | 不允许null     | Dictionary  | 安全                     | **快速失败 - Fail-Fast**       |
-| ConcurrentHashMap | **不允许null** | **不允许null** | AbstractMap | 安全, CAS + synchronized | **弱一致性**, 能容忍并发的修改 |
-| TreeMap           | 不允许null     | **允许null**   | AbstractMap | 不安全                   |                                |
-| HashMap           | **允许null**   | **允许null**   | AbstractMap | 不安全                   |                                |
+|            | HashMap               | Hashtable      | ConcurrentHashMap              | TreeMap           |
+| ---------- | --------------------- | -------------- | ------------------------------ | ----------------- |
+| 允许null   | **键值允许为空**      | 不允许null     | **不允许null**                 | 只有key不允许null |
+| 父类       | AbstractMap           | **Dictionary** | AbstractMap                    | AbstractMap       |
+| 线程安全   | 不安全                | 安全           | 安全, CAS + synchronized       | 不安全            |
+| 迭代器行为 | **Fail-Fast快速失败** | Fail-Fast      | **弱一致性**, 能容忍并发的修改 |                   |
+| 读并发     | 高                    | 低, 串行化     | **高, 无锁**                   |                   |
+| 写并发     |                       | 不支持         | 高(桶之间并行)                 |                   |
+|            |                       |                |                                |                   |
+
+
+
+
 
 
 
@@ -988,21 +995,46 @@ CAS + synchronized + Node + 红黑树
 
 ==不接受空key/value==  Map#get返回null时,存在二义性: 可能是key不存在, 也可能是value为null. 在不考虑多线程的HashMap场景下, 可以通过contains(key)来判断key是否存在. 在多线程的场景下, 在调用完contains后, map有可能会被其他线程改动 (无法保证复合操作的原子性), 所以ConcurrentHashMap禁止了null来规避二义性
 
+链表长度超过阈值（8）且数组长度达到最小树化容量（64），则转换为**红黑树**
+
+**弱一致性**	`size`/`isEmpty`返回的是近似值, `get`可能取到修改前的值等等. 这些都是为了性能而做的权衡; 而HashTable会锁住整个Map来获取准确的值
+
 
 
 ![](image.assets/ConcurrentHashMap.png)
 
 1.7- 锁定Segment(分段锁)
 
-jdk1.8+ 舍弃了分段锁, 改用**CAS + synchronized**去锁定**桶数组**的**Node**头节点，如果CAS成功则不加锁, CAS失败则尝试用synchronized加锁
+jdk1.8+ 舍弃了分段锁, 改用**CAS + synchronized**去锁定**桶数组**的**Node**头节点，在插入元素时, 如果桶为空则用CAS进行插入, 桶不为空则直接调用synchronized加锁
+
+> **为什么放弃分段锁**
+>
+> 1. 新版的synchronized经过了大量优化, 性能已经接近轻量级锁
+> 2. 分段锁的内存开销较大
+> 3. 分段锁的并发度固定为段数，不够灵活。新方案能动态适应并发需求
+
+```java
+if (桶为空) {
+    // CAS插入：乐观锁，无锁化操作
+    casTabAt(tab, i, null, new Node<K,V>(hash, key, value))
+} else {
+    synchronized (桶的头节点) {
+        // 链表或红黑树操作
+        if (链表长度 > 8 && 数组长度 >= 64) {
+            链表转红黑树 // O(n) -> O(log n)
+        }
+    }
+}
+```
 
 
 
+CAS的使用场景
 
-
-对于在整个map上进行计算的size(),isEmpty(),并不会锁住整个map进行计算,所以它的返回值在计算过程中可能已经过期了,只能当做一个近似值
-
-而HashTable,synchronizedMap则提供了获得Map的锁来访问map的方式,这种情况下能获得精确值,但损失了性能.只有在需要对整个Map进行加锁独占访问时才考虑使用
+1. 初始化桶数组  `initTable()` 使用CAS设置sizeCtl
+2. 空桶插入  `casTabAt`
+3. 更新值    在某些特定条件下
+4. 扩容协助时
 
 
 
@@ -1248,7 +1280,18 @@ static final int spread(int h) {
 
 #### get
 
+`get`是用volatile语义去保证可见性, 从而**无需加锁**
+
+如果读取时正好遇上了扩容/put等操作, 则可能读到稍微过时的数据, 这是**弱一致性**的体现
+
 ```java
+static class Node<K,V> implements Map.Entry<K,V> {
+    final int hash;
+    final K key;
+    volatile V val;        // ⭐关键：volatile 保证可见性！
+    volatile Node<K,V> next; // ⭐关键：volatile 保证可见性！
+}
+
 public V get(Object key) {
   Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
     int h = spread(key.hashCode());
@@ -7465,11 +7508,70 @@ public void println(int x) {
 
 
 
+## 两个线程交替打印a,b
+
+利用CyclicBarrier的同步机制, 让两个线程共同完成打印的操作, 虽然这个方法并不是严格意义上的让两个线程去"交替"打印, 不过思路是好的
+
+```java
+public static void main(String[] args) {
+    CyclicBarrier a = new CyclicBarrier(2, () -> System.out.println('a'));
+    CyclicBarrier b = new CyclicBarrier(2, () -> System.out.println('b'));
+    
+    new Thread(() -> processPrint(a, b)).start();
+    new Thread(() -> processPrint(a, b)).start();
+}
+
+private static void processPrint(CyclicBarrier a, CyclicBarrier b) {
+    int num = 50;
+    while (num-- >= 1) {
+        try {
+            a.await();  // 等待两个线程都到达屏障a，然后打印'a'
+            b.await();  // 等待两个线程都到达屏障b，然后打印'b'
+        } catch (InterruptedException | BrokenBarrierException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+```
 
 
 
+LockSupport的park/unpark去实现交替打印
 
+```java
+public class AlternatePrintLockSupport {
+    private static AtomicInteger count = new AtomicInteger(0);
+    private static Thread threadA = null;
+    private static Thread threadB = null;
 
+    public static void main(String[] args) {
+        threadA = new Thread(() -> {
+            for (int i = 0; i < 50; i++) {
+                while (count.get() % 2 != 0) {
+                    LockSupport.park();
+                }
+                System.out.println("a");
+                count.incrementAndGet();
+                LockSupport.unpark(threadB);
+            }
+        });
+
+        threadB = new Thread(() -> {
+            for (int i = 0; i < 50; i++) {
+                while (count.get() % 2 != 1) {
+                    LockSupport.park();
+                }
+                System.out.println("b");
+                count.incrementAndGet();
+                LockSupport.unpark(threadA);
+            }
+        });
+
+        threadA.start();
+        threadB.start();
+    }
+}
+```
 
 
 
